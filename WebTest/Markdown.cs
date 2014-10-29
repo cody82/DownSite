@@ -134,7 +134,7 @@ namespace CustomMarkdownSharp
     public class Markdown
     {
         //Mono's RegEx is very limited and can't support avg-sized Markdown documents
-        public static bool UseMarkdownDeep = ServiceStack.Text.Env.IsMono || true; 
+        public static bool UseMarkdownDeep = false;//ServiceStack.Text.Env.IsMono || true; 
 
         private const string _version = "1.13";
 
@@ -1075,15 +1075,46 @@ namespace CustomMarkdownSharp
             url = EncodeProblemUrlChars(url);
             url = EscapeBoldItalic(url);
 
-            result = string.Format("<img src=\"{0}\" alt=\"{1}\"", url, alt);
-
-            if (!String.IsNullOrEmpty(title))
+            //HACK (cody)
+            if (alt == "youtube")
             {
-                title = EscapeBoldItalic(title);
-                result += string.Format(" title=\"{0}\"", title);
+                result = string.Format(@"<div class=""video-container"">
+<iframe width=""640"" height=""360"" src=""//www.youtube.com/embed/{0}"" frameborder=""0""> </iframe>
+</div>", url);
+            }
+            else if (alt == "thumb")
+            {
+                result = string.Format("<a target=\"_blank\" href=\"{0}\"><img src=\"{0}?thumb\" alt=\"{1}\"", url, alt);
+
+                if (!String.IsNullOrEmpty(title))
+                {
+                    title = EscapeBoldItalic(title);
+                    result += string.Format(" title=\"{0}\"", title);
+                }
+
+                {
+                    result += string.Format(" class=\"{0}\"", "img-rounded");
+                }
+                result += _emptyElementSuffix;
+                result += "</a>";
+            }
+            else
+            {
+                result = string.Format("<img src=\"{0}\" alt=\"{1}\"", url, alt);
+
+                if (!String.IsNullOrEmpty(title))
+                {
+                    title = EscapeBoldItalic(title);
+                    result += string.Format(" title=\"{0}\"", title);
+                }
+
+                //if (alt == "")
+                {
+                    result += string.Format(" class=\"{0}\"", "img-responsive img-rounded");
+                }
+                result += _emptyElementSuffix;
             }
 
-            result += _emptyElementSuffix;
 
             return result;
         }
