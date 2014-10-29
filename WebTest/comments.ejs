@@ -1,0 +1,16 @@
+<table>
+  <% this.forEach(function(row){ %>
+	<tr>
+    <td>
+      <input class="delete" id="<%= row.Id %>" type="checkbox"/>
+    </td>
+		<td><%= row.Id %></td>
+		<td><%= row.FirstName %></td>
+    <td>
+      <% if(row.ImageId != "00000000000000000000000000000000") { %>
+      <a href="/Image/<%= row.ImageId %>"><img src="/Image/<%= row.ImageId %>?thumb"/></a>
+      <% } %>
+    </td>
+	</tr>
+  <% }) %>
+</table>
