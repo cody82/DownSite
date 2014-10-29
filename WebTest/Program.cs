@@ -47,6 +47,11 @@ namespace WebTest
         public byte[] Data { get; set; }
     };
 
+    [Route("/Images", "GET")]
+    public class Images : IReturn<Guid[]>
+    {
+    };
+
     public class CustomCredentialsAuthProvider : CredentialsAuthProvider
     {
         public override bool TryAuthenticate(IServiceBase authService, string userName, string password)
@@ -192,6 +197,12 @@ namespace WebTest
             }
             return new HttpResult(System.Net.HttpStatusCode.NotFound, "No image with that ID.");
         }
+
+        [AddHeader(ContentType = MimeTypes.Json)]
+        public object Get(Images request)
+        {
+            return PersonRepository.db.Select<Image>().ToArray().Select(x => x.Id).ToArray();
+        }
     }
 
     public class PersonsService : Service
@@ -244,16 +255,23 @@ namespace WebTest
             db.Insert<Person>(new Person() { Id = Guid.NewGuid(), ImageId = pic2, FirstName = "cody1", LastName = "test", Age = 37 });
             db.Insert<Person>(new Person() { Id = Guid.NewGuid(), FirstName = "cody2", LastName = "test", Age = 34 });
 
-            Guid article;
-            db.Insert<Article>(new Article() { Id = article = Guid.NewGuid(), Content = "-CONTENT-", AuthorId = person1, Created = DateTime.Now, Title = "page1", VersionGroup = Guid.NewGuid() });
 
+            string content = string.Format(@"-CONTENT-
+
+![](/Image/{0})
+
+![youtube](cxBcHLylFbw)", pic1);
+
+            Guid article;
+            db.Insert<Article>(new Article() { Id = article = Guid.NewGuid(), Content = content, AuthorId = person1, Created = DateTime.Now, Title = "page1", VersionGroup = Guid.NewGuid() });
+            /*
             db.Insert<Part>(new Part() { Id = Guid.NewGuid(), ArticleId = article, Html = "<h1>HelloThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg g</h1>", Number = 1 });
             db.Insert<Part>(new Part() { Id = Guid.NewGuid(), ArticleId = article, ImageId = pic1, Number = 2 });
             db.Insert<Part>(new Part() { Id = Guid.NewGuid(), ArticleId = article, Html = "<h2>There rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg g</h2>", Number = 3 });
             db.Insert<Part>(new Part() { Id = Guid.NewGuid(), ArticleId = article, ImageId = pic2, Number = 4 });
             db.Insert<Part>(new Part() { Id = Guid.NewGuid(), ArticleId = article, Html = "<br/>", Number = 5 });
             db.Insert<Part>(new Part() { Id = Guid.NewGuid(), ArticleId = article, Youtube = "cxBcHLylFbw", Number = 6 });
-
+            */
             var p = db.Select<Person>().OrderBy(y => y.Age);
         }
 

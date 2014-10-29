@@ -1,0 +1,13 @@
+<table>
+  <% this.forEach(function(row){ %>
+	<tr>
+    <td>
+      <input class="delete" id="<%= row %>" type="checkbox"/>
+    </td>
+		<td>![](/Image/<%= row %>)</td>
+    <td>
+      <a target="_blank" href="/Image/<%= row %>"><img src="/Image/<%= row %>?thumb"/></a>
+    </td>
+	</tr>
+  <% }) %>
+</table>

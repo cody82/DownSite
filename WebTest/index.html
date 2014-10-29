@@ -30,13 +30,13 @@
 
 
 	    $(document).ready(function () {
-	        new EJS({ url: '/comments.ejs' }).update('element_id', '/Persons?format=json');
+	        //new EJS({ url: '/comments.ejs' }).update('element_id', '/Persons?format=json');
 	        check_auth();
 	        //$.getJSON( "/lorem.json", function( data ) {
 	        article_html("page1", function (html) {
 	            $('#article_id').html(html);
 	        });
-	        add_article();
+	        //add_article();
 	    });
         
 	    function check_auth() {
@@ -195,6 +195,7 @@
 
 
     <div class="container">
+        <!--
 <div id="element_id" class="row">
 </div>
 
@@ -205,10 +206,10 @@
 
 
 
-
     <input id="fileupload" type="file" name="files[]" data-url="upload/" multiple>
 <div id="upload_result">
 </div>
+        -->
 
         
 <div id="article_id" class="row">

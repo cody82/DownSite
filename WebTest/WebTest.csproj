@@ -95,6 +95,10 @@
     <None Include="fonts\glyphicons-halflings-regular.woff">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="images.ejs">
+      <SubType>Designer</SubType>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="packages.config" />
     <None Include="upload\.gitignore">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

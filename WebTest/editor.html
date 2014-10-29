@@ -4,9 +4,11 @@
 <head>
     <meta charset="utf-8" />
     <script src="/js/jquery-2.1.1.min.js"></script>
+    <script type="text/javascript" src="js/ejs.js"></script>
     <style type="text/css">
 html { height:100%; }
 body { position:absolute; top:0; bottom:0; right:0; left:0; }
+#images{ overflow:auto }
 </style>
     <title></title>
 </head>
@@ -63,21 +65,52 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
             });
         }
 
+        function load_images() {
+            new EJS({ url: '/images.ejs' }).update('images', '/Images?format=json');
+        };
+
         $(document).ready(function () {
             get_article(QueryString.article, function(article)
             {
                 $('#article_title').val(article.Title);
                 $('#article_content').val(article.Content);
             });
+            load_images();
         });
 
     </script>
+<script src="upload/js/vendor/jquery.ui.widget.js"></script>
+<script src="upload/js/jquery.iframe-transport.js"></script>
+<script src="upload/js/jquery.fileupload.js"></script>
+<script>
+    $(function () {
+        $('#fileupload').fileupload({
+            dataType: 'json',
+            done: function (e, data) {
+                //$('#upload_result').html('<img src="/Image/' + data.result.Guid + '?thumb"></img>');
+                //$('#input_image_guid').val(data.result.Guid);
+                load_images();
+                //$.each(data.result.files, function (index, file) {
+                //    $('<p/>').text(file.name).appendTo(document.body);
+                //});
+            }
+        });
+    });
+</script>
 
 
 <div style="float:left;width:49%;height:100%">
 <input id="article_title" type="text"></input><br />
-<textarea style="width:100%;min-height:300px" id="article_content" ></textarea>
+<textarea style="width:100%;height:40%" id="article_content" ></textarea>
 <input type="button" value="save" onclick="save_article()"/>
+    <div id="images" style="width:100%;height:400px;overflow:auto">
+
+    </div>
+        <input id="fileupload" type="file" name="files[]" data-url="upload/" multiple>
+<!--<div id="upload_result">
+</div>-->
+
+
     </div>
 
 <iframe id="preview" src="/" style="float:right;width:49%;height:100%">
