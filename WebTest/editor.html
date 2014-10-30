@@ -65,12 +65,40 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
             });
         }
 
+        function ejs_update(ejs_url, id, source_url) {
+            $.ajax({
+                type: "GET",
+                url: source_url,
+                //processData: false,
+                success: function (r) {
+                    //callback(r);
+                    new EJS({ url: ejs_url }).update(id, r);
+                }
+            });
+        }
+
+        function get_images(callback) {
+            $.ajax({
+                type: "GET",
+                url: "/Images?format=json",
+                //processData: false,
+                success: function (r) {
+                    callback(r);
+                }
+            });
+        }
+
         function load_select() {
-            new EJS({ url: '/articles-options.ejs' }).update('article_select', '/Articles?format=json');
+            //new EJS({ url: '/articles-options.ejs' }).update('article_select', '/Articles?format=json');
+            ejs_update('/articles-options.ejs', 'article_select', "/Articles?format=json");
         }
 
         function load_images() {
-            new EJS({ url: '/images.ejs' }).update('images', '/Images?format=json');
+            //new EJS({ url: '/images.ejs' }).update('images', '/Images?format=json');
+            //get_images(function (r) {
+            //    new EJS({ url: '/images.ejs' }).update('images', r);
+            //});
+            ejs_update('/images.ejs', 'images', "/Images?format=json");
         };
 
         function load_article() {
