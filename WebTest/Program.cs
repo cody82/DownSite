@@ -45,6 +45,8 @@ namespace WebTest
         [PrimaryKey]
         public Guid Id { get; set; }
         public byte[] Data { get; set; }
+        public string MimeType { get; set; }
+        public string FileName { get; set; }
     };
 
     [Route("/Images", "GET")]
@@ -161,8 +163,12 @@ namespace WebTest
             if(file == null)
                 return new HttpError(System.Net.HttpStatusCode.InternalServerError, "File missing.");
 
+            var mimetypes = new string[] { MimeTypes.ImageJpg, "video/webm", MimeTypes.ImagePng, MimeTypes.ImageGif };
+            if(!mimetypes.Contains(file.ContentType))
+                return new HttpError(System.Net.HttpStatusCode.InternalServerError, string.Format("Unknown file type: {0}.", file.ContentType));
+
             Guid pic1;
-            PersonRepository.db.Insert<Image>(new Image() { Id = pic1 = Guid.NewGuid(), Data = file.InputStream.ReadFully() });
+            PersonRepository.db.Insert<Image>(new Image() { Id = pic1 = Guid.NewGuid(), Data = file.InputStream.ReadFully(), MimeType = file.ContentType });
 
             return new UploadResult(){ Guid= pic1};
         }
@@ -180,7 +186,20 @@ namespace WebTest
                 //Response.AddHeader(HttpHeaders.LastModified, DateTime.Now.ToSqliteDateString());
                 if (!Request.AbsoluteUri.EndsWith("?thumb"))
                 {
-                    return new HttpResult(img.Data, MimeTypes.ImageJpg);
+                    byte[] data = img.Data;
+                    if (Request.Headers.AllKeys.Contains("Range"))
+                    {
+                        string range = Request.Headers["Range"];
+                        Console.WriteLine(range);
+                        var split = range.Split('=')[1].Split('-');
+                        int start = int.Parse(split[0]);
+                        Console.WriteLine(start);
+                        data = new byte[img.Data.Length - start];
+                        Console.WriteLine(data.Length);
+                        Array.Copy(img.Data, start, data, 0, data.Length);
+                        Console.WriteLine("ok");
+                    }
+                    return new HttpResult(data, string.IsNullOrWhiteSpace(img.MimeType) ? MimeTypes.ImageJpg : img.MimeType) { AllowsPartialResponse = false };
                 }
                 else
                 {
@@ -190,7 +209,7 @@ namespace WebTest
                         {
                             var mem = new MemoryStream();
                             thumb.Save(mem, System.Drawing.Imaging.ImageFormat.Jpeg);
-                            return new HttpResult(mem, MimeTypes.ImageJpg);
+                            return new HttpResult(mem, MimeTypes.ImageJpg) { AllowsPartialResponse = false };
                         }
                     }
                 }
@@ -247,8 +266,8 @@ namespace WebTest
             //db.Close();
 
             Guid pic1, pic2;
-            db.Insert<Image>(new Image() { Id = pic1 = Guid.NewGuid(), Data = new FileInfo("acf7eede5be5aa69.jpg").ReadFully() });
-            db.Insert<Image>(new Image() { Id = pic2 = Guid.NewGuid(), Data = new FileInfo("e3939e928899550f.jpg").ReadFully() });
+            db.Insert<Image>(new Image() { Id = pic1 = Guid.NewGuid(), Data = new FileInfo("acf7eede5be5aa69.jpg").ReadFully(), MimeType = MimeTypes.ImageJpg });
+            db.Insert<Image>(new Image() { Id = pic2 = Guid.NewGuid(), Data = new FileInfo("e3939e928899550f.jpg").ReadFully(), MimeType = MimeTypes.ImageJpg });
 
             Guid person1;
             db.Insert<Person>(new Person() { Id = person1 = Guid.NewGuid(), ImageId = pic1, UserName = "cody", Password = "cody", FirstName = "cody", LastName = "test", Age = 32 });

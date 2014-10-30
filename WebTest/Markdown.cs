@@ -1082,6 +1082,10 @@ namespace CustomMarkdownSharp
 <iframe width=""640"" height=""360"" src=""//www.youtube.com/embed/{0}"" frameborder=""0""> </iframe>
 </div>", url);
             }
+            else if (alt == "video")
+            {
+                result = string.Format(@"<video class=""img-responsive"" src=""{0}"" controls/>", url);
+            }
             else if (alt == "thumb")
             {
                 result = string.Format("<a target=\"_blank\" href=\"{0}\"><img src=\"{0}?thumb\" alt=\"{1}\"", url, alt);
