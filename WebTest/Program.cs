@@ -163,12 +163,12 @@ namespace WebTest
             if(file == null)
                 return new HttpError(System.Net.HttpStatusCode.InternalServerError, "File missing.");
 
-            var mimetypes = new string[] { MimeTypes.ImageJpg, "video/webm", MimeTypes.ImagePng, MimeTypes.ImageGif };
+            var mimetypes = new string[] { MimeTypes.ImageJpg, "video/webm", MimeTypes.ImagePng, MimeTypes.ImageGif, "video/mp4" };
             if(!mimetypes.Contains(file.ContentType))
                 return new HttpError(System.Net.HttpStatusCode.InternalServerError, string.Format("Unknown file type: {0}.", file.ContentType));
 
             Guid pic1;
-            PersonRepository.db.Insert<Image>(new Image() { Id = pic1 = Guid.NewGuid(), Data = file.InputStream.ReadFully(), MimeType = file.ContentType });
+            PersonRepository.db.Insert<Image>(new Image() { Id = pic1 = Guid.NewGuid(), Data = file.InputStream.ReadFully(), MimeType = file.ContentType, FileName = file.FileName });
 
             return new UploadResult(){ Guid= pic1};
         }
@@ -178,11 +178,10 @@ namespace WebTest
     {
         public object Get(Image request)
         {
-            Console.WriteLine(Thread.CurrentThread.ManagedThreadId);
             var img = PersonRepository.db.Select<Image>(x => x.Id == request.Id).SingleOrDefault();
             if (img != null)
             {
-                Response.AddHeader(HttpHeaders.CacheControl, "max-age=" + TimeSpan.FromMinutes(1).TotalSeconds);
+                //Response.AddHeader(HttpHeaders.CacheControl, "max-age=" + TimeSpan.FromMinutes(1).TotalSeconds);
                 //Response.AddHeader(HttpHeaders.LastModified, DateTime.Now.ToSqliteDateString());
                 if (!Request.AbsoluteUri.EndsWith("?thumb"))
                 {
@@ -194,15 +193,24 @@ namespace WebTest
                         var split = range.Split('=')[1].Split('-');
                         int start = int.Parse(split[0]);
                         Console.WriteLine(start);
-                        data = new byte[img.Data.Length - start];
-                        Console.WriteLine(data.Length);
-                        Array.Copy(img.Data, start, data, 0, data.Length);
-                        Console.WriteLine("ok");
+                        if (start != 0)
+                        {
+                            data = new byte[img.Data.Length - start];
+                            Console.WriteLine(data.Length);
+                            Array.Copy(img.Data, start, data, 0, data.Length);
+                            Console.WriteLine("ok");
+                        }
                     }
                     return new HttpResult(data, string.IsNullOrWhiteSpace(img.MimeType) ? MimeTypes.ImageJpg : img.MimeType) { AllowsPartialResponse = false };
                 }
                 else
                 {
+                    var mimetypes = new string[] { MimeTypes.ImageJpg, MimeTypes.ImagePng, MimeTypes.ImageGif};
+                    if (!mimetypes.Contains(img.MimeType))
+                    {
+                        return new HttpResult(System.Net.HttpStatusCode.NotFound, string.Format("No thumbnails for type {0}.", img.MimeType));
+                    }
+
                     using (Bitmap bmp = new Bitmap(new MemoryStream(img.Data)))
                     {
                         using (var thumb = bmp.GetThumbnailImage(80, 80, null, IntPtr.Zero))
