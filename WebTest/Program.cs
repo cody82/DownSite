@@ -143,9 +143,9 @@ namespace WebTest
 
 
     [Route("/upload")]
-    public class Upload : IReturn<UploadResult>
+    public class Upload : IReturn<UploadResult>, IRequiresRequestStream
     {
-        
+        public Stream RequestStream { get; set; }
     }
 
     public class UploadService : Service
@@ -160,14 +160,37 @@ namespace WebTest
         {
             var file = Request.Files.FirstOrDefault();
 
-            if(file == null)
-                return new HttpError(System.Net.HttpStatusCode.InternalServerError, "File missing.");
-
+            Guid pic1;
             var mimetypes = new string[] { MimeTypes.ImageJpg, "video/webm", MimeTypes.ImagePng, MimeTypes.ImageGif, "video/mp4" };
+            if (file == null)
+            {
+                if(request.RequestStream == null)
+                    return new HttpError(System.Net.HttpStatusCode.InternalServerError, "File missing.");
+
+                if (mimetypes.Contains(Request.ContentType))
+                {
+                    string filename = null;
+                    if (Request.Headers.AllKeys.Contains("Content-Disposition"))
+                    {
+                        string content = Request.Headers["Content-Disposition"];
+                        string search = "filename=\"";
+                        content = content.Substring(content.IndexOf(search) + search.Length).Trim('"');
+                        filename = content;
+                    }
+
+                    var data = request.RequestStream.ReadFully();
+
+                    PersonRepository.db.Insert<Image>(new Image() { Id = pic1 = Guid.NewGuid(), Data = data, MimeType = Request.ContentType, FileName = filename });
+
+                    return new UploadResult() { Guid = pic1 };
+                }
+                else
+                    return new HttpError(System.Net.HttpStatusCode.InternalServerError, string.Format("Unknown file type: {0}.", file.ContentType));
+            }
+
             if(!mimetypes.Contains(file.ContentType))
                 return new HttpError(System.Net.HttpStatusCode.InternalServerError, string.Format("Unknown file type: {0}.", file.ContentType));
 
-            Guid pic1;
             PersonRepository.db.Insert<Image>(new Image() { Id = pic1 = Guid.NewGuid(), Data = file.InputStream.ReadFully(), MimeType = file.ContentType, FileName = file.FileName });
 
             return new UploadResult(){ Guid= pic1};

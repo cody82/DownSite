@@ -152,6 +152,7 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
 <script>
     $(function () {
         $('#fileupload').fileupload({
+            multipart: false,
             dataType: 'json',
             done: function (e, data) {
                 //$('#upload_result').html('<img src="/Image/' + data.result.Guid + '?thumb"></img>');
