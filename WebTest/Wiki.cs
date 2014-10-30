@@ -74,33 +74,55 @@ namespace WebTest
         public int Number { get; set; }
         public Guid ArticleId { get; set; }
     }
-
-    [Route("/articles/{Title}")]
+    /*
+    [Route("/article/{Title}")]
     public class ArticleRequest : IReturn<string>
     {
         public string Title { get; set; }
+    }*/
+
+    [Route("/Articles")]
+    public class ArticleListRequest : IReturn<Article[]>
+    {
     }
 
     public class ArticleService : Service
     {
         public object Get(Article request)
         {
-            var a = PersonRepository.db.Single<Article>(x => x.Title == request.Title);
+            Guid guid;
+            if (Guid.TryParse(request.Title, out guid))
+                request.Id = guid;
+
+            var html = Request.AbsoluteUri.EndsWith("?html");
+            if (html)
+                return GetHtml(request);
+
+            var a = PersonRepository.db.Single<Article>(x => x.Title == request.Title || x.Id == request.Id);
 
             return a;
         }
 
-        [AddHeader(ContentType=MimeTypes.Html)]
-        public object Get(ArticleRequest request)
+        public Article[] Get(ArticleListRequest request)
+        {
+            var list = PersonRepository.db.Select<Article>();
+            return list.ToArray();
+        }
+
+        //[AddHeader(ContentType = MimeTypes.Html)]
+        public object GetHtml(Article request)
         {
             var preview = Request.AbsoluteUri.EndsWith("?preview");
 
-            var article = PersonRepository.db.Single<Article>(x => x.Title == request.Title);
+            var article = PersonRepository.db.Single<Article>(x => x.Title == request.Title || x.Id == request.Id);
+            if (article == null)
+                return new HttpResult(HttpStatusCode.NotFound, "no such article.");
+
             var author = PersonRepository.db.Single<Person>(x => x.Id == article.AuthorId);
 
             var parts = PersonRepository.db.Select<Part>(x => x.ArticleId == article.Id).OrderBy(x => x.Number).ToArray();
 
-            string header = "<h1>"+article.Title+"</h1><p>" + author.UserName + ", " + article.Created + "</p>";
+            string header = "<h1>"+article.Title+"</h1><p>" + ((author != null) ? author.UserName : "unknown") + ", " + article.Created + "</p>";
             string html = "";
             string previewtext = "";
 
@@ -155,7 +177,7 @@ namespace WebTest
 
             PersonRepository.db.Insert<Article>(article);
 
-            return article.Id;
+            return article;
         }
 
         public object Post(Article article)

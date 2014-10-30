@@ -65,17 +65,56 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
             });
         }
 
+        function load_select() {
+            new EJS({ url: '/articles-options.ejs' }).update('article_select', '/Articles?format=json');
+        }
+
         function load_images() {
             new EJS({ url: '/images.ejs' }).update('images', '/Images?format=json');
         };
 
-        $(document).ready(function () {
-            get_article(QueryString.article, function(article)
-            {
+        function load_article() {
+            var article = $('#article_select').val();
+            QueryString.article = article;
+            get_article(QueryString.article, function (article) {
                 $('#article_title').val(article.Title);
                 $('#article_content').val(article.Content);
             });
+            $('#preview')[0].src = '/index.html?article=' + QueryString.article;
+        };
+        function create_article() {
+            var article = { "Title": $('#article_title').val() };
+            $.ajax({
+                type: "PUT",
+                url: "/article",// + article.Title,// + "?format=json",
+                contentType: 'application/json',
+                data: JSON.stringify(article),
+                processData: false,
+                success: function (r) {
+                    load_select();
+                    QueryString.article = r.Id;
+                    get_article(QueryString.article, function (article) {
+                        $('#article_title').val(article.Title);
+                        $('#article_content').val(article.Content);
+                    });
+                    $('#preview')[0].src = '/index.html?article=' + QueryString.article;
+                },
+                error: function (r) {
+                    alert("error");
+                }
+            });
+        };
+
+        $(document).ready(function () {
+            if (QueryString.article != undefined) {
+                get_article(QueryString.article, function (article) {
+                    $('#article_title').val(article.Title);
+                    $('#article_content').val(article.Content);
+                });
+                $('#preview')[0].src = '/index.html?article=' + QueryString.article;
+            }
             load_images();
+            load_select();
         });
 
     </script>
@@ -100,7 +139,14 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
 
 
 <div style="float:left;width:49%;height:100%">
+    <select id="article_select">
+        <!--<option name=one value=one> one </option>
+        <option name=two value=two> two </option>
+        <option name=three value=three> three </option>-->
+    </select>
 <input id="article_title" type="text"></input><br />
+<input type="button" value="load" onclick="load_article()"/>
+<input type="button" value="create" onclick="create_article()"/>
 <textarea style="width:100%;height:40%" id="article_content" ></textarea>
 <input type="button" value="save" onclick="save_article()"/>
     <div id="images" style="width:100%;height:400px;overflow:auto">
