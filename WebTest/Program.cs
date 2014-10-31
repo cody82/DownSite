@@ -184,7 +184,7 @@ namespace WebTest
 
         public static FileStream GetFile(Guid id)
         {
-            FileInfo fi = new FileInfo("files\\" + id.ToString());
+            FileInfo fi = new FileInfo(Path.Combine("files", id.ToString()));
             if (!fi.Exists)
                 return null;
             return fi.OpenRead();
@@ -192,7 +192,7 @@ namespace WebTest
 
         public static FileInfo GetFileInfo(Guid id)
         {
-            FileInfo fi = new FileInfo("files\\" + id.ToString());
+            FileInfo fi = new FileInfo(Path.Combine("files", id.ToString()));
             if (!fi.Exists)
                 return null;
             return fi;
