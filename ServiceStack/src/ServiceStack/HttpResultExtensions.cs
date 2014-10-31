@@ -92,7 +92,22 @@ namespace ServiceStack
             response.StatusCode = (int)HttpStatusCode.PartialContent;
             response.SetContentLength(rangeEnd - rangeStart + 1);
         }
-        
+
+        static int GetGoodBufferSize(Stream s)
+        {
+            try
+            {
+                var l = (int)Math.Min(1024 * 1024, s.Length);
+                if (l <= 0)
+                    return 1024 * 8;
+                return l;
+            }
+            catch
+            {
+                return 32 * 1024;
+            }
+        }
+
         /// <summary>
         /// Writes partial range as specified by start-end, from fromStream to toStream.
         /// </summary>
@@ -103,7 +118,9 @@ namespace ServiceStack
                     "Sending Range Responses requires a seekable stream eg. FileStream or MemoryStream");
 
             long totalBytesToSend = end - start + 1;
-            const int bufferSize = 0x1000;
+            // too small buffer limits download speed
+            //const int bufferSize = 0x1000;
+            int bufferSize = GetGoodBufferSize(fromStream);
             var buffer = new byte[bufferSize];
             long bytesRemaining = totalBytesToSend;
 

@@ -9,6 +9,21 @@ namespace ServiceStack
 {
     public static class StreamExtensions
     {
+        public static int GetGoodBufferSize(Stream s)
+        {
+            try
+            {
+                var l = (int)Math.Min(1024 * 1024, s.Length);
+                if (l <= 0)
+                    return 1024 * 8;
+                return l;
+            }
+            catch
+            {
+                return DefaultBufferSize;
+            }
+        }
+
         public static long WriteTo(this Stream inStream, Stream outStream)
         {
             var memoryStream = inStream as MemoryStream;
@@ -18,7 +33,10 @@ namespace ServiceStack
                 return memoryStream.Position;
             }
 
-            var data = new byte[4096];
+            // 4096 limits download speed!
+            //var data = new byte[4096];
+            var data = new byte[GetGoodBufferSize(inStream)];
+            
             long total = 0;
             int bytesRead;
 
@@ -50,7 +68,8 @@ namespace ServiceStack
         /// @jonskeet: Collection of utility methods which operate on streams.
         /// r285, February 26th 2009: http://www.yoda.arachsys.com/csharp/miscutil/
         /// </summary>
-        const int DefaultBufferSize = 8 * 1024;
+        //const int DefaultBufferSize = 8 * 1024;
+        const int DefaultBufferSize = 32 * 1024;
 
         /// <summary>
         /// Reads the given stream up to the end, returning the data as a byte
@@ -58,7 +77,7 @@ namespace ServiceStack
         /// </summary>
         public static byte[] ReadFully(this Stream input)
         {
-            return ReadFully(input, DefaultBufferSize);
+            return ReadFully(input, GetGoodBufferSize(input));
         }
 
         /// <summary>
@@ -116,7 +135,7 @@ namespace ServiceStack
         /// </summary>
         public static long CopyTo(this Stream input, Stream output)
         {
-            return CopyTo(input, output, DefaultBufferSize);
+            return CopyTo(input, output, GetGoodBufferSize(input));
         }
 
         /// <summary>
