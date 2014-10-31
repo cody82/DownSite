@@ -67,7 +67,7 @@ namespace WebTest
     };
 
     [Route("/Images", "GET")]
-    public class Images : IReturn<Guid[]>
+    public class Images : IReturn<Image[]>
     {
     };
 
@@ -290,7 +290,7 @@ namespace WebTest
         [AddHeader(ContentType = MimeTypes.Json)]
         public object Get(Images request)
         {
-            return PersonRepository.db.Select<Image>().ToArray().Select(x => x.Id).ToArray();
+            return PersonRepository.db.Select<Image>().ToArray();
         }
     }
 

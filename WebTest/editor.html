@@ -77,17 +77,6 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
             });
         }
 
-        function get_images(callback) {
-            $.ajax({
-                type: "GET",
-                url: "/Images?format=json",
-                //processData: false,
-                success: function (r) {
-                    callback(r);
-                }
-            });
-        }
-
         function load_select() {
             //new EJS({ url: '/articles-options.ejs' }).update('article_select', '/Articles?format=json');
             ejs_update('/articles-options.ejs', 'article_select', "/Articles?format=json");

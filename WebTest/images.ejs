@@ -2,11 +2,11 @@
   <% this.forEach(function(row){ %>
 	<tr>
     <td>
-      <input class="delete" id="<%= row %>" type="checkbox"/>
+      <input class="delete" id="<%= row.Id %>" type="checkbox"/>
     </td>
-		<td>![](/Image/<%= row %>)</td>
+		<td>![<%= function() {if(row.MimeType.substring(0,5) == 'video'){return "video";} else {return "";}}() %>](/Image/<%= row.Id %>)</td>
     <td>
-      <a target="_blank" href="/Image/<%= row %>"><img src="/Image/<%= row %>?thumb"/></a>
+      <a target="_blank" href="/Image/<%= row.Id %>"><img src="/Image/<%= row.Id %>?thumb"/></a>
     </td>
 	</tr>
   <% }) %>
