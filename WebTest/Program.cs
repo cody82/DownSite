@@ -18,6 +18,7 @@ using System.Web;
 using System.Threading;
 using ServiceStack.Auth;
 using ServiceStack.Caching;
+using System.Diagnostics;
 
 
 namespace WebTest
@@ -192,16 +193,23 @@ namespace WebTest
 
         public static FileInfo GetFileInfo(Guid id)
         {
-            FileInfo fi = new FileInfo(Path.Combine("files", id.ToString()));
+            return GetFileInfo(id.ToString());
+        }
+        public static FileInfo GetFileInfo(string filename)
+        {
+            FileInfo fi = new FileInfo(Path.Combine("files", filename));
             if (!fi.Exists)
                 return null;
             return fi;
         }
-
         public static void PutFile(Guid id, Stream s)
         {
+            PutFile(id.ToString(), s);
+        }
+        public static void PutFile(string filename, Stream s)
+        {
             var dir = GetFileDir();
-            using(FileStream fs = new FileStream(Path.Combine(dir.FullName,id.ToString()),FileMode.Create))
+            using (FileStream fs = new FileStream(Path.Combine(dir.FullName, filename), FileMode.Create))
             {
                 s.WriteTo(fs);
             }
@@ -229,10 +237,6 @@ namespace WebTest
                         filename = content;
                     }
 
-                    //var data = request.RequestStream.ReadFully();
-
-                    //PersonRepository.db.Insert<Image>(new Image() { Id = pic1 = Guid.NewGuid(), Data = data, MimeType = Request.ContentType, FileName = filename });
-                    //PersonRepository.db.Insert<Image>(new Image() { Id = pic1 = Guid.NewGuid(), Data = data, MimeType = Request.ContentType, FileName = filename });
                     Image.Save(pic1, PersonRepository.db, Request.ContentType, filename, request.RequestStream);
 
                     return new UploadResult() { Guid = pic1 };
@@ -244,10 +248,37 @@ namespace WebTest
             if(!mimetypes.Contains(file.ContentType))
                 return new HttpError(System.Net.HttpStatusCode.InternalServerError, string.Format("Unknown file type: {0}.", file.ContentType));
 
-            //PersonRepository.db.Insert<Image>(new Image() { Id = pic1 = Guid.NewGuid(), Data = file.InputStream.ReadFully(), MimeType = file.ContentType, FileName = file.FileName });
             Image.Save(pic1, PersonRepository.db, Request.ContentType, file.FileName, file.InputStream);
 
             return new UploadResult(){ Guid= pic1 };
+        }
+    }
+
+    public class FFMpeg
+    {
+        public static bool MakeThumbnail(string input, string output)
+        {
+            // https://trac.ffmpeg.org/wiki/Scaling%20%28resizing%29%20with%20ffmpeg
+            /*  Sometimes there is a need to scale the input image in such way it fits into a specified rectangle, i.e. if you have a placeholder (empty rectangle) in which you want to scale any given image. This is a little bit tricky, since you need to check the original aspect ratio, in order to decide which component to specify and to set the other component to -1 (to keep the aspect ratio). For example, if we would like to scale our input image into a rectangle with dimensions of 320x240, we could use something like this:
+
+                ffmpeg -i input.jpg -vf scale="'if(gt(a,4/3),320,-1)':'if(gt(a,4/3),-1,240)'" output_320x240_boxed.png
+            */
+            ProcessStartInfo psi = new ProcessStartInfo("ffmpeg", string.Format(@"-i ""{0}"" -vframes 1 -vf scale=""'if(gt(a,1),80,-1)':'if(gt(a,1),-1,80)'"" ""{1}""", input, output))
+            {
+                CreateNoWindow = true,
+                UseShellExecute = false
+            };
+
+            try
+            {
+                var p = Process.Start(psi);
+                p.WaitForExit();
+                return p.ExitCode == 0;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 
@@ -264,21 +295,34 @@ namespace WebTest
                 }
                 else
                 {
-                    var mimetypes = new string[] { MimeTypes.ImageJpg, MimeTypes.ImagePng, MimeTypes.ImageGif};
-                    if (!mimetypes.Contains(img.Item1.MimeType))
+                    string thumb = img.Item2.FullName + "-thumb.jpg";
+                    if (File.Exists(thumb))
                     {
-                        return new HttpResult(System.Net.HttpStatusCode.NotFound, string.Format("No thumbnails for type {0}.", img.Item1.MimeType));
+                        return new HttpResult(new FileInfo(thumb), MimeTypes.ImageJpg) { };
                     }
 
-                    using (var fs = img.Item2.OpenRead())
+                    var mimetypes = new string[] { MimeTypes.ImageJpg, MimeTypes.ImagePng, MimeTypes.ImageGif};
+
+                    if (!mimetypes.Contains(img.Item1.MimeType))
                     {
-                        using (Bitmap bmp = new Bitmap(fs))
+                        if (FFMpeg.MakeThumbnail(img.Item2.FullName, thumb))
                         {
-                            using (var thumb = bmp.GetThumbnailImage(80, 80, null, IntPtr.Zero))
+                            return new HttpResult(new FileInfo(thumb), MimeTypes.ImageJpg) { };
+                        }
+                        else
+                            return new HttpResult(System.Net.HttpStatusCode.NotFound, string.Format("No thumbnails for type {0}.", img.Item1.MimeType));
+                    }
+                    else
+                    {
+                        using (var fs = img.Item2.OpenRead())
+                        {
+                            using (Bitmap bmp = new Bitmap(fs))
                             {
-                                var mem = new MemoryStream();
-                                thumb.Save(mem, System.Drawing.Imaging.ImageFormat.Jpeg);
-                                return new HttpResult(mem, MimeTypes.ImageJpg) { AllowsPartialResponse = false };
+                                using (var thumb2 = bmp.GetThumbnailImage(80, 80, null, IntPtr.Zero))
+                                {
+                                    thumb2.Save(thumb, System.Drawing.Imaging.ImageFormat.Jpeg);
+                                    return new HttpResult(new FileInfo(thumb), MimeTypes.ImageJpg) { };
+                                }
                             }
                         }
                     }
@@ -327,43 +371,45 @@ namespace WebTest
             x.TestFixtureSetUp();
             OrmLiteConfig.DialectProvider = SqliteOrmLiteDialectProvider.Instance;
             //ConnectionString = ":memory:";
-            db = x.OpenDbConnection(@"db.sqlite3");
 
-            db.CreateTable<Person>(true);
-            db.CreateTable<Image>(true);
-            db.CreateTable<Article>(true);
-            db.CreateTable<Part>(true);
-            if(Directory.Exists("files"))
-                Directory.Delete("files", true);
-            //db.Close();
+            string dbfile = @"db.sqlite3";
+            bool init = !File.Exists(dbfile);
+            db = x.OpenDbConnection(dbfile);
+            if (init)
+            {
+                db.CreateTable<Person>(true);
+                db.CreateTable<Image>(true);
+                db.CreateTable<Article>(true);
+                db.CreateTable<Part>(true);
+                if (Directory.Exists("files"))
+                    Directory.Delete("files", true);
 
+                Guid pic1 = Guid.NewGuid(), pic2 = Guid.NewGuid();
+                Image.Save(pic1, db, MimeTypes.ImageJpg, "acf7eede5be5aa69.jpg", new FileInfo("acf7eede5be5aa69.jpg").OpenRead());
+                Image.Save(pic2, db, MimeTypes.ImageJpg, "e3939e928899550f.jpg", new FileInfo("e3939e928899550f.jpg").OpenRead());
 
-            Guid pic1 = Guid.NewGuid(), pic2 = Guid.NewGuid();
-            Image.Save(pic1, db, MimeTypes.ImageJpg, "acf7eede5be5aa69.jpg", new FileInfo("acf7eede5be5aa69.jpg").OpenRead());
-            Image.Save(pic2, db, MimeTypes.ImageJpg, "e3939e928899550f.jpg", new FileInfo("e3939e928899550f.jpg").OpenRead());
+                Guid person1;
+                db.Insert<Person>(new Person() { Id = person1 = Guid.NewGuid(), ImageId = pic1, UserName = "cody", Password = "cody", FirstName = "cody", LastName = "test", Age = 32 });
+                db.Insert<Person>(new Person() { Id = Guid.NewGuid(), ImageId = pic2, FirstName = "cody1", LastName = "test", Age = 37 });
+                db.Insert<Person>(new Person() { Id = Guid.NewGuid(), FirstName = "cody2", LastName = "test", Age = 34 });
 
-            Guid person1;
-            db.Insert<Person>(new Person() { Id = person1 = Guid.NewGuid(), ImageId = pic1, UserName = "cody", Password = "cody", FirstName = "cody", LastName = "test", Age = 32 });
-            db.Insert<Person>(new Person() { Id = Guid.NewGuid(), ImageId = pic2, FirstName = "cody1", LastName = "test", Age = 37 });
-            db.Insert<Person>(new Person() { Id = Guid.NewGuid(), FirstName = "cody2", LastName = "test", Age = 34 });
-
-
-            string content = string.Format(@"-CONTENT-
+                string content = string.Format(@"-CONTENT-
 
 ![](/Image/{0})
 
 ![youtube](cxBcHLylFbw)", pic1);
 
-            Guid article;
-            db.Insert<Article>(new Article() { Id = article = Guid.NewGuid(), Content = content, AuthorId = person1, Created = DateTime.Now, Title = "page1", VersionGroup = Guid.NewGuid() });
-            /*
-            db.Insert<Part>(new Part() { Id = Guid.NewGuid(), ArticleId = article, Html = "<h1>HelloThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg g</h1>", Number = 1 });
-            db.Insert<Part>(new Part() { Id = Guid.NewGuid(), ArticleId = article, ImageId = pic1, Number = 2 });
-            db.Insert<Part>(new Part() { Id = Guid.NewGuid(), ArticleId = article, Html = "<h2>There rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg g</h2>", Number = 3 });
-            db.Insert<Part>(new Part() { Id = Guid.NewGuid(), ArticleId = article, ImageId = pic2, Number = 4 });
-            db.Insert<Part>(new Part() { Id = Guid.NewGuid(), ArticleId = article, Html = "<br/>", Number = 5 });
-            db.Insert<Part>(new Part() { Id = Guid.NewGuid(), ArticleId = article, Youtube = "cxBcHLylFbw", Number = 6 });
-            */
+                Guid article;
+                db.Insert<Article>(new Article() { Id = article = Guid.NewGuid(), Content = content, AuthorId = person1, Created = DateTime.Now, Title = "page1", VersionGroup = Guid.NewGuid() });
+                    /*
+                    db.Insert<Part>(new Part() { Id = Guid.NewGuid(), ArticleId = article, Html = "<h1>HelloThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg g</h1>", Number = 1 });
+                    db.Insert<Part>(new Part() { Id = Guid.NewGuid(), ArticleId = article, ImageId = pic1, Number = 2 });
+                    db.Insert<Part>(new Part() { Id = Guid.NewGuid(), ArticleId = article, Html = "<h2>There rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg g</h2>", Number = 3 });
+                    db.Insert<Part>(new Part() { Id = Guid.NewGuid(), ArticleId = article, ImageId = pic2, Number = 4 });
+                    db.Insert<Part>(new Part() { Id = Guid.NewGuid(), ArticleId = article, Html = "<br/>", Number = 5 });
+                    db.Insert<Part>(new Part() { Id = Guid.NewGuid(), ArticleId = article, Youtube = "cxBcHLylFbw", Number = 6 });
+                    */
+            }
             var p = db.Select<Person>().OrderBy(y => y.Age);
         }
 
