@@ -107,21 +107,6 @@
 	            }
 	        });
 	    }
-
-	    function add_item() {
-	        var data = { "FirstName": $('#input_name').val(), "ImageId": $('#input_image_guid').val() };
-	        $.ajax({
-	            type: "POST",
-	            url: "/Person",
-	            processData: false,
-	            contentType: 'application/json',
-	            data: JSON.stringify(data),
-	            success: function (r) {
-	                //new EJS({ url: '/comments.ejs' }).update('element_id', '/Persons?format=json');
-	                ejs_update('/comments.ejs', 'element_id', '/Persons?format=json');
-	            }
-	        });
-	    }
         
 	    function article_html(name,callback) {
 	        $.ajax({
@@ -175,27 +160,6 @@
 	        });
 	    }
 
-	    function delete_item() {
-	        var items = $('.delete').filter(function (x) { return this.checked; }).map(function () { return this.id; });
-	        var count = items.length;
-	        var i = 0;
-	        items.each(function (index) {
-	            $.ajax({
-	                type: "DELETE",
-	                url: "/Persons/" + this,
-	                processData: false,
-	                contentType: 'application/json',
-	                data: "",
-	                success: function (r) {
-	                    i++;
-	                    if (count == i) {
-	                        //new EJS({ url: '/comments.ejs' }).update('element_id', '/Persons?format=json');
-	                        ejs_update('/comments.ejs', 'element_id', '/Persons?format=json');
-	                    }
-	                }
-	            });
-	        });
-	    }
 	</script>
 
     <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">

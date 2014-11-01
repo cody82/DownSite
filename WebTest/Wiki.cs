@@ -118,7 +118,7 @@ namespace WebTest
             if (article == null)
                 return new HttpResult(HttpStatusCode.NotFound, "no such article.");
 
-            var author = PersonRepository.db.Single<Person>(x => x.Id == article.AuthorId);
+            var author = PersonRepository.db.Single<User>(x => x.Id == article.AuthorId);
 
             var parts = PersonRepository.db.Select<Part>(x => x.ArticleId == article.Id).OrderBy(x => x.Number).ToArray();
 

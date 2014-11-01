@@ -19,13 +19,38 @@ using System.Threading;
 using ServiceStack.Auth;
 using ServiceStack.Caching;
 using System.Diagnostics;
+using System.Security.Cryptography;
 
 
 namespace WebTest
 {
-    [Route("/Person", "POST")]
-    [Route("/Person/{Id}", "PUT")]
-    public class Person
+    public class Util
+    {
+        public static string SHA1(string text)
+        {
+            var SHA1 = new SHA1CryptoServiceProvider();
+
+            byte[] arrayData;
+            byte[] arrayResult;
+            string result = null;
+            string temp = null;
+
+            arrayData = Encoding.ASCII.GetBytes(text);
+            arrayResult = SHA1.ComputeHash(arrayData);
+            for (int i = 0; i < arrayResult.Length; i++)
+            {
+                temp = Convert.ToString(arrayResult[i], 16);
+                if (temp.Length == 1)
+                    temp = "0" + temp;
+                result += temp;
+            }
+            return result.ToLower();
+        }
+    }
+
+    [Route("/User", "POST")]
+    [Route("/User/{Id}", "PUT")]
+    public class User
     {
         [PrimaryKey]
         public Guid Id { get; set; }
@@ -33,6 +58,7 @@ namespace WebTest
         public string LastName { get; set; }
         public string UserName { get; set; }
         public string Password { get; set; }
+        public string PlainTextPassword { get; set; }
         [Index]
         public int Age { get; set; }
 
@@ -79,7 +105,8 @@ namespace WebTest
             //Add here your custom auth logic (database calls etc)
             //Return true if credentials are valid, otherwise false
 
-            var user = PersonRepository.db.Select<Person>(x => x.UserName == userName && x.Password == password);
+            password = Util.SHA1(password);
+            var user = PersonRepository.db.Select<User>(x => x.UserName == userName && x.Password == password);
             return user.Any();
         }
 
@@ -128,14 +155,14 @@ namespace WebTest
 
     //REST Resource DTO
     [Authenticate]
-    [Route("/Persons")]
-    [Route("/Persons/{Ids}")]
-    [Route("/Persons/{Ids}", "DELETE")]
-    public class Persons : IReturn<List<Person>>
+    [Route("/Users")]
+    [Route("/Users/{Ids}")]
+    [Route("/Users/{Ids}", "DELETE")]
+    public class Users : IReturn<List<User>>
     {
         public Guid[] Ids { get; set; }
-        public Persons() { }
-        public Persons(params Guid[] ids)
+        public Users() { }
+        public Users(params Guid[] ids)
         {
             this.Ids = ids;
         }
@@ -341,21 +368,31 @@ namespace WebTest
     public class PersonsService : Service
     {
         public PersonRepository Repository { get; set; } //Injected by IOC
-        public object Get(Persons request)
+        public object Get(Users request)
         {
             return request.Ids.IsEmpty()
             ? Repository.GetAll()
             : Repository.GetByIds(request.Ids);
         }
-        public object Post(Person todo)
+        public object Post(User todo)
         {
+            if (todo.PlainTextPassword != null)
+            {
+                todo.Password = Util.SHA1(todo.PlainTextPassword);
+                todo.PlainTextPassword = null;
+            }
             return Repository.Store(todo);
         }
-        public object Put(Person todo)
+        public object Put(User todo)
         {
+            if (todo.PlainTextPassword != null)
+            {
+                todo.Password = Util.SHA1(todo.PlainTextPassword);
+                todo.PlainTextPassword = null;
+            }
             return Repository.Store(todo);
         }
-        public void Delete(Persons request)
+        public void Delete(Users request)
         {
             Repository.DeleteByIds(request.Ids);
         }
@@ -377,7 +414,7 @@ namespace WebTest
             db = x.OpenDbConnection(dbfile);
             if (init)
             {
-                db.CreateTable<Person>(true);
+                db.CreateTable<User>(true);
                 db.CreateTable<Image>(true);
                 db.CreateTable<Article>(true);
                 db.CreateTable<Part>(true);
@@ -389,9 +426,9 @@ namespace WebTest
                 Image.Save(pic2, db, MimeTypes.ImageJpg, "e3939e928899550f.jpg", new FileInfo("e3939e928899550f.jpg").OpenRead());
 
                 Guid person1;
-                db.Insert<Person>(new Person() { Id = person1 = Guid.NewGuid(), ImageId = pic1, UserName = "cody", Password = "cody", FirstName = "cody", LastName = "test", Age = 32 });
-                db.Insert<Person>(new Person() { Id = Guid.NewGuid(), ImageId = pic2, FirstName = "cody1", LastName = "test", Age = 37 });
-                db.Insert<Person>(new Person() { Id = Guid.NewGuid(), FirstName = "cody2", LastName = "test", Age = 34 });
+                db.Insert<User>(new User() { Id = person1 = Guid.NewGuid(), ImageId = pic1, UserName = "cody", Password = Util.SHA1("cody"), FirstName = "cody", LastName = "test", Age = 32 });
+                db.Insert<User>(new User() { Id = Guid.NewGuid(), ImageId = pic2, FirstName = "cody1", LastName = "test", Age = 37 });
+                db.Insert<User>(new User() { Id = Guid.NewGuid(), FirstName = "cody2", LastName = "test", Age = 34 });
 
                 string content = string.Format(@"-CONTENT-
 
@@ -410,34 +447,33 @@ namespace WebTest
                     db.Insert<Part>(new Part() { Id = Guid.NewGuid(), ArticleId = article, Youtube = "cxBcHLylFbw", Number = 6 });
                     */
             }
-            var p = db.Select<Person>().OrderBy(y => y.Age);
         }
 
-        public List<Person> GetByIds(Guid[] ids)
+        public List<User> GetByIds(Guid[] ids)
         {
-            List<Person> list = new List<Person>();
+            List<User> list = new List<User>();
             foreach (var id in ids)
             {
-                var p = db.Select<Person>().Where(x => x.Id == id).SingleOrDefault();
+                var p = db.Select<User>().Where(x => x.Id == id).SingleOrDefault();
                 if(p != null)
                     list.Add(p);
             }
             return list;
         }
-        public List<Person> GetAll()
+        public List<User> GetAll()
         {
-            return db.Select<Person>();
+            return db.Select<User>();
         }
-        public Person Store(Person todo)
+        public User Store(User todo)
         {
             if (todo.Id == Guid.Empty)
                 todo.Id = Guid.NewGuid();
-            db.Insert<Person>(todo);
+            db.Insert<User>(todo);
             return todo;
         }
         public void DeleteByIds(params Guid[] ids)
         {
-            db.DeleteByIds<Person>(ids);
+            db.DeleteByIds<User>(ids);
         }
     }
 
