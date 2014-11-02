@@ -48,8 +48,19 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
             });
         }
 
-        function save_article(name, callback) {
-            var article = { "Title": $('#article_title').val(), "Content": $('#article_content').val() };
+        function get_article_by_id(id, callback) {
+            $.ajax({
+                type: "GET",
+                url: "/article/id/" + id + "?format=json",
+                processData: false,
+                success: function (r) {
+                    callback(r);
+                }
+            });
+        }
+
+        function save_article() {
+            var article = { "Id": $('#article_select').val(), "Title": $('#article_title').val(), "Content": $('#article_content').val() };
             $.ajax({
                 type: "POST",
                 url: "/article",// + article.Title,// + "?format=json",
@@ -57,7 +68,7 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
                 data: JSON.stringify(article),
                 processData: false,
                 success: function (r) {
-                    $('#preview')[0].contentWindow.location.reload(true);
+                    $('#preview')[0].src = '/index.html?article=' + article.Title;
                 },
                 error: function (r) {
                     alert("error");
@@ -65,7 +76,7 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
             });
         }
 
-        function ejs_update(ejs_url, id, source_url) {
+        function ejs_update(ejs_url, id, source_url, callback) {
             $.ajax({
                 type: "GET",
                 url: source_url,
@@ -78,17 +89,18 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
                         url: ejs_url,
                         //processData: false,
                         success: function (r2) {
-                            //callback(r);
                             new EJS({ text: r2 }).update(id, r);
+                            if(callback)
+                                callback(r);
                         }
                     });
                 }
             });
         }
 
-        function load_select() {
+        function load_select(callback) {
             //new EJS({ url: '/articles-options.ejs' }).update('article_select', '/Articles?format=json');
-            ejs_update('/articles-options.ejs', 'article_select', "/Articles?format=json");
+            ejs_update('/articles-options.ejs', 'article_select', "/Articles?format=json", function () { load_article(); if (callback) callback();});
         }
 
         function load_images() {
@@ -100,13 +112,14 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
         };
 
         function load_article() {
-            var article = $('#article_select').val();
-            QueryString.article = article;
-            get_article(QueryString.article, function (article) {
-                $('#article_title').val(article.Title);
-                $('#article_content').val(article.Content);
-            });
-            $('#preview')[0].src = '/index.html?article=' + QueryString.article;
+            var id = $('#article_select').val();
+            if (id) {
+                get_article(id, function (article) {
+                    $('#article_title').val(article.Title);
+                    $('#article_content').val(article.Content);
+                    $('#preview')[0].src = '/index.html?article=' + article.Title;
+                });
+            }
         };
         function create_article() {
             var article = { "Title": $('#article_title').val() };
@@ -117,13 +130,16 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
                 data: JSON.stringify(article),
                 processData: false,
                 success: function (r) {
-                    load_select();
-                    QueryString.article = r.Id;
-                    get_article(QueryString.article, function (article) {
-                        $('#article_title').val(article.Title);
-                        $('#article_content').val(article.Content);
+                    load_select(function () {
+                        var id = r.Id;
+                        get_article_by_id(id, function (article) {
+                            $('#article_title').val(article.Title);
+                            $('#article_content').val(article.Content);
+                            $('#preview')[0].src = '/index.html?article=' + article.Title;
+                            $('#article_select').val(article.Id);
+                            load_article();
+                        });
                     });
-                    $('#preview')[0].src = '/index.html?article=' + QueryString.article;
                 },
                 error: function (r) {
                     alert("error");
@@ -152,8 +168,8 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
                 get_article(QueryString.article, function (article) {
                     $('#article_title').val(article.Title);
                     $('#article_content').val(article.Content);
+                    $('#preview')[0].src = '/index.html?article=' + article.Title;
                 });
-                $('#preview')[0].src = '/index.html?article=' + QueryString.article;
             }
             load_images();
             load_select();
@@ -182,13 +198,12 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
 
 
 <div style="float:left;width:49%;height:100%">
-    <select id="article_select">
+    <select id="article_select" onchange="load_article()">
         <!--<option name=one value=one> one </option>
         <option name=two value=two> two </option>
         <option name=three value=three> three </option>-->
     </select>
 <input id="article_title" type="text"></input><br />
-<input type="button" value="load" onclick="load_article()"/>
 <input type="button" value="create" onclick="create_article()"/>
 <input type="button" value="delete" onclick="delete_article()"/>
 <textarea style="width:100%;height:40%" id="article_content" ></textarea>

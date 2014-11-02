@@ -186,6 +186,8 @@ namespace WebTest
 
         public object Put(Article article)
         {
+            if (PersonRepository.db.Exists<Article>(x => x.Title == article.Title))
+                return new HttpResult(HttpStatusCode.NotFound, "article with that title already exists.");
             article.Id = Guid.NewGuid();
 
             PersonRepository.db.Insert<Article>(article);
@@ -195,8 +197,8 @@ namespace WebTest
 
         public object Post(Article article)
         {
-            var original = PersonRepository.db.Single<Article>(x => x.Title == article.Title);
-            article.Id = original.Id;
+            var original = PersonRepository.db.Single<Article>(x => x.Id == article.Id);
+            //article.Id = original.Id;
             if(article.AuthorId == Guid.Empty)
                 article.AuthorId = original.AuthorId;
             PersonRepository.db.Update<Article>(article);
