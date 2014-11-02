@@ -24,7 +24,8 @@ using HtmlAgilityPack;
 namespace WebTest
 {
     [Route("/article")]
-    [Route("/article/{Title}")]
+    [Route("/article/Id/{Id}")]
+    [Route("/article/Title/{Title}")]
     public class Article : IReturn<Article>
     {
         [PrimaryKey]
@@ -107,6 +108,18 @@ namespace WebTest
         {
             var list = PersonRepository.db.Select<Article>();
             return list.ToArray();
+        }
+
+        public object Delete(Article article)
+        {
+            if (article.Id == Guid.Empty)
+                return new HttpResult(HttpStatusCode.NotFound, "no such article.");
+
+            int count = PersonRepository.db.Delete<Article>(x => x.Id == article.Id);
+            if (count == 0)
+                return new HttpResult(HttpStatusCode.NotFound, "no such article.");
+
+            return article;
         }
 
         //[AddHeader(ContentType = MimeTypes.Html)]

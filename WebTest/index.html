@@ -111,7 +111,7 @@
 	    function article_html(name,callback) {
 	        $.ajax({
 	            type: "GET",
-	            url: "/article/"+name+"?html",
+	            url: "/article/title/"+name+"?html",
 	            processData: false,
 	            success: function (r) {
 	                callback(r);
