@@ -9,6 +9,10 @@
 html { height:100%; }
 body { position:absolute; top:0; bottom:0; right:0; left:0; }
 #images{ overflow:auto }
+.bar {
+    height: 18px;
+    background: green;
+}
 </style>
     <title></title>
 </head>
@@ -188,9 +192,10 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
             progressall: function (e, data) {
                 var progress = parseInt(data.loaded / data.total * 100, 10);
                 $('#progress').html(progress + '%');
-                //$('#progress .bar').css(
-                //    'width',
-                //    progress + '%'
+                $('#progressbar .bar').css(
+                    'width',
+                    progress + '%'
+                );
             }
         });
     });
@@ -214,6 +219,9 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
     <div>
         <input id="fileupload" type="file" name="files[]" data-url="upload/" multiple/>
         <div id="progress"></div>
+        <div id="progressbar">
+        <div class="bar" style="width: 0%;"></div>
+</div>
     </div>
 <!--<div id="upload_result">
 </div>-->
