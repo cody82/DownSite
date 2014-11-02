@@ -184,6 +184,13 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
                 //$.each(data.result.files, function (index, file) {
                 //    $('<p/>').text(file.name).appendTo(document.body);
                 //});
+            },
+            progressall: function (e, data) {
+                var progress = parseInt(data.loaded / data.total * 100, 10);
+                $('#progress').html(progress + '%');
+                //$('#progress .bar').css(
+                //    'width',
+                //    progress + '%'
             }
         });
     });
@@ -204,7 +211,10 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
     <div id="images" style="width:100%;height:400px;overflow:auto">
 
     </div>
-        <input id="fileupload" type="file" name="files[]" data-url="upload/" multiple>
+    <div>
+        <input id="fileupload" type="file" name="files[]" data-url="upload/" multiple/>
+        <div id="progress"></div>
+    </div>
 <!--<div id="upload_result">
 </div>-->
 
