@@ -87,6 +87,94 @@ namespace WebTest
     {
     }
 
+    [Route("/Blog/")]
+    public class BlogRequest : IReturn<Article[]>
+    {
+    }
+
+    public class Blog : Service
+    {
+        public object Get(BlogRequest request)
+        {
+            var blog = PersonRepository.db.Select<Article>().OrderBy(x => x.Created);
+
+            foreach (var b in blog)
+            {
+                b.Content = Preview(b.Content);
+                b.Created = DateTime.Now;
+            }
+
+            return blog.ToArray();
+        }
+
+        string Preview(string markdown)
+        {
+            string html = new CustomMarkdownSharp.Markdown().Transform(markdown);
+            HtmlDocument doc = new HtmlDocument();
+            doc.LoadHtml(html);
+
+            string text = new HtmlToText().ConvertHtml(html);
+
+
+            if (text.Length > 50)
+                text = text.Substring(0, 50);
+
+            bool br_inserted = false;
+
+            {
+                var imgs = doc.DocumentNode.SelectNodes("//img");
+                if (imgs != null)
+                {
+                    foreach (HtmlNode img in imgs)
+                    {
+                        string url = img.GetAttributeValue("src", null);
+                        if (url != null && url.Length > 1 && url[0] == '/' && url[1] != '/')
+                        {
+                            if (url.StartsWith("/Image"))
+                            {
+                                if (!url.EndsWith("?thumb"))
+                                    url += "?thumb";
+                                if (!br_inserted)
+                                {
+                                    text += "<br/>";
+                                    br_inserted = true;
+                                }
+                                text += string.Format(@"<img src=""{0}""/>", url);
+                            }
+                        }
+                    }
+                }
+            }
+
+            {
+                var videos = doc.DocumentNode.SelectNodes("//video");
+                if (videos != null)
+                {
+                    foreach (HtmlNode video in videos)
+                    {
+                        string url = video.GetAttributeValue("src", null);
+                        if (url != null && url.Length > 1 && url[0] == '/' && url[1] != '/')
+                        {
+                            if (url.StartsWith("/Image"))
+                            {
+                                if (!url.EndsWith("?thumb"))
+                                    url += "?thumb";
+                                if (!br_inserted)
+                                {
+                                    text += "<br/>";
+                                    br_inserted = true;
+                                }
+                                text += string.Format(@"<img src=""{0}""/>", url);
+                            }
+                        }
+                    }
+                }
+            }
+
+            return text;
+        }
+    }
+
     public class ArticleService : Service
     {
         public object Get(Article request)

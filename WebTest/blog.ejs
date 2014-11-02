@@ -1,0 +1,12 @@
+<% this.forEach(function(row){ %>
+	<div>
+		<h1>
+      <a href="?article=<%= row.Id %>"><%= row.Title %></a>
+    </h1>
+		<p><%= row.AuthorId %>, <%= row.Created %>
+  </p>
+    <p>
+      <%= row.Content %>
+    </p>
+	</div>
+<% }) %>
