@@ -82,8 +82,6 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
                 url: source_url,
                 //processData: false,
                 success: function (r) {
-                    //callback(r);
-                    //new EJS({ url: ejs_url }).update(id, r);
                     $.ajax({
                         type: "GET",
                         url: ejs_url,
@@ -99,15 +97,10 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
         }
 
         function load_select(callback) {
-            //new EJS({ url: '/articles-options.ejs' }).update('article_select', '/Articles?format=json');
             ejs_update('/articles-options.ejs', 'article_select', "/Articles?format=json", function () { load_article(); if (callback) callback();});
         }
 
         function load_images() {
-            //new EJS({ url: '/images.ejs' }).update('images', '/Images?format=json');
-            //get_images(function (r) {
-            //    new EJS({ url: '/images.ejs' }).update('images', r);
-            //});
             ejs_update('/images.ejs', 'images', "/Images?format=json");
         };
 
