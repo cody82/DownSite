@@ -339,6 +339,8 @@ namespace WebTest
 
             if(article.AuthorId == Guid.Empty)
                 article.AuthorId = original.AuthorId;
+            article.Created = original.Created;
+
             PersonRepository.db.Update<Article>(article);
 
             foreach (var c in article.Category.Where(x => original == null || original.Category == null || !original.Category.Any(y => y.Name == x.Name)))
