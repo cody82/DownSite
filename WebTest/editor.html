@@ -121,6 +121,11 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
                 });
             }
         };
+
+        function article_add_text(text) {
+            $('#article_content').val($('#article_content').val() + "\n" + text);
+        }
+
         function create_article() {
             var article = { "Title": $('#article_title').val() };
             $.ajax({
@@ -212,10 +217,10 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
         <option name=three value=three> three </option>-->
     </select>
 <input id="article_title" type="text"></input><br />
-<input id="article_category" type="text"></input><br />
+category/tags:<input id="article_category" type="text"></input><br />
 <input type="button" value="create" onclick="create_article()"/>
 <input type="button" value="delete" onclick="delete_article()"/>
-<textarea style="width:100%;height:40%" id="article_content" ></textarea>
+<textarea spellcheck="false" style="width:100%;height:40%" id="article_content" ></textarea>
 <input type="button" value="save" onclick="save_article()"/>
     <div id="images" style="width:100%;height:400px;overflow:auto">
 
