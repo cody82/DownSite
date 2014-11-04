@@ -516,7 +516,8 @@ namespace WebTest
                 db.CreateTable<User>(true);
                 db.CreateTable<Image>(true);
                 db.CreateTable<Article>(true);
-                db.CreateTable<Part>(true);
+                db.CreateTable<Category>(true);
+
                 if (Directory.Exists("files"))
                     Directory.Delete("files", true);
 

@@ -37,7 +37,31 @@ namespace WebTest
 
         public string Title { get; set; }
         public string Content { get; set; }
+
+        [Reference]
+        public List<Category> Category { get; set; }
     }
+
+    public class Category
+    {
+        [PrimaryKey, AutoIncrement]
+        public int Id { get; set; }
+
+        [Index(false), References(typeof(Article))]
+        public Guid ArticleId { get; set; }
+
+        [Index]
+        public string Name { get; set; }
+    }
+
+    /*public class Category
+    {
+        [PrimaryKey]
+        public Guid Id { get; set; }
+
+        [Index(true)]
+        public string Name { get; set; }
+    }*/
 
     public class Part
     {
@@ -96,7 +120,7 @@ namespace WebTest
     {
         public object Get(BlogRequest request)
         {
-            var blog = PersonRepository.db.Select<Article>().OrderBy(x => x.Created);
+            var blog = PersonRepository.db.LoadSelect<Article>().OrderBy(x => x.Created);
 
             foreach (var b in blog)
             {
@@ -187,14 +211,14 @@ namespace WebTest
             if (html)
                 return GetHtml(request);
 
-            var a = PersonRepository.db.Single<Article>(x => x.Title == request.Title || x.Id == request.Id);
+            var a = PersonRepository.db.LoadSelect<Article>(x => x.Title == request.Title || x.Id == request.Id).SingleOrDefault();
 
             return a;
         }
 
         public Article[] Get(ArticleListRequest request)
         {
-            var list = PersonRepository.db.Select<Article>();
+            var list = PersonRepository.db.LoadSelect<Article>();
             return list.ToArray();
         }
 
@@ -202,6 +226,8 @@ namespace WebTest
         {
             if (article.Id == Guid.Empty)
                 return new HttpResult(HttpStatusCode.NotFound, "no such article.");
+
+            PersonRepository.db.Delete<Category>(x => x.ArticleId == article.Id);
 
             int count = PersonRepository.db.Delete<Article>(x => x.Id == article.Id);
             if (count == 0)
@@ -220,10 +246,11 @@ namespace WebTest
                 return new HttpResult(HttpStatusCode.NotFound, "no such article.");
 
             var author = PersonRepository.db.Single<User>(x => x.Id == article.AuthorId);
+            var category = string.Join(",", PersonRepository.db.Select<Category>(x => x.ArticleId == article.Id).OrderBy(x => x.Name).Select(x => x.Name));
 
-            var parts = PersonRepository.db.Select<Part>(x => x.ArticleId == article.Id).OrderBy(x => x.Number).ToArray();
+            //var parts = PersonRepository.db.Select<Part>(x => x.ArticleId == article.Id).OrderBy(x => x.Number).ToArray();
 
-            string header = "<h1>"+article.Title+"</h1><p>" + ((author != null) ? author.UserName : "unknown") + ", " + article.Created + "</p>";
+            string header = "<h1>" + article.Title + "</h1><p>" + ((author != null) ? author.UserName : "unknown") + ", " + article.Created + " [" + category + "]</p>";
             string html = "";
             string previewtext = "";
 
@@ -234,7 +261,7 @@ namespace WebTest
                 else
                     html += new CustomMarkdownSharp.Markdown().Transform(article.Content);
             }
-
+            /*
             foreach (var p in parts)
             {
                 if (!string.IsNullOrWhiteSpace(p.Html))
@@ -257,7 +284,7 @@ namespace WebTest
                     else
                         html += string.Format(@"<img src=""//img.youtube.com/vi/{0}/1.jpg""><img/>", p.Youtube);
                 }
-            }
+            }*/
 
             const int maxpreview = 100;
             if (!string.IsNullOrWhiteSpace(previewtext))
@@ -285,11 +312,28 @@ namespace WebTest
 
         public object Post(Article article)
         {
-            var original = PersonRepository.db.Single<Article>(x => x.Id == article.Id);
+            var original = PersonRepository.db.LoadSelect<Article>(x => x.Id == article.Id).Single();
+            article.Category = article.Category.Where(x => !string.IsNullOrWhiteSpace(x.Name)).ToList();
+
             //article.Id = original.Id;
             if(article.AuthorId == Guid.Empty)
                 article.AuthorId = original.AuthorId;
             PersonRepository.db.Update<Article>(article);
+
+            foreach (var c in article.Category.Where(x => original == null || original.Category == null || !original.Category.Any(y => y.Name == x.Name)))
+            {
+                c.ArticleId = article.Id;
+                PersonRepository.db.Insert<Category>(c);
+            }
+
+            if (original.Category != null)
+            {
+                foreach (var c in original.Category.Where(x => !article.Category.Any(y => y.Name == x.Name)))
+                {
+                    c.ArticleId = article.Id;
+                    PersonRepository.db.Delete<Category>(c);
+                }
+            }
 
             return article.Id;
         }

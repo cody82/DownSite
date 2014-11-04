@@ -3,7 +3,7 @@
 		<h1>
       <a href="?article=<%= row.Id %>"><%= row.Title %></a>
     </h1>
-		<p><%= row.AuthorId %>, <%= row.Created %>
+		<p><%= row.AuthorId %>, <%= row.Created %>, [<%= row.Category.map(function(x){return x.Name}).join() %>]
   </p>
     <p>
       <%= row.Content %>
