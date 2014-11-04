@@ -1056,13 +1056,13 @@ namespace ServiceStack.OrmLite
                     {
                         //Load Self Table.RefTableId PK
                         expr.Select(dialectProvider.GetQuotedColumnName(refSelf));
-                        subSql = expr.ToSelectStatement();
+                        var subSql2 = expr.ToSelectStatement();
 
                         var sqlRef = "SELECT {0} FROM {1} WHERE {2} IN ({3})".Fmt(
                             dialectProvider.GetColumnNames(refModelDef),
                             dialectProvider.GetQuotedTableName(refModelDef),
                             dialectProvider.GetQuotedColumnName(refModelDef.PrimaryKey),
-                            subSql);
+                            subSql2);
                         var childResults = dbCmd.ConvertToList(refType, sqlRef);
 
                         foreach (var result in childResults)
