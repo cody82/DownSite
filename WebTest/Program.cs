@@ -56,6 +56,7 @@ namespace WebTest
         public Guid Id { get; set; }
         public string FirstName { get; set; }
         public string LastName { get; set; }
+        [Index(true)]
         public string UserName { get; set; }
         public string Password { get; set; }
         public string PlainTextPassword { get; set; }
@@ -142,7 +143,7 @@ namespace WebTest
         new CustomCredentialsAuthProvider(), //HTML Form post of UserName/Password credentials
       }));
 
-            Plugins.Add(new RegistrationFeature());
+            //Plugins.Add(new RegistrationFeature());
 
             //container.Register<ICacheClient>(new MemoryCacheClient());
             //var userRep = new InMemoryAuthRepository();
@@ -194,6 +195,7 @@ namespace WebTest
         public Stream RequestStream { get; set; }
     }
 
+    [Authenticate]
     public class UploadService : Service
     {
         //public PersonRepository Repository { get; set; } //Injected by IOC
@@ -473,6 +475,7 @@ namespace WebTest
             ? Repository.GetAll()
             : Repository.GetByIds(request.Ids);
         }
+        [Authenticate]
         public object Post(User todo)
         {
             if (todo.PlainTextPassword != null)
@@ -482,6 +485,7 @@ namespace WebTest
             }
             return Repository.Store(todo);
         }
+        [Authenticate]
         public object Put(User todo)
         {
             if (todo.PlainTextPassword != null)
@@ -491,6 +495,7 @@ namespace WebTest
             }
             return Repository.Store(todo);
         }
+        [Authenticate]
         public void Delete(Users request)
         {
             Repository.DeleteByIds(request.Ids);
@@ -518,6 +523,8 @@ namespace WebTest
                 db.CreateTable<Article>(true);
                 db.CreateTable<Category>(true);
 
+                db.ExecuteSql(@"CREATE UNIQUE INDEX category_unique on Category(ArticleId, Name);");
+
                 if (Directory.Exists("files"))
                     Directory.Delete("files", true);
 
@@ -538,6 +545,17 @@ namespace WebTest
 
                 Guid article;
                 db.Insert<Article>(new Article() { Id = article = Guid.NewGuid(), Content = content, AuthorId = person1, Created = DateTime.Now, Title = "page1", VersionGroup = Guid.NewGuid() });
+
+                db.Insert<Category>(new Category() { ArticleId = article, Name = "a" });
+                db.Insert<Category>(new Category() { ArticleId = article, Name = "b" });
+                db.Insert<Category>(new Category() { ArticleId = article, Name = "c" });
+
+                //var a = db.LoadSingleById<Article>(article);
+                //if (a.Category == null)
+                //    throw new Exception("BUG");
+                var a = db.LoadSelect<Article>(y => y.Id == article).First();
+                if (a.Category == null)
+                    throw new Exception("BUG");
                     /*
                     db.Insert<Part>(new Part() { Id = Guid.NewGuid(), ArticleId = article, Html = "<h1>HelloThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg g</h1>", Number = 1 });
                     db.Insert<Part>(new Part() { Id = Guid.NewGuid(), ArticleId = article, ImageId = pic1, Number = 2 });

@@ -33,13 +33,21 @@ namespace WebTest
         public Guid VersionGroup { get; set; }
 
         public DateTime Created { get; set; }
+        public DateTime Modified { get; set; }
+        [References(typeof(User))]
         public Guid AuthorId { get; set; }
 
         public string Title { get; set; }
         public string Content { get; set; }
 
         [Reference]
+        public User Author { get; set; }
+
+        [Reference]
         public List<Category> Category { get; set; }
+
+        [Ignore]
+        public string AuthorName { get; set; }
     }
 
     public class Category
@@ -54,16 +62,7 @@ namespace WebTest
         public string Name { get; set; }
     }
 
-    /*public class Category
-    {
-        [PrimaryKey]
-        public Guid Id { get; set; }
-
-        [Index(true)]
-        public string Name { get; set; }
-    }*/
-
-    public class Part
+    /*public class Part
     {
         [PrimaryKey]
         public Guid Id { get; set; }
@@ -98,12 +97,6 @@ namespace WebTest
         public Guid Id { get; set; }
         public int Number { get; set; }
         public Guid ArticleId { get; set; }
-    }
-    /*
-    [Route("/article/{Title}")]
-    public class ArticleRequest : IReturn<string>
-    {
-        public string Title { get; set; }
     }*/
 
     [Route("/Articles")]
@@ -125,7 +118,12 @@ namespace WebTest
             foreach (var b in blog)
             {
                 b.Content = Preview(b.Content);
-                b.Created = DateTime.Now;
+                //var user = PersonRepository.db.Single<User>(x => x.Id == b.AuthorId);
+                if (b.Author != null)
+                    b.AuthorName = b.Author.UserName;
+                else
+                    b.AuthorName = "unknown author";
+                b.Author = null;
             }
 
             return blog.ToArray();
@@ -222,6 +220,7 @@ namespace WebTest
             return list.ToArray();
         }
 
+        [Authenticate]
         public object Delete(Article article)
         {
             if (article.Id == Guid.Empty)
@@ -241,16 +240,22 @@ namespace WebTest
         {
             var preview = Request.AbsoluteUri.EndsWith("?preview");
 
-            var article = PersonRepository.db.Single<Article>(x => x.Title == request.Title || x.Id == request.Id);
+            //var article = PersonRepository.db.Single<Article>(x => x.Title == request.Title || x.Id == request.Id);
+            var article = PersonRepository.db.LoadSelect<Article>(x => x.Title == request.Title || x.Id == request.Id).SingleOrDefault();
             if (article == null)
                 return new HttpResult(HttpStatusCode.NotFound, "no such article.");
 
-            var author = PersonRepository.db.Single<User>(x => x.Id == article.AuthorId);
-            var category = string.Join(",", PersonRepository.db.Select<Category>(x => x.ArticleId == article.Id).OrderBy(x => x.Name).Select(x => x.Name));
+            //var author = PersonRepository.db.Single<User>(x => x.Id == article.AuthorId);
+            //var category = string.Join(",", PersonRepository.db.Select<Category>(x => x.ArticleId == article.Id).OrderBy(x => x.Name).Select(x => x.Name));
+            var category = article.Category != null ? string.Join(",", article.Category.OrderBy(x => x.Name).Select(x => x.Name)) : "";
+            if (article.Author != null)
+                article.AuthorName = article.Author.UserName;
+            else
+                article.AuthorName = "unknown author";
 
             //var parts = PersonRepository.db.Select<Part>(x => x.ArticleId == article.Id).OrderBy(x => x.Number).ToArray();
 
-            string header = "<h1>" + article.Title + "</h1><p>" + ((author != null) ? author.UserName : "unknown") + ", " + article.Created + " [" + category + "]</p>";
+            string header = "<h1>" + article.Title + "</h1><p>" + (article.AuthorName ?? "unknown author") + ", " + article.Created + " [" + category + "]</p>";
             string html = "";
             string previewtext = "";
 
@@ -299,23 +304,39 @@ namespace WebTest
             return html;
         }
 
+        [Authenticate]
         public object Put(Article article)
         {
             if (PersonRepository.db.Exists<Article>(x => x.Title == article.Title))
                 return new HttpResult(HttpStatusCode.NotFound, "article with that title already exists.");
             article.Id = Guid.NewGuid();
+            article.Created = article.Modified = DateTime.Now;
+
+            var session = GetSession();
+            if (session.IsAuthenticated)
+                article.AuthorId = PersonRepository.db.Single<User>(x => x.UserName == session.UserAuthName).Id;
 
             PersonRepository.db.Insert<Article>(article);
 
             return article;
         }
 
+        [Authenticate]
         public object Post(Article article)
         {
+            var session = GetSession();
+            if (session.IsAuthenticated)
+                article.AuthorId = PersonRepository.db.Single<User>(x => x.UserName == session.UserAuthName).Id;
+
             var original = PersonRepository.db.LoadSelect<Article>(x => x.Id == article.Id).Single();
             article.Category = article.Category.Where(x => !string.IsNullOrWhiteSpace(x.Name)).ToList();
 
-            //article.Id = original.Id;
+
+            article.Modified = DateTime.Now;
+
+            if (original == null)
+                throw new Exception("BUG");
+
             if(article.AuthorId == Guid.Empty)
                 article.AuthorId = original.AuthorId;
             PersonRepository.db.Update<Article>(article);

@@ -116,7 +116,7 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
                 get_article(id, function (article) {
                     $('#article_title').val(article.Title);
                     $('#article_content').val(article.Content);
-                    $('#article_category').val(article.Category.map(function (x) { return x.Name}).join());
+                    $('#article_category').val(function (row) { if (row.Category) { return row.Category.map(function (x) { return x.Name }).join(); } else { return ""; } }(article));
                     $('#preview')[0].src = '/index.html?article=' + article.Title;
                 });
             }
