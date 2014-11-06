@@ -112,6 +112,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="packages.config" />
+    <None Include="razor.cshtml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="upload\.gitignore">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -169,6 +172,10 @@
     <ProjectReference Include="..\ServiceStack\src\ServiceStack.Interfaces\ServiceStack.Interfaces.csproj">
       <Project>{55942102-033a-4da8-a6af-1db7b2f34a2d}</Project>
       <Name>ServiceStack.Interfaces</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\ServiceStack\src\ServiceStack.Razor\ServiceStack.Razor.csproj">
+      <Project>{d73274ae-006b-4cee-ba60-0ecf5873048d}</Project>
+      <Name>ServiceStack.Razor</Name>
     </ProjectReference>
     <ProjectReference Include="..\ServiceStack\src\ServiceStack\ServiceStack.csproj">
       <Project>{680a1709-25eb-4d52-a87f-ee03ffd94baa}</Project>
@@ -401,6 +408,9 @@
     <Content Include="js\jquery-2.1.1.min.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <None Include="Views\Default.cshtml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

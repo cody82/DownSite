@@ -62,43 +62,6 @@ namespace WebTest
         public string Name { get; set; }
     }
 
-    /*public class Part
-    {
-        [PrimaryKey]
-        public Guid Id { get; set; }
-
-        public int Number { get; set; }
-        public Guid ArticleId { get; set; }
-        public Guid ImageId { get; set; }
-        public Guid FileId { get; set; }
-        public string Html { get; set; }
-        public string Youtube { get; set; }
-    }
-
-    public class ImagePart
-    {
-        [PrimaryKey]
-        public Guid Id { get; set; }
-        public int Number { get; set; }
-        public Guid ImageId { get; set; }
-    }
-
-    public class FilePart
-    {
-        [PrimaryKey]
-        public Guid Id { get; set; }
-        public int Number { get; set; }
-        public Guid FileId { get; set; }
-    }
-
-    public class LinkPart
-    {
-        [PrimaryKey]
-        public Guid Id { get; set; }
-        public int Number { get; set; }
-        public Guid ArticleId { get; set; }
-    }*/
-
     [Route("/Articles")]
     public class ArticleListRequest : IReturn<Article[]>
     {
@@ -235,10 +198,18 @@ namespace WebTest
             return article;
         }
 
+        public static string GetHtmlTest()
+        {
+            var obj = new ArticleService().GetHtml(new Article() { Id = new Guid("68b74829-bf4f-4c8e-8fd0-380ee6a0fa1c") });
+            if (obj is string)
+                return (string)obj;
+            return "error";
+        }
+
         //[AddHeader(ContentType = MimeTypes.Html)]
         public object GetHtml(Article request)
         {
-            var preview = Request.AbsoluteUri.EndsWith("?preview");
+            var preview = Request != null ? Request.AbsoluteUri.EndsWith("?preview") : false;
 
             //var article = PersonRepository.db.Single<Article>(x => x.Title == request.Title || x.Id == request.Id);
             var article = PersonRepository.db.LoadSelect<Article>(x => x.Title == request.Title || x.Id == request.Id).SingleOrDefault();
@@ -266,30 +237,6 @@ namespace WebTest
                 else
                     html += new CustomMarkdownSharp.Markdown().Transform(article.Content);
             }
-            /*
-            foreach (var p in parts)
-            {
-                if (!string.IsNullOrWhiteSpace(p.Html))
-                {
-                    if (preview)
-                        previewtext += new HtmlToText().ConvertHtml(p.Html);
-                    else
-                        html += parts[0].Html;
-                }
-                else if (p.ImageId != Guid.Empty)
-                {
-                    html += string.Format("<img class=\"img-responsive img-rounded\" src=\"/Image/" + p.ImageId + "{0}\"></img>", preview ? "?thumb" : "");
-                }
-                else if (!string.IsNullOrWhiteSpace(p.Youtube))
-                {
-                    if (!preview)
-                        html += string.Format(@"<div class=""video-container"">
-<iframe width=""640"" height=""360"" src=""//www.youtube.com/embed/{0}"" frameborder=""0""> </iframe>
-</div>", p.Youtube);
-                    else
-                        html += string.Format(@"<img src=""//img.youtube.com/vi/{0}/1.jpg""><img/>", p.Youtube);
-                }
-            }*/
 
             const int maxpreview = 100;
             if (!string.IsNullOrWhiteSpace(previewtext))

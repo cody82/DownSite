@@ -20,6 +20,7 @@ using ServiceStack.Auth;
 using ServiceStack.Caching;
 using System.Diagnostics;
 using System.Security.Cryptography;
+using ServiceStack.Razor;
 
 
 namespace WebTest
@@ -134,15 +135,15 @@ namespace WebTest
             container.Register(new PersonRepository());
             this.Config.AllowFileExtensions.Add("ejs");
             this.Config.AllowFileExtensions.Add("webm");
-
-
+            //this.Config.AllowFileExtensions.Remove
+            Plugins.Add(new RazorFormat());
             Plugins.Add(new AuthFeature(() => new AuthUserSession(),
   new IAuthProvider[] { 
         //new BasicAuthProvider(), //Sign-in with Basic Auth
         //new CredentialsAuthProvider(), //HTML Form post of UserName/Password credentials
         new CustomCredentialsAuthProvider(), //HTML Form post of UserName/Password credentials
       }));
-
+            
             //Plugins.Add(new RegistrationFeature());
 
             //container.Register<ICacheClient>(new MemoryCacheClient());
@@ -195,15 +196,37 @@ namespace WebTest
         public Stream RequestStream { get; set; }
     }
 
+    [FallbackRoute("/")]
+    [Route("/page/{Name}")]
+    [Route("/page/{Name}/{Id}")]
+    public class PageRequest
+    {
+        public string Name { get; set; }
+        public string Id { get; set; }
+    }
+
+
+
+    public class PageService : Service
+    {
+        public object Get(PageRequest request)
+        {
+            if (request.Name == "article")
+            {
+                return new HttpResult(new FileInfo("index.html"), MimeTypes.Html);
+            }
+            else if (request.Name == "blog")
+            {
+                return new HttpResult(new FileInfo("index.html"), MimeTypes.Html);
+            }
+            else
+                return new HttpResult(new FileInfo("index.html"), MimeTypes.Html);
+        }
+    }
+
     [Authenticate]
     public class UploadService : Service
     {
-        //public PersonRepository Repository { get; set; } //Injected by IOC
-        /*public object Get(Upload request)
-        {
-            return null;
-        }*/
-
         public static DirectoryInfo GetFileDir()
         {
             DirectoryInfo di = new DirectoryInfo("files");
@@ -550,20 +573,12 @@ namespace WebTest
                 db.Insert<Category>(new Category() { ArticleId = article, Name = "b" });
                 db.Insert<Category>(new Category() { ArticleId = article, Name = "c" });
 
-                //var a = db.LoadSingleById<Article>(article);
-                //if (a.Category == null)
-                //    throw new Exception("BUG");
-                var a = db.LoadSelect<Article>(y => y.Id == article).First();
+                var a = db.LoadSingleById<Article>(article);
                 if (a.Category == null)
                     throw new Exception("BUG");
-                    /*
-                    db.Insert<Part>(new Part() { Id = Guid.NewGuid(), ArticleId = article, Html = "<h1>HelloThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg g</h1>", Number = 1 });
-                    db.Insert<Part>(new Part() { Id = Guid.NewGuid(), ArticleId = article, ImageId = pic1, Number = 2 });
-                    db.Insert<Part>(new Part() { Id = Guid.NewGuid(), ArticleId = article, Html = "<h2>There rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg gThere rehgb wr gbwiru gwhr iguhwr giuwh rgiuwhrgiurhg g</h2>", Number = 3 });
-                    db.Insert<Part>(new Part() { Id = Guid.NewGuid(), ArticleId = article, ImageId = pic2, Number = 4 });
-                    db.Insert<Part>(new Part() { Id = Guid.NewGuid(), ArticleId = article, Html = "<br/>", Number = 5 });
-                    db.Insert<Part>(new Part() { Id = Guid.NewGuid(), ArticleId = article, Youtube = "cxBcHLylFbw", Number = 6 });
-                    */
+                a = db.LoadSelect<Article>(y => y.Id == article).First();
+                if (a.Category == null)
+                    throw new Exception("BUG");
             }
         }
 
