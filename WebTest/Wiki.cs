@@ -74,6 +74,26 @@ namespace WebTest
         public string Name { get; set; }
     }
 
+    [Route("/categories")]
+    public class CategoryListRequest : IReturn<Category[]>
+    {
+    }
+
+    public class CategoryService : Service
+    {
+        [DefaultView("Categories")]
+        public object Get(CategoryListRequest request)
+        {
+            var c = PersonRepository.db.Select<Category>().Select(x => x.Name).Distinct().ToArray();
+            return c;
+            /*return new HttpResult(c)
+            {
+                View = "Categories",
+                Template = "Default",
+            };*/
+        }
+    }
+
     [Route("/Articles")]
     public class ArticleListRequest : IReturn<Article[]>
     {
@@ -82,18 +102,22 @@ namespace WebTest
     [Route("/Blog/")]
     public class BlogRequest : IReturn<Article[]>
     {
+        public string Category { get; set; }
     }
 
     public class Blog : Service
     {
         public object Get(BlogRequest request)
         {
-            return Get();
+            return Get(request.Category);
         }
 
-        public static object Get()
+        public static object Get(string category = null)
         {
-            var blog = PersonRepository.db.LoadSelect<Article>().OrderBy(x => x.Created);
+            var blog = PersonRepository.db.LoadSelect<Article>().OrderByDescending(x => x.Created).ToArray();
+
+            if(!string.IsNullOrWhiteSpace(category))
+                blog = blog.Where(y => y.Category != null && y.Category.Any(x => x.Name.ToLower() == category.ToLower())).ToArray();
 
             foreach (var b in blog)
             {
@@ -195,7 +219,12 @@ namespace WebTest
                 return GetHtml(request);
 
             var a = PersonRepository.db.LoadSelect<Article>(x => x.Title == request.Title || x.Id == request.Id).SingleOrDefault();
-
+            
+            if (a.Author != null)
+                a.AuthorName = a.Author.UserName;
+            else
+                a.AuthorName = "unknown author";
+            
             //return a;
             return new HttpResult(a)
             {
@@ -228,14 +257,6 @@ namespace WebTest
                 return new HttpResult(HttpStatusCode.NotFound, "no such article.");
 
             return article;
-        }
-
-        public static string GetHtmlTest()
-        {
-            var obj = new ArticleService().GetHtml(new Article() { Id = new Guid("68b74829-bf4f-4c8e-8fd0-380ee6a0fa1c") });
-            if (obj is string)
-                return (string)obj;
-            return "error";
         }
 
         //[AddHeader(ContentType = MimeTypes.Html)]
