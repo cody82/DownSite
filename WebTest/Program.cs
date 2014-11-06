@@ -135,6 +135,11 @@ namespace WebTest
             container.Register(new PersonRepository());
             this.Config.AllowFileExtensions.Add("ejs");
             this.Config.AllowFileExtensions.Add("webm");
+
+            /*SetConfig(new HostConfig()
+            {
+                DefaultRedirectPath = "/blog/"
+            });*/
             //this.Config.AllowFileExtensions.Remove
             Plugins.Add(new RazorFormat());
             Plugins.Add(new AuthFeature(() => new AuthUserSession(),
@@ -175,27 +180,12 @@ namespace WebTest
         public Guid Guid { get; set; }
     }
 
-    [Authenticate]
-    [Route("/check_auth")]
-    public class CheckAuth
-    {
-    }
-
-    public class CheckAuthService : Service
-    {
-        public object Get(CheckAuth request)
-        {
-            return new HttpResult(System.Net.HttpStatusCode.OK, "Authenticated!");
-        }
-    }
-
-
     [Route("/upload")]
     public class Upload : IReturn<UploadResult>, IRequiresRequestStream
     {
         public Stream RequestStream { get; set; }
     }
-
+    
     [FallbackRoute("/")]
     [Route("/page/{Name}")]
     [Route("/page/{Name}/{Id}")]
@@ -211,19 +201,10 @@ namespace WebTest
     {
         public object Get(PageRequest request)
         {
-            if (request.Name == "article")
-            {
-                return new HttpResult(new FileInfo("index.html"), MimeTypes.Html);
-            }
-            else if (request.Name == "blog")
-            {
-                return new HttpResult(new FileInfo("index.html"), MimeTypes.Html);
-            }
-            else
-                return new HttpResult(new FileInfo("index.html"), MimeTypes.Html);
+            return Blog.Get();
         }
     }
-
+    
     [Authenticate]
     public class UploadService : Service
     {

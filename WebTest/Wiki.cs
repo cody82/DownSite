@@ -88,6 +88,11 @@ namespace WebTest
     {
         public object Get(BlogRequest request)
         {
+            return Get();
+        }
+
+        public static object Get()
+        {
             var blog = PersonRepository.db.LoadSelect<Article>().OrderBy(x => x.Created);
 
             foreach (var b in blog)
@@ -109,7 +114,7 @@ namespace WebTest
             //return blog.ToArray();
         }
 
-        string Preview(string markdown)
+        static string Preview(string markdown)
         {
             string html = new CustomMarkdownSharp.Markdown().Transform(markdown);
             HtmlDocument doc = new HtmlDocument();
@@ -200,6 +205,11 @@ namespace WebTest
         }
 
         public Article[] Get(ArticleListRequest request)
+        {
+            return Get();
+        }
+
+        public static Article[] Get()
         {
             var list = PersonRepository.db.LoadSelect<Article>();
             return list.ToArray();
