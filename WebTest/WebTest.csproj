@@ -151,6 +151,12 @@
     <None Include="login.ejs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="Views\Blog.cshtml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Views\Article.cshtml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ServiceStack.OrmLite\src\ServiceStack.OrmLite.Sqlite\ServiceStack.OrmLite.Sqlite.csproj">

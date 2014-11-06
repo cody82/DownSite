@@ -1,0 +1,19 @@
+﻿@inherits ServiceStack.Razor.ViewPage<WebTest.Article[]>
+
+@{
+    Layout = "Default";
+}
+
+@foreach (var a in Model)
+{
+    <div>
+        <h1>
+            <a href="/Article/Id/@a.Id">@a.Title</a>
+        </h1>
+		<p>@a.AuthorName, @a.Created, [@a.CategoryString()]</p>
+    <p>
+      @Html.Raw(a.Content)
+    </p>
+	</div>
+    <hr/>
+}

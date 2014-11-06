@@ -48,6 +48,18 @@ namespace WebTest
 
         [Ignore]
         public string AuthorName { get; set; }
+
+        public string CategoryString()
+        {
+            if (Category == null)
+                return "";
+            return Category.Select(x => x.Name).Join(", ");
+        }
+
+        public string ContentHtml()
+        {
+            return new CustomMarkdownSharp.Markdown().Transform(Content);
+        }
     }
 
     public class Category
@@ -89,7 +101,12 @@ namespace WebTest
                 b.Author = null;
             }
 
-            return blog.ToArray();
+            return new HttpResult(blog.ToArray())
+            {
+                View = "Blog",
+                Template = "Default",
+            };
+            //return blog.ToArray();
         }
 
         string Preview(string markdown)
@@ -174,7 +191,12 @@ namespace WebTest
 
             var a = PersonRepository.db.LoadSelect<Article>(x => x.Title == request.Title || x.Id == request.Id).SingleOrDefault();
 
-            return a;
+            //return a;
+            return new HttpResult(a)
+            {
+                View = "Article",
+                Template = "Default",
+            };
         }
 
         public Article[] Get(ArticleListRequest request)
