@@ -8,7 +8,7 @@
     <meta name="author" content="">
     <link rel="icon" href="/favicon.ico">
 
-    <title>cody WebTest</title>
+    <title>@WebTest.Configuration.Load().SiteName</title>
       
     <script src="/js/jquery-2.1.1.min.js"></script>
     <script type="text/javascript" src="/js/ejs.js"></script>
@@ -93,10 +93,14 @@
             <span class="icon-bar"></span>
             <span class="icon-bar"></span>
           </button>
-          <a class="navbar-brand" href="/">Project name</a>
+          <a class="navbar-brand" href="/">@WebTest.Configuration.Load().SiteName</a>
         </div>
         <div class="navbar-collapse collapse">
           <ul class="nav navbar-nav">
+              @foreach (WebTest.Article a in WebTest.ArticleService.GetMenuArticles())
+              {
+                  <li><a href="@a.Link">@a.Title</a></li>
+              }
             <li><a target="_blank" href="/editor.html">Editor</a></li>
             <li><a target="_blank" href="/admin.html">Admin</a></li>
           </ul>

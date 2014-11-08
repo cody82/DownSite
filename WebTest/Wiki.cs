@@ -40,6 +40,9 @@ namespace WebTest
         public string Title { get; set; }
         public string Content { get; set; }
 
+        public bool ShowInMenu { get; set; }
+        public bool ShowInBlog { get; set; }
+
         [Reference]
         public User Author { get; set; }
 
@@ -48,6 +51,15 @@ namespace WebTest
 
         [Ignore]
         public string AuthorName { get; set; }
+
+        [Ignore]
+        public string Link
+        {
+            get
+            {
+                return "/article/Id/" + Id;
+            }
+        }
 
         public string CategoryString()
         {
@@ -114,7 +126,7 @@ namespace WebTest
 
         public static object Get(string category = null)
         {
-            var blog = PersonRepository.db.LoadSelect<Article>().OrderByDescending(x => x.Created).ToArray();
+            var blog = PersonRepository.db.LoadSelect<Article>(x => x.ShowInBlog).OrderByDescending(x => x.Created).ToArray();
 
             if(!string.IsNullOrWhiteSpace(category))
                 blog = blog.Where(y => y.Category != null && y.Category.Any(x => x.Name.ToLower() == category.ToLower())).ToArray();
@@ -208,6 +220,11 @@ namespace WebTest
 
     public class ArticleService : Service
     {
+        public static Article[] GetMenuArticles()
+        {
+            return PersonRepository.db.Select<Article>(x => x.ShowInMenu).OrderBy(x => x.Title).ToArray();
+        }
+
         public object Get(Article request)
         {
             Guid guid;

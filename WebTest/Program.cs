@@ -21,6 +21,7 @@ using ServiceStack.Caching;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using ServiceStack.Razor;
+using ServiceStack.Logging;
 
 
 namespace WebTest
@@ -46,6 +47,19 @@ namespace WebTest
                 result += temp;
             }
             return result.ToLower();
+        }
+    }
+
+    public class Configuration
+    {
+        [PrimaryKey]
+        public Guid Id { get; set; }
+
+        public string SiteName { get; set; }
+
+        public static Configuration Load()
+        {
+            return PersonRepository.db.SingleById<Configuration>(Guid.Empty);
         }
     }
 
@@ -131,6 +145,8 @@ namespace WebTest
         public AppHost() : base("Fitness", typeof(AppHost).Assembly) { }
         public override void Configure(Container container)
         {
+            LogManager.LogFactory = new ConsoleLogFactory();
+
             RawHttpHandlers.Remove(RedirectDirectory);
             container.Register(new PersonRepository());
             this.Config.AllowFileExtensions.Add("ejs");
@@ -526,6 +542,9 @@ namespace WebTest
                 db.CreateTable<Image>(true);
                 db.CreateTable<Article>(true);
                 db.CreateTable<Category>(true);
+                db.CreateTable<Configuration>(true);
+
+                db.Insert<Configuration>(new Configuration() { Id = Guid.Empty, SiteName = "WebTest" });
 
                 db.ExecuteSql(@"CREATE UNIQUE INDEX category_unique on Category(ArticleId, Name);");
 
@@ -548,11 +567,15 @@ namespace WebTest
 ![youtube](cxBcHLylFbw)", pic1);
 
                 Guid article;
-                db.Insert<Article>(new Article() { Id = article = Guid.NewGuid(), Content = content, AuthorId = person1, Created = DateTime.Now, Title = "page1", VersionGroup = Guid.NewGuid() });
+                db.Insert<Article>(new Article() { Id = article = Guid.NewGuid(), ShowInBlog = true, Content = content, AuthorId = person1, Created = DateTime.Now, Title = "page1", VersionGroup = Guid.NewGuid() });
 
                 db.Insert<Category>(new Category() { ArticleId = article, Name = "a" });
                 db.Insert<Category>(new Category() { ArticleId = article, Name = "b" });
                 db.Insert<Category>(new Category() { ArticleId = article, Name = "c" });
+
+
+                db.Insert<Article>(new Article() { Id = Guid.NewGuid(), ShowInMenu = true, Content = "#MenuItem 1", Created = DateTime.Now, Title = "MenuItem 1", VersionGroup = Guid.NewGuid() });
+                db.Insert<Article>(new Article() { Id = Guid.NewGuid(), ShowInMenu = true, Content = "#MenuItem 2", Created = DateTime.Now, Title = "MenuItem 2", VersionGroup = Guid.NewGuid() });
 
                 var a = db.LoadSingleById<Article>(article);
                 if (a.Category == null)

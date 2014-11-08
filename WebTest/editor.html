@@ -66,7 +66,7 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
         function save_article() {
             var id = $('#article_select').val();
             var cat = $('#article_category').val().split(",").map(function (x) { return { "ArticleId": id, "Name": x } });
-            var article = { "Id": id, "Title": $('#article_title').val(), "Content": $('#article_content').val(), "Category": cat };
+            var article = { "Id": id, "Title": $('#article_title').val(), "Content": $('#article_content').val(), "Category": cat, "ShowInBlog": $('#blog_check')[0].checked, "ShowInMenu": $('#menu_check')[0].checked };
             $.ajax({
                 type: "POST",
                 url: "/article",// + article.Title,// + "?format=json",
@@ -116,6 +116,8 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
                 get_article(id, function (article) {
                     $('#article_title').val(article.Title);
                     $('#article_content').val(article.Content);
+                    $('#menu_check')[0].checked = article.ShowInMenu;
+                    $('#blog_check')[0].checked = article.ShowInBlog;
                     $('#article_category').val(function (row) { if (row.Category) { return row.Category.map(function (x) { return x.Name }).join(); } else { return ""; } }(article));
                     $('#preview')[0].src = '/Article/Id/' + id;
                 });
@@ -142,6 +144,8 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
                             $('#article_content').val(article.Content);
                             $('#preview')[0].src = '/Article/Id/' + id;
                             $('#article_select').val(article.Id);
+                            $('#menu_check')[0].checked = article.ShowInMenu;
+                            $('#blog_check')[0].checked = article.ShowInBlog;
                             load_article();
                         });
                     });
@@ -213,6 +217,8 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
 category/tags:<input id="article_category" type="text"></input><br />
 <input type="button" value="create" onclick="create_article()"/>
 <input type="button" value="delete" onclick="delete_article()"/>
+<p><input id="menu_check" type="checkbox"/>show in menu</p>
+<p><input id="blog_check" type="checkbox"/>show in blog</p>
 <textarea spellcheck="false" style="width:100%;height:40%" id="article_content" ></textarea>
 <input type="button" value="save" onclick="save_article()"/>
     <div id="images" style="width:100%;height:400px;overflow:auto">
