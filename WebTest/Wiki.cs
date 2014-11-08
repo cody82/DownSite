@@ -1,7 +1,6 @@
 ﻿using ServiceStack.DataAnnotations;
 using ServiceStack.OrmLite;
 using ServiceStack.OrmLite.Sqlite;
-using ServiceStack.OrmLite.Tests;
 using System;
 using System.Collections.Generic;
 using System.Linq;

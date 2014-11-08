@@ -67,10 +67,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Database.cs" />
+    <Compile Include="Util.cs" />
     <Compile Include="Markdown.cs" />
+    <Compile Include="Video.cs" />
     <Compile Include="Wiki.cs" />
     <Compile Include="Html.cs" />
-    <Compile Include="OrmLiteTestBase.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
