@@ -64,7 +64,13 @@ namespace WebTest
 
     public class SystemInfoResponse
     {
+        public SystemInfoResponse()
+        {
+            OS = Environment.OSVersion.ToString();
+        }
+
         public List<string> ConversionQueue { get; set; }
+        public string OS { get; set; }
     }
 
     public class SystemInfoService : Service
