@@ -10,11 +10,140 @@ using System.Web;
 using System.Threading;
 using System.Diagnostics;
 using System.Security.Cryptography;
+using ServiceStack.Text.Json;
+using ServiceStack.Text;
 
 namespace WebTest
 {
+    public interface IVideoThumbnailer
+    {
+        bool MakeThumbnail(string input, string output);
+    }
+
+    public class VideoStream
+    {
+        public int Index { get; set; }
+        public string Codec_Type { get; set; }
+        public int Width { get; set; }
+        public int Height { get; set; }
+    }
+
+    public class VideoFormat
+    {
+        public string Filename { get; set; }
+    }
+
+    public class VideoInfo
+    {
+        //public int Width { get; set; }
+        //public int Height { get; set; }
+        public List<VideoStream> Streams { get; set; }
+        public VideoFormat Format { get; set; }
+
+        public Size Resolution
+        {
+            get
+            {
+                VideoStream s = Streams.First(x => x.Codec_Type == "video");
+                return new Size(s.Width, s.Height);
+            }
+        }
+    }
+
+    public class VideoConverter
+    {
+        public static bool Resize(string input, string output, int width, int height)
+        {
+            string param = string.Format(@"-i ""{0}"" -y -vf scale={2}:{3} ""{1}""", input, output, width, height);
+            ProcessStartInfo psi = new ProcessStartInfo("ffmpeg", param)
+            {
+                CreateNoWindow = true,
+                UseShellExecute = false
+            };
+
+            try
+            {
+                var p = Process.Start(psi);
+                p.WaitForExit();
+                return p.ExitCode == 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
+
+    public class VideoProbe
+    {
+        static bool avprobe;
+        static bool ffprobe;
+
+        static VideoProbe()
+        {
+            avprobe = VideoThumbnailer.CheckProgram("avprobe");
+            ffprobe = VideoThumbnailer.CheckProgram("ffprobe");
+        }
+
+        public static VideoInfo Probe(string filename)
+        {
+            if (ffprobe)
+                return FfProbe(filename);
+            else if (avprobe)
+                return AvProbe(filename);
+            return null;
+        }
+
+
+        protected static VideoInfo AvProbe(string filename)
+        {
+            return null;
+        }
+
+        protected static VideoInfo FfProbe(string filename)
+        {
+            ProcessStartInfo psi = new ProcessStartInfo("ffprobe", "-v 0 -show_format -show_streams -of json \"" + filename + "\"")
+            {
+                CreateNoWindow = true,
+                UseShellExecute = false,
+                RedirectStandardOutput = true
+            };
+            Process p = Process.Start(psi);
+                
+            string output = p.StandardOutput.ReadToEnd();
+            p.WaitForExit();
+            if (p.ExitCode == 0)
+            {
+                var vi = JsonSerializer.DeserializeFromString<VideoInfo>(output);
+                return vi;
+            }
+            else
+                return null;
+        }
+    }
+
     public class VideoThumbnailer
     {
+        public static bool CheckProgram(string exe)
+        {
+            ProcessStartInfo psi = new ProcessStartInfo(exe, "-version")
+            {
+                CreateNoWindow = true,
+                UseShellExecute = false
+            };
+
+            try
+            {
+                var p = Process.Start(psi);
+                p.WaitForExit();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         static bool _UseFFmpeg = false;
         static bool _FFmpeg_tested = false;
 
@@ -27,26 +156,9 @@ namespace WebTest
 
                 Console.WriteLine("checking ffmpeg...");
 
-                ProcessStartInfo psi = new ProcessStartInfo("ffmpeg", "-version")
-                {
-                    CreateNoWindow = true,
-                    UseShellExecute = false
-                };
+                _FFmpeg_tested = true;
 
-                try
-                {
-                    var p = Process.Start(psi);
-                    p.WaitForExit();
-                    _FFmpeg_tested = true;
-                    Console.WriteLine("ffmpeg found");
-                    return _UseFFmpeg = (p.ExitCode == 0);
-                }
-                catch
-                {
-                    Console.WriteLine("no ffmpeg");
-                    _FFmpeg_tested = true;
-                    return _UseFFmpeg = false;
-                }
+                return _UseFFmpeg = CheckProgram("ffmpeg");
             }
         }
 
@@ -59,28 +171,9 @@ namespace WebTest
                 if (_Avconv_tested)
                     return _UseAvconv;
 
-                Console.WriteLine("checking avconv...");
+                _Avconv_tested = true;
 
-                ProcessStartInfo psi = new ProcessStartInfo("avconv", "-version")
-                {
-                    CreateNoWindow = true,
-                    UseShellExecute = false
-                };
-
-                try
-                {
-                    var p = Process.Start(psi);
-                    p.WaitForExit();
-                    _Avconv_tested = true;
-                    Console.WriteLine("avconv found");
-                    return _UseAvconv = (p.ExitCode == 0);
-                }
-                catch
-                {
-                    Console.WriteLine("no avconv");
-                    _Avconv_tested = true;
-                    return _UseAvconv = false;
-                }
+                return _UseAvconv = CheckProgram("avconv");
             }
         }
 

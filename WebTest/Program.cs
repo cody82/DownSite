@@ -65,11 +65,45 @@ namespace WebTest
         public byte[] Data { get; set; }
         public string MimeType { get; set; }
         public string FileName { get; set; }
+        public int Width { get; set; }
+        public int Height { get; set; }
 
         public static void Save(Guid id, IDbConnection db, string mimetype, string filename, Stream s)
         {
-            UploadService.PutFile(id, s);
-            db.Insert<Image>(new Image() { Id = id, MimeType = mimetype, FileName = filename });
+            string path = UploadService.PutFile(id, mimetype, s);
+            var img = new Image() { Id = id, MimeType = mimetype, FileName = filename };
+            if (mimetype.IndexOf("video") != -1)
+            {
+                var video = VideoProbe.Probe(path);
+                if (video != null)
+                {
+                    var res = video.Resolution;
+                    img.Width = res.Width;
+                    img.Height = res.Height;
+
+                    if (img.Height > 480)
+                    {
+                        int w = (int)((double)img.Width / (double)img.Height * 480.0);
+                        if (w % 2 == 1)
+                            w -= 1;
+                        Console.WriteLine("converting to 480p...");
+                        string output = Path.Combine(new FileInfo(path).Directory.FullName, Path.GetFileNameWithoutExtension(path) + "-0x480.mp4");
+                        if (VideoConverter.Resize(path, output, w, 480))
+                            Console.WriteLine("conversion ready");
+                        else
+                            Console.WriteLine("conversion failed");
+                    }
+                }
+            }
+            else
+            {
+                using (var bmp = new Bitmap(path))
+                {
+                    img.Width = bmp.Width;
+                    img.Height = bmp.Height;
+                }
+            }
+            db.Insert<Image>(img);
         }
 
         public static Tuple<Image, FileInfo> Load(Guid id)
@@ -221,22 +255,49 @@ namespace WebTest
         }
         public static FileInfo GetFileInfo(string filename)
         {
+            var dir = new DirectoryInfo("files");
+            var files = dir.GetFiles(filename + ".*");
+            if (files.Any())
+                return files.First();
+
             FileInfo fi = new FileInfo(Path.Combine("files", filename));
             if (!fi.Exists)
                 return null;
             return fi;
         }
-        public static void PutFile(Guid id, Stream s)
+
+        public static string MimeTypeExtension(string mimetype)
         {
-            PutFile(id.ToString(), s);
+            switch (mimetype)
+            {
+                case MimeTypes.ImageGif:
+                    return "gif";
+                case MimeTypes.ImageJpg:
+                    return "jpg";
+                case MimeTypes.ImagePng:
+                    return "png";
+                case "video/webm":
+                    return "webm";
+                case "video/mp4":
+                    return "mp4";
+                default:
+                    throw new Exception("no extension for mime type " + mimetype);
+            }
         }
-        public static void PutFile(string filename, Stream s)
+
+        public static string PutFile(Guid id, string mimetype, Stream s)
+        {
+            return PutFile(id.ToString() + "." + MimeTypeExtension(mimetype), s);
+        }
+        public static string PutFile(string filename, Stream s)
         {
             var dir = GetFileDir();
-            using (FileStream fs = new FileStream(Path.Combine(dir.FullName, filename), FileMode.Create))
+            string path = Path.Combine(dir.FullName, filename);
+            using (FileStream fs = new FileStream(path, FileMode.Create))
             {
                 s.WriteTo(fs);
             }
+            return path;
         }
 
         public object Post(Upload request)
@@ -292,7 +353,9 @@ namespace WebTest
                 }
                 else
                 {
-                    string thumb = img.Item2.FullName + "-thumb.jpg";
+                    int index = img.Item2.FullName.IndexOf('.');
+
+                    string thumb = (index != -1 ? img.Item2.FullName.Substring(0, index) : img.Item2.FullName) + "-thumb.jpg";
                     if (File.Exists(thumb))
                     {
                         return new HttpResult(new FileInfo(thumb), MimeTypes.ImageJpg) { };
