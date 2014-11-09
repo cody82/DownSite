@@ -605,6 +605,17 @@ namespace WebTest
             }
             else
                 db = Database.OpenDbConnection(dbfile);
+
+            foreach (var f in new DirectoryInfo(Path.Combine("data", "cache")).GetFiles("*.tmp"))
+            {
+                try
+                {
+                    f.Delete();
+                }
+                catch
+                {
+                }
+            }
         }
 
         public List<User> GetByIds(Guid[] ids)
