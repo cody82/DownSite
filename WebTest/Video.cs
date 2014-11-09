@@ -52,7 +52,7 @@ namespace WebTest
     {
         public static bool Resize(string input, string output, int width, int height)
         {
-            string param = string.Format(@"-i ""{0}"" -y -vf scale={2}:{3} ""{1}""", input, output, width, height);
+            string param = string.Format(@"-i ""{0}"" -y -vf scale={2}:{3} -f mp4 ""{1}""", input, output, width, height);
             ProcessStartInfo psi = new ProcessStartInfo("ffmpeg", param)
             {
                 CreateNoWindow = true,

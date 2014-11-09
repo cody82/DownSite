@@ -86,12 +86,19 @@ namespace WebTest
                         int w = (int)((double)img.Width / (double)img.Height * 480.0);
                         if (w % 2 == 1)
                             w -= 1;
-                        Console.WriteLine("converting to 480p...");
                         string output = Path.Combine(FileCache.GetCacheDir().FullName, Path.GetFileNameWithoutExtension(path) + "-0x480.mp4");
-                        if (VideoConverter.Resize(path, output, w, 480))
-                            Console.WriteLine("conversion ready");
-                        else
-                            Console.WriteLine("conversion failed");
+
+                        new Thread(() =>
+                        {
+                                Console.WriteLine("converting to 480p...");
+                                if (VideoConverter.Resize(path, output + ".tmp", w, 480))
+                                {
+                                    Console.WriteLine("conversion ready");
+                                    File.Move(output + ".tmp", output);
+                                }
+                                else
+                                    Console.WriteLine("conversion failed");
+                            }).Start();
                     }
                 }
             }
@@ -365,25 +372,57 @@ namespace WebTest
 
     public class ImageService : Service
     {
+        public static readonly int[] ResizeHeights = { 480, 720 };
+        public static readonly int[] ResizeWidths = { 640, 1024, 1920 };
+
+        static HttpResult ResizeHelper(string url, Image img, int[] sizes, Func<int, string> x)
+        {
+            foreach (var h in sizes)
+            {
+                string tmp = x(h);
+                if (url.EndsWith("?" + tmp))
+                {
+                    string extension = null;
+                    string mimetype = null;
+                    string end = "-" + tmp;
+                    if (img.MimeType.StartsWith("video"))
+                    {
+                        extension = "mp4";
+                        mimetype = "video/mp4";
+                    }
+                    else if (img.MimeType.StartsWith("image"))
+                    {
+                        extension = "jpg";
+                        mimetype = "image/jpg";
+                    }
+
+                    if (extension != null)
+                    {
+                        var file = FileCache.GetFile(img.Id + end + "." + extension);
+                        if (file != null)
+                        {
+                            return new HttpResult(file, mimetype) { };
+                        }
+                    }
+                }
+            }
+
+            return null;
+        }
+
         public object Get(Image request)
         {
             var img = Image.Load(request.Id);
             if (img != null)
             {
-                if (Request.AbsoluteUri.EndsWith("?0x480"))
-                {
-                    var file = FileCache.GetFile(img.Item1.Id + "-0x480.mp4");
-                    if (file != null)
-                    {
-                        return new HttpResult(file, "video/mp4") { };
-                    }
-                }
-                
-                if (!Request.AbsoluteUri.EndsWith("?thumb"))
-                {
-                    return new HttpResult(img.Item2, string.IsNullOrWhiteSpace(img.Item1.MimeType) ? MimeTypes.ImageJpg : img.Item1.MimeType) { };
-                }
-                else
+                var res = ResizeHelper(Request.AbsoluteUri, img.Item1, ResizeHeights, x => "0x" + x);
+                if (res != null)
+                    return res;
+                res = ResizeHelper(Request.AbsoluteUri, img.Item1, ResizeWidths, x => x + "x0");
+                if (res != null)
+                    return res;
+
+                if (Request.AbsoluteUri.EndsWith("?thumb"))
                 {
                     string filename_without_extension = Path.GetFileNameWithoutExtension(img.Item2.Name);
                     string thumb = filename_without_extension + "-thumb.jpg";
@@ -395,7 +434,7 @@ namespace WebTest
 
                     thumb_file = new FileInfo(Path.Combine(FileCache.GetCacheDir().FullName, thumb));
 
-                    var mimetypes = new string[] { MimeTypes.ImageJpg, MimeTypes.ImagePng, MimeTypes.ImageGif};
+                    var mimetypes = new string[] { MimeTypes.ImageJpg, MimeTypes.ImagePng, MimeTypes.ImageGif };
 
                     if (!mimetypes.Contains(img.Item1.MimeType))
                     {
@@ -420,6 +459,10 @@ namespace WebTest
                             }
                         }
                     }
+                }
+                else
+                {
+                    return new HttpResult(img.Item2, string.IsNullOrWhiteSpace(img.Item1.MimeType) ? MimeTypes.ImageJpg : img.Item1.MimeType) { };
                 }
             }
             return new HttpResult(System.Net.HttpStatusCode.NotFound, "No image with that ID.");
