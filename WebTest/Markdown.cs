@@ -1091,6 +1091,10 @@ namespace CustomMarkdownSharp
                 {
                     Guid id = Guid.Parse(url.Substring(7));
 
+                    var img = Image.Load(id);
+                    if (img == null)
+                        return string.Empty;
+
                     foreach (int h in ImageService.ResizeHeights)
                     {
                         var w480 = FileCache.GetFile(id + "-0x" + h + ".mp4");
@@ -1098,13 +1102,13 @@ namespace CustomMarkdownSharp
                         {
                             if (!found)
                             {
-                                links += string.Format(@" <a target=""_blank"" href=""{0}"">Original</a> ", url);
+                                links += string.Format(@" <a target=""_blank"" href=""{0}"">{1}p(Original)</a> ", url, img.Item1.Height);
                                 url += "?0x" + h;
                                 found = true;
                             }
                             else
                             {
-                                links += string.Format(@" <a target=""_blank"" href=""{0}"">{1}p</a> ", url, h);
+                                links += string.Format(@" <a target=""_blank"" href=""{0}"">{1}p</a> ", "/Image/" + id.ToString().Replace("-","") + "?0x" + h, h);
                             }
                         }
                     }
