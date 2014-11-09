@@ -24,6 +24,7 @@ namespace WebTest
 {
     [Route("/article")]
     [Route("/article/Id/{Id}")]
+    [Route("/article/Id/{Id}.html")]
     [Route("/article/Title/{Title}")]
     public class Article : IReturn<Article>
     {
@@ -56,7 +57,7 @@ namespace WebTest
         {
             get
             {
-                return "/article/Id/" + Id;
+                return "/article/Id/" + Id + ".html";
             }
         }
 
@@ -149,7 +150,7 @@ namespace WebTest
             //return blog.ToArray();
         }
 
-        static string Preview(string markdown)
+        public static string Preview(string markdown)
         {
             string html = new CustomMarkdownSharp.Markdown().Transform(markdown);
             HtmlDocument doc = new HtmlDocument();

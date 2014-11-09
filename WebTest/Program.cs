@@ -644,6 +644,7 @@ namespace WebTest
                 {
                 }
             }
+
         }
 
         public List<User> GetByIds(Guid[] ids)
@@ -684,6 +685,8 @@ namespace WebTest
             var appHost = new AppHost();
             appHost.Init();
             appHost.Start(BaseUri);
+
+            Static.Generate();
 
             Console.ReadLine();
         }

@@ -8,7 +8,7 @@
 {
     <div>
         <h1>
-            <a href="/Article/Id/@a.Id">@a.Title</a>
+            <a href="/Article/Id/@(a.Id.ToString()+".html")">@a.Title</a>
         </h1>
 		<p>@a.AuthorName, @a.Created, [@a.CategoryString()]</p>
     <p>
