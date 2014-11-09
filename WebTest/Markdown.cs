@@ -88,6 +88,7 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.Text;
 using System.Text.RegularExpressions;
+using WebTest;
 
 namespace CustomMarkdownSharp
 {
@@ -1075,7 +1076,7 @@ namespace CustomMarkdownSharp
             url = EncodeProblemUrlChars(url);
             url = EscapeBoldItalic(url);
 
-            //HACK (cody)
+            //HACK
             if (alt == "youtube")
             {
                 result = string.Format(@"<div class=""video-container"">
@@ -1084,7 +1085,18 @@ namespace CustomMarkdownSharp
             }
             else if (alt == "video")
             {
-                result = string.Format(@"<video class=""img-responsive"" src=""{0}"" controls/>", url);
+                string links = string.Empty;
+                if (url.ToLower().StartsWith("/image/"))
+                {
+                    Guid id = Guid.Parse(url.Substring(7));
+                    var w480 = FileCache.GetFile(id + "-0x480.mp4");
+                    if (w480 != null)
+                    {
+                        links += string.Format(@"<p><a target=""_blank"" href=""{0}"">Original file</a></p>", url);
+                        url += "?0x480";
+                    }
+                }
+                result = string.Format(@"<p><video class=""img-responsive"" src=""{0}"" controls/>", url) + links + "</p>";
             }
             else if (alt == "thumb")
             {

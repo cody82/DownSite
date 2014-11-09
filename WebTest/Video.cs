@@ -35,8 +35,6 @@ namespace WebTest
 
     public class VideoInfo
     {
-        //public int Width { get; set; }
-        //public int Height { get; set; }
         public List<VideoStream> Streams { get; set; }
         public VideoFormat Format { get; set; }
 
@@ -69,6 +67,8 @@ namespace WebTest
             }
             catch
             {
+                if (File.Exists(output))
+                    File.Delete(output);
                 return false;
             }
         }
@@ -97,19 +97,19 @@ namespace WebTest
 
         protected static VideoInfo AvProbe(string filename)
         {
-            return null;
+            return Probe("avprobe", filename);
         }
 
-        protected static VideoInfo FfProbe(string filename)
+        protected static VideoInfo Probe(string program, string filename)
         {
-            ProcessStartInfo psi = new ProcessStartInfo("ffprobe", "-v 0 -show_format -show_streams -of json \"" + filename + "\"")
+            ProcessStartInfo psi = new ProcessStartInfo(program, "-v 0 -show_format -show_streams -of json \"" + filename + "\"")
             {
                 CreateNoWindow = true,
                 UseShellExecute = false,
                 RedirectStandardOutput = true
             };
             Process p = Process.Start(psi);
-                
+
             string output = p.StandardOutput.ReadToEnd();
             p.WaitForExit();
             if (p.ExitCode == 0)
@@ -119,6 +119,11 @@ namespace WebTest
             }
             else
                 return null;
+        }
+
+        protected static VideoInfo FfProbe(string filename)
+        {
+            return Probe("ffprobe", filename);
         }
     }
 

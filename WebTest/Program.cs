@@ -87,7 +87,7 @@ namespace WebTest
                         if (w % 2 == 1)
                             w -= 1;
                         Console.WriteLine("converting to 480p...");
-                        string output = Path.Combine(new FileInfo(path).Directory.FullName, Path.GetFileNameWithoutExtension(path) + "-0x480.mp4");
+                        string output = Path.Combine(FileCache.GetCacheDir().FullName, Path.GetFileNameWithoutExtension(path) + "-0x480.mp4");
                         if (VideoConverter.Resize(path, output, w, 480))
                             Console.WriteLine("conversion ready");
                         else
@@ -229,13 +229,36 @@ namespace WebTest
             return Blog.Get();
         }
     }
-    
+
+    public class FileCache
+    {
+        public static DirectoryInfo GetCacheDir()
+        {
+            DirectoryInfo di = new DirectoryInfo(Path.Combine("data", "cache"));
+            if (!di.Exists)
+                di.Create();
+            return di;
+        }
+
+        public static FileInfo GetFile(string filename)
+        {
+            var dir = GetCacheDir();
+
+            var files = dir.GetFiles(filename);
+
+            if (files.Any())
+                return files.First();
+            else
+                return null;
+        }
+    }
+
     [Authenticate]
     public class UploadService : Service
     {
         public static DirectoryInfo GetFileDir()
         {
-            DirectoryInfo di = new DirectoryInfo("files");
+            DirectoryInfo di = new DirectoryInfo(Path.Combine("data", "files"));
             if (!di.Exists)
                 di.Create();
             return di;
@@ -243,7 +266,7 @@ namespace WebTest
 
         public static FileStream GetFile(Guid id)
         {
-            FileInfo fi = new FileInfo(Path.Combine("files", id.ToString()));
+            FileInfo fi = new FileInfo(Path.Combine("data", "files", id.ToString()));
             if (!fi.Exists)
                 return null;
             return fi.OpenRead();
@@ -255,12 +278,12 @@ namespace WebTest
         }
         public static FileInfo GetFileInfo(string filename)
         {
-            var dir = new DirectoryInfo("files");
+            var dir = GetFileDir();
             var files = dir.GetFiles(filename + ".*");
             if (files.Any())
                 return files.First();
 
-            FileInfo fi = new FileInfo(Path.Combine("files", filename));
+            FileInfo fi = new FileInfo(Path.Combine("data", "files", filename));
             if (!fi.Exists)
                 return null;
             return fi;
@@ -347,25 +370,36 @@ namespace WebTest
             var img = Image.Load(request.Id);
             if (img != null)
             {
+                if (Request.AbsoluteUri.EndsWith("?0x480"))
+                {
+                    var file = FileCache.GetFile(img.Item1.Id + "-0x480.mp4");
+                    if (file != null)
+                    {
+                        return new HttpResult(file, "video/mp4") { };
+                    }
+                }
+                
                 if (!Request.AbsoluteUri.EndsWith("?thumb"))
                 {
                     return new HttpResult(img.Item2, string.IsNullOrWhiteSpace(img.Item1.MimeType) ? MimeTypes.ImageJpg : img.Item1.MimeType) { };
                 }
                 else
                 {
-                    int index = img.Item2.FullName.IndexOf('.');
-
-                    string thumb = (index != -1 ? img.Item2.FullName.Substring(0, index) : img.Item2.FullName) + "-thumb.jpg";
-                    if (File.Exists(thumb))
+                    string filename_without_extension = Path.GetFileNameWithoutExtension(img.Item2.Name);
+                    string thumb = filename_without_extension + "-thumb.jpg";
+                    var thumb_file = FileCache.GetFile(thumb);
+                    if (thumb_file != null)
                     {
-                        return new HttpResult(new FileInfo(thumb), MimeTypes.ImageJpg) { };
+                        return new HttpResult(thumb_file, MimeTypes.ImageJpg) { };
                     }
+
+                    thumb_file = new FileInfo(Path.Combine(FileCache.GetCacheDir().FullName, thumb));
 
                     var mimetypes = new string[] { MimeTypes.ImageJpg, MimeTypes.ImagePng, MimeTypes.ImageGif};
 
                     if (!mimetypes.Contains(img.Item1.MimeType))
                     {
-                        if (VideoThumbnailer.MakeThumbnail(img.Item2.FullName, thumb))
+                        if (VideoThumbnailer.MakeThumbnail(img.Item2.FullName, thumb_file.FullName))
                         {
                             return new HttpResult(new FileInfo(thumb), MimeTypes.ImageJpg) { };
                         }
@@ -380,8 +414,8 @@ namespace WebTest
                             {
                                 using (var thumb2 = bmp.GetThumbnailImage(80, 80, null, IntPtr.Zero))
                                 {
-                                    thumb2.Save(thumb, System.Drawing.Imaging.ImageFormat.Jpeg);
-                                    return new HttpResult(new FileInfo(thumb), MimeTypes.ImageJpg) { };
+                                    thumb2.Save(thumb_file.FullName, System.Drawing.Imaging.ImageFormat.Jpeg);
+                                    return new HttpResult(thumb_file, MimeTypes.ImageJpg) { };
                                 }
                             }
                         }
@@ -440,12 +474,17 @@ namespace WebTest
 
         public PersonRepository()
         {
-
-            string dbfile = @"db.sqlite3";
+            string dbfile = Path.Combine("data", "db.sqlite3");
             bool init = !File.Exists(dbfile);
-            db = Database.OpenDbConnection(dbfile);
             if (init)
             {
+                if (Directory.Exists("data"))
+                    Directory.Delete("data", true);
+                var dir = Directory.CreateDirectory("data");
+                dir.CreateSubdirectory("files");
+                dir.CreateSubdirectory("cache");
+
+                db = Database.OpenDbConnection(dbfile);
                 db.CreateTable<User>(true);
                 db.CreateTable<Image>(true);
                 db.CreateTable<Article>(true);
@@ -456,8 +495,6 @@ namespace WebTest
 
                 db.ExecuteSql(@"CREATE UNIQUE INDEX category_unique on Category(ArticleId, Name);");
 
-                if (Directory.Exists("files"))
-                    Directory.Delete("files", true);
 
                 Guid pic1 = Guid.NewGuid(), pic2 = Guid.NewGuid();
                 Image.Save(pic1, db, MimeTypes.ImageJpg, "acf7eede5be5aa69.jpg", new FileInfo("acf7eede5be5aa69.jpg").OpenRead());
@@ -492,6 +529,8 @@ namespace WebTest
                 if (a.Category == null)
                     throw new Exception("BUG");
             }
+            else
+                db = Database.OpenDbConnection(dbfile);
         }
 
         public List<User> GetByIds(Guid[] ids)
