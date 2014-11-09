@@ -68,6 +68,53 @@ namespace WebTest
         public int Width { get; set; }
         public int Height { get; set; }
 
+        static List<string> ConvertQueue = new List<string>();
+
+        static void ConvertVideo(Image img)
+        {
+            foreach (int h in ImageService.ResizeHeights)
+            {
+                if (img.Height > h)
+                {
+                    int w = (int)((double)img.Width / (double)img.Height * (double)h);
+                    if (w % 2 == 1)
+                        w -= 1;
+                    var file = UploadService.GetFileInfo(img.Id);
+
+                    string output = Path.Combine(FileCache.GetCacheDir().FullName, img.Id + "-0x"+h+".mp4");
+
+                    if (File.Exists(output))
+                        continue;
+
+                    int h2 = h;
+                    int w2 = w;
+                    new Thread(() =>
+                    {
+                        lock (ConvertQueue)
+                        {
+                            if (ConvertQueue.Contains(output))
+                                return;
+                            ConvertQueue.Add(output);
+                        }
+
+                        Console.WriteLine("converting to " + h2 + "p...");
+                        if (VideoConverter.Resize(file.FullName, output + ".tmp", w2, h2))
+                        {
+                            Console.WriteLine("conversion ready");
+                            File.Move(output + ".tmp", output);
+                        }
+                        else
+                            Console.WriteLine("conversion failed");
+
+                        lock (ConvertQueue)
+                        {
+                            ConvertQueue.Remove(output);
+                        }
+                    }).Start();
+                }
+            }
+        }
+        
         public static void Save(Guid id, IDbConnection db, string mimetype, string filename, Stream s)
         {
             string path = UploadService.PutFile(id, mimetype, s);
@@ -81,25 +128,7 @@ namespace WebTest
                     img.Width = res.Width;
                     img.Height = res.Height;
 
-                    if (img.Height > 480)
-                    {
-                        int w = (int)((double)img.Width / (double)img.Height * 480.0);
-                        if (w % 2 == 1)
-                            w -= 1;
-                        string output = Path.Combine(FileCache.GetCacheDir().FullName, Path.GetFileNameWithoutExtension(path) + "-0x480.mp4");
-
-                        new Thread(() =>
-                        {
-                                Console.WriteLine("converting to 480p...");
-                                if (VideoConverter.Resize(path, output + ".tmp", w, 480))
-                                {
-                                    Console.WriteLine("conversion ready");
-                                    File.Move(output + ".tmp", output);
-                                }
-                                else
-                                    Console.WriteLine("conversion failed");
-                            }).Start();
-                    }
+                    ConvertVideo(img);
                 }
             }
             else
@@ -118,6 +147,8 @@ namespace WebTest
             var img = PersonRepository.db.Select<Image>(x => x.Id == id).SingleOrDefault();
             if (img == null)
                 return null;
+
+            ConvertVideo(img);
 
             var s = UploadService.GetFileInfo(id);
 
