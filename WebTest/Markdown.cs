@@ -134,6 +134,8 @@ namespace CustomMarkdownSharp
     /// </summary>
     public class Markdown
     {
+        public bool Static = false;
+
         //Mono's RegEx is very limited and can't support avg-sized Markdown documents
         public static bool UseMarkdownDeep = false;//ServiceStack.Text.Env.IsMono || true; 
 
@@ -1077,6 +1079,7 @@ namespace CustomMarkdownSharp
             url = EscapeBoldItalic(url);
 
             //HACK
+            string seperator = Static ? "%" : "?";
             if (alt == "youtube")
             {
                 result = string.Format(@"<div class=""embed-responsive embed-responsive-16by9"">
@@ -1101,18 +1104,18 @@ namespace CustomMarkdownSharp
 
                     foreach (int h in ImageService.ResizeHeights)
                     {
-                        var w480 = FileCache.GetFile(id + "-0x" + h + ".mp4");
+                        var w480 = FileCache.GetFile(id + "%" + "0x" + h + ".mp4");
                         if (w480 != null)
                         {
                             if (!found)
                             {
                                 links += string.Format(@" <a target=""_blank"" href=""{0}"">{1}p(Original)</a> ", url, img.Item1.Height);
-                                url += "?0x" + h;
+                                url += seperator + "0x" + h;
                                 found = true;
                             }
                             else
                             {
-                                links += string.Format(@" <a target=""_blank"" href=""{0}"">{1}p</a> ", "/Image/" + id.ToString().Replace("-", "") + "?0x" + h, h);
+                                links += string.Format(@" <a target=""_blank"" href=""{0}"">{1}p</a> ", "/Image/" + id.ToString().Replace("-", "") + seperator + "0x" + h, h);
                             }
                         }
                     }
@@ -1121,7 +1124,7 @@ namespace CustomMarkdownSharp
             }
             else if (alt == "thumb")
             {
-                result = string.Format("<a target=\"_blank\" href=\"{0}\"><img src=\"{0}?thumb\" alt=\"{1}\"", url, alt);
+                result = string.Format("<a target=\"_blank\" href=\"{0}\"><img src=\"{0}{2}thumb\" alt=\"{1}\"", url, alt, seperator);
 
                 if (!String.IsNullOrEmpty(title))
                 {

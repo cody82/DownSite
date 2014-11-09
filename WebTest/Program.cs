@@ -108,7 +108,7 @@ namespace WebTest
                         w -= 1;
                     var file = UploadService.GetFileInfo(img.Id);
 
-                    string output = Path.Combine(FileCache.GetCacheDir().FullName, img.Id + "-0x"+h+".mp4");
+                    string output = Path.Combine(FileCache.GetCacheDir().FullName, img.Id + "%0x"+h+".mp4");
 
                     if (File.Exists(output))
                         continue;
@@ -443,7 +443,7 @@ namespace WebTest
                 {
                     string extension = null;
                     string mimetype = null;
-                    string end = "-" + tmp;
+                    string end = "%" + tmp;
                     if (img.MimeType.StartsWith("video"))
                     {
                         extension = "mp4";
@@ -484,7 +484,7 @@ namespace WebTest
                 if (Request.AbsoluteUri.EndsWith("?thumb"))
                 {
                     string filename_without_extension = Path.GetFileNameWithoutExtension(img.Item2.Name);
-                    string thumb = filename_without_extension + "-thumb.jpg";
+                    string thumb = filename_without_extension + "%thumb.jpg";
                     var thumb_file = FileCache.GetFile(thumb);
                     if (thumb_file != null)
                     {

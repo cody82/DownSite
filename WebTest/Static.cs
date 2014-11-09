@@ -150,7 +150,9 @@ namespace WebTest
             //razor.Init();
             //string html = RazorFormat.Instance.CreateAndRenderToHtml(new StreamReader(Path.Combine("Views", "Article.cshtml")).ReadToEnd(), a, "Default");
             var page = RazorFormat.Instance.GetViewPage("Article");
+            a.Html = new CustomMarkdownSharp.Markdown() { Static = true }.Transform(a.Content);
             string html = RazorFormat.Instance.RenderToHtml(page, a, "Default");
+            a.Html = null;
 
             string content = html.Replace("\"/Image/", "\"../Image/");
             content = content.Replace("\"/Article/Id/", "\"../Article/");

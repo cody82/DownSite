@@ -53,6 +53,9 @@ namespace WebTest
         public string AuthorName { get; set; }
 
         [Ignore]
+        public string Html { get; set; }
+
+        [Ignore]
         public string Link
         {
             get
@@ -68,9 +71,11 @@ namespace WebTest
             return Category.Select(x => x.Name).Join(", ");
         }
 
-        public string ContentHtml()
+        public string ContentHtml(bool staticpage = false)
         {
-            return new CustomMarkdownSharp.Markdown().Transform(Content);
+            if (Html != null)
+                return Html;
+            return new CustomMarkdownSharp.Markdown() { Static = staticpage}.Transform(Content);
         }
     }
 
@@ -150,9 +155,9 @@ namespace WebTest
             //return blog.ToArray();
         }
 
-        public static string Preview(string markdown)
+        public static string Preview(string markdown, bool staticpage = false)
         {
-            string html = new CustomMarkdownSharp.Markdown().Transform(markdown);
+            string html = new CustomMarkdownSharp.Markdown() { Static = staticpage }.Transform(markdown);
             HtmlDocument doc = new HtmlDocument();
             doc.LoadHtml(html);
 
@@ -277,7 +282,7 @@ namespace WebTest
         }
 
         //[AddHeader(ContentType = MimeTypes.Html)]
-        public object GetHtml(Article request)
+        public object GetHtml(Article request, bool staticpage = false)
         {
             var preview = Request != null ? Request.AbsoluteUri.EndsWith("?preview") : false;
 
@@ -305,7 +310,7 @@ namespace WebTest
                 if (preview)
                     previewtext += new HtmlToText().ConvertHtml(article.Content);
                 else
-                    html += new CustomMarkdownSharp.Markdown().Transform(article.Content);
+                    html += new CustomMarkdownSharp.Markdown() { Static = staticpage}.Transform(article.Content);
             }
 
             const int maxpreview = 100;
