@@ -57,6 +57,27 @@ namespace WebTest
         public Guid ImageId { get; set; }
     }
 
+    [Route("/system")]
+    public class SystemInfoRequest
+    {
+    }
+
+    public class SystemInfoResponse
+    {
+        public List<string> ConversionQueue { get; set; }
+    }
+
+    public class SystemInfoService : Service
+    {
+        public object Get(SystemInfoRequest request)
+        {
+            lock (Image.ConvertQueue)
+            {
+                return new SystemInfoResponse() { ConversionQueue = Image.ConvertQueue.Select(x => Path.GetFileName(x)).ToList() };
+            }
+        }
+    }
+
     [Route("/Image/{Id}", "GET")]
     public class Image : IReturn<byte[]>
     {
@@ -68,7 +89,7 @@ namespace WebTest
         public int Width { get; set; }
         public int Height { get; set; }
 
-        static List<string> ConvertQueue = new List<string>();
+        public static List<string> ConvertQueue = new List<string>();
 
         static void ConvertVideo(Image img)
         {
