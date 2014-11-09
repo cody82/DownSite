@@ -1079,8 +1079,8 @@ namespace CustomMarkdownSharp
             //HACK
             if (alt == "youtube")
             {
-                result = string.Format(@"<div class=""video-container"">
-<iframe width=""640"" height=""360"" src=""//www.youtube.com/embed/{0}"" frameborder=""0""> </iframe>
+                result = string.Format(@"<div class=""embed-responsive embed-responsive-16by9"">
+<iframe class=""embed-responsive-item"" src=""//www.youtube.com/embed/{0}"" frameborder=""0""> </iframe>
 </div>", url);
             }
             else if (alt == "video")
