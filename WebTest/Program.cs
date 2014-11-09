@@ -119,7 +119,7 @@ namespace WebTest
         {
             string path = UploadService.PutFile(id, mimetype, s);
             var img = new Image() { Id = id, MimeType = mimetype, FileName = filename };
-            if (mimetype.IndexOf("video") != -1)
+            if (img.MimeType.StartsWith("video"))
             {
                 var video = VideoProbe.Probe(path);
                 if (video != null)
@@ -148,7 +148,8 @@ namespace WebTest
             if (img == null)
                 return null;
 
-            ConvertVideo(img);
+            if (img.MimeType.StartsWith("video"))
+                ConvertVideo(img);
 
             var s = UploadService.GetFileInfo(id);
 

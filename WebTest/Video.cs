@@ -50,10 +50,26 @@ namespace WebTest
 
     public class VideoConverter
     {
+        static string program = null;
+        static string extra_params = "";
+
         public static bool Resize(string input, string output, int width, int height)
         {
-            string param = string.Format(@"-i ""{0}"" -y -vf scale={2}:{3} -f mp4 ""{1}""", input, output, width, height);
-            ProcessStartInfo psi = new ProcessStartInfo("ffmpeg", param)
+            if (program == null)
+            {
+                if (VideoThumbnailer.UseFFmpeg)
+                    program = "ffmpeg";
+                else if (VideoThumbnailer.UseAvconv)
+                {
+                    program = "avconv";
+                    extra_params = " -strict experimental";
+                }
+                else
+                    return false;
+            }
+
+            string param = string.Format(@"-i ""{0}""{4} -y -vf scale={2}:{3} -f mp4 ""{1}""", input, output, width, height, extra_params);
+            ProcessStartInfo psi = new ProcessStartInfo(program, param)
             {
                 CreateNoWindow = true,
                 UseShellExecute = false
