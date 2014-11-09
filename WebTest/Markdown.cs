@@ -1083,6 +1083,10 @@ namespace CustomMarkdownSharp
 <iframe class=""embed-responsive-item"" src=""//www.youtube.com/embed/{0}"" frameborder=""0""> </iframe>
 </div>", url);
             }
+            else if (alt == "vimeo")
+            {
+                result = string.Format(@"<div class=""embed-responsive embed-responsive-16by9""><iframe class=""embed-responsive-item"" src=""//player.vimeo.com/video/{0}"" frameborder=""0"" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe></div>", url);
+            }
             else if (alt == "video")
             {
                 string links = string.Empty;
@@ -1108,7 +1112,7 @@ namespace CustomMarkdownSharp
                             }
                             else
                             {
-                                links += string.Format(@" <a target=""_blank"" href=""{0}"">{1}p</a> ", "/Image/" + id.ToString().Replace("-","") + "?0x" + h, h);
+                                links += string.Format(@" <a target=""_blank"" href=""{0}"">{1}p</a> ", "/Image/" + id.ToString().Replace("-", "") + "?0x" + h, h);
                             }
                         }
                     }
