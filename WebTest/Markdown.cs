@@ -1086,17 +1086,30 @@ namespace CustomMarkdownSharp
             else if (alt == "video")
             {
                 string links = string.Empty;
+                bool found = false;
                 if (url.ToLower().StartsWith("/image/"))
                 {
                     Guid id = Guid.Parse(url.Substring(7));
-                    var w480 = FileCache.GetFile(id + "-0x480.mp4");
-                    if (w480 != null)
+
+                    foreach (int h in ImageService.ResizeHeights)
                     {
-                        links += string.Format(@"<p><a target=""_blank"" href=""{0}"">Original file</a></p>", url);
-                        url += "?0x480";
+                        var w480 = FileCache.GetFile(id + "-0x" + h + ".mp4");
+                        if (w480 != null)
+                        {
+                            if (!found)
+                            {
+                                links += string.Format(@" <a target=""_blank"" href=""{0}"">Original</a> ", url);
+                                url += "?0x" + h;
+                                found = true;
+                            }
+                            else
+                            {
+                                links += string.Format(@" <a target=""_blank"" href=""{0}"">{1}p</a> ", url, h);
+                            }
+                        }
                     }
                 }
-                result = string.Format(@"<p><video class=""img-responsive"" src=""{0}"" controls/>", url) + links + "</p>";
+                result = string.Format(@"<p><video class=""img-responsive"" src=""{0}"" controls/>", url) + "<p>" + links + "</p>" + "</p>";
             }
             else if (alt == "thumb")
             {
