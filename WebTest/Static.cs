@@ -120,7 +120,7 @@ namespace WebTest
             var articles = db.Select<Article>();
             foreach (var a in articles)
             {
-                string path = Path.Combine(article_dir.FullName, a.Id.ToString() + ".html");
+                string path = Path.Combine(article_dir.FullName, a.Id.ToString().Replace("-","") + ".html");
                 using (StreamWriter sw = new StreamWriter(path, false))
                 {
                     GenerateArticle(a, sw);

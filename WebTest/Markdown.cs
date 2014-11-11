@@ -1116,7 +1116,7 @@ namespace CustomMarkdownSharp
                             if (!found)
                             {
                                 links += string.Format(@" <a target=""_blank"" href=""{0}"">{1}p(Original)</a> ", url, img.Item1.Height);
-                                url = url.Substring(0, 7) + id.ToString().Replace("-","") + WebTest.Settings.Seperator + "0x" + h + extension;
+                                url = url.Substring(0, 7) + id.ToString().Replace("-","") + WebTest.Settings.Seperator + "0x" + h + ".mp4";
                                 found = true;
                             }
                             else

@@ -60,7 +60,7 @@ namespace WebTest
         {
             get
             {
-                return "/article/Id/" + Id + ".html";
+                return "/article/Id/" + Id.ToString().Replace("-", "") +".html";
             }
         }
 
