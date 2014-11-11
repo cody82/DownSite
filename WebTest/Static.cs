@@ -92,18 +92,29 @@ namespace WebTest
             DirectoryCopy("js", Path.Combine(output.FullName, "js"), true);
             DirectoryCopy("css", Path.Combine(output.FullName, "css"), true);
             DirectoryCopy("fonts", Path.Combine(output.FullName, "fonts"), true);
+            DirectoryCopy("data/", Path.Combine(output.FullName, "fonts"), true);
 
             db = Database.OpenDbConnection(Path.Combine("data", "db.sqlite3"));
-
+            
             var image_dir = output.CreateSubdirectory("Image");
-            var images = db.Select<Image>();
+
+            foreach (FileInfo fi in new DirectoryInfo(Path.Combine("data", "files")).GetFiles())
+            {
+                File.Copy(fi.FullName, Path.Combine(image_dir.FullName, fi.Name.Replace("-","")));
+            }
+            foreach (FileInfo fi in new DirectoryInfo(Path.Combine("data", "cache")).GetFiles())
+            {
+                File.Copy(fi.FullName, Path.Combine(image_dir.FullName, fi.Name.Replace("-","")));
+            }
+
+            /*var images = db.Select<Image>();
             foreach (var img in images)
             {
-                string path = Path.Combine(image_dir.FullName, img.Id.ToString().Replace("-","")/* + "." + UploadService.MimeTypeExtension(img.MimeType)*/);
+                string path = Path.Combine(image_dir.FullName, img.Id.ToString().Replace("-","")// + "." + UploadService.MimeTypeExtension(img.MimeType));
                 string source = UploadService.GetFileInfo(img.Id).FullName;
 
                 File.Copy(source, path, true);
-            }
+            }*/
 
             var article_dir = output.CreateSubdirectory("Article");
             var articles = db.Select<Article>();

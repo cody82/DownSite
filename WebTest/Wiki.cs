@@ -178,10 +178,13 @@ namespace WebTest
                         string url = img.GetAttributeValue("src", null);
                         if (url != null && url.Length > 1 && url[0] == '/' && url[1] != '/')
                         {
-                            if (url.StartsWith("/Image"))
+                            if (url.StartsWith("/Image/"))
                             {
-                                if (!url.EndsWith("?thumb"))
-                                    url += "?thumb";
+                                url = url.Substring(7);
+                                url = Path.GetFileNameWithoutExtension(url);
+                                url = url.Split(Settings.Seperator[0])[0];
+                                url += Settings.Seperator + "thumb.jpg";
+                                url = "/Image/" + url;
                                 if (!br_inserted)
                                 {
                                     text += "<br/>";
@@ -203,10 +206,13 @@ namespace WebTest
                         string url = video.GetAttributeValue("src", null);
                         if (url != null && url.Length > 1 && url[0] == '/' && url[1] != '/')
                         {
-                            if (url.StartsWith("/Image"))
+                            if (url.StartsWith("/Image/"))
                             {
-                                if (!url.EndsWith("?thumb"))
-                                    url += "?thumb";
+                                url = url.Substring(7);
+                                url = Path.GetFileNameWithoutExtension(url);
+                                url = url.Split(Settings.Seperator[0])[0];
+                                url += Settings.Seperator + "thumb.jpg";
+                                url = "/Image/" + url;
                                 if (!br_inserted)
                                 {
                                     text += "<br/>";

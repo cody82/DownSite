@@ -86,6 +86,7 @@ software, even if advised of the possibility of such damage.
 using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using WebTest;
@@ -1079,7 +1080,6 @@ namespace CustomMarkdownSharp
             url = EscapeBoldItalic(url);
 
             //HACK
-            string seperator = Static ? "%" : "?";
             if (alt == "youtube")
             {
                 result = string.Format(@"<div class=""embed-responsive embed-responsive-16by9"">
@@ -1096,7 +1096,13 @@ namespace CustomMarkdownSharp
                 bool found = false;
                 if (url.ToLower().StartsWith("/image/"))
                 {
-                    Guid id = Guid.Parse(url.Substring(7));
+                    string tmp = url.Substring(7);
+                    tmp = Path.GetFileNameWithoutExtension(tmp);
+                    string extension = Path.GetExtension(url);
+                    string[] split = tmp.Split(Settings.Seperator[0]);
+
+                    Guid id = Guid.Parse(split[0]);
+                    
 
                     var img = Image.Load(id);
                     if (img == null)
@@ -1104,18 +1110,18 @@ namespace CustomMarkdownSharp
 
                     foreach (int h in ImageService.ResizeHeights)
                     {
-                        var w480 = FileCache.GetFile(id + "%" + "0x" + h + ".mp4");
+                        var w480 = FileCache.GetFile(id + WebTest.Settings.Seperator + "0x" + h + ".mp4");
                         if (w480 != null)
                         {
                             if (!found)
                             {
                                 links += string.Format(@" <a target=""_blank"" href=""{0}"">{1}p(Original)</a> ", url, img.Item1.Height);
-                                url += seperator + "0x" + h;
+                                url = url.Substring(0, 7) + id.ToString().Replace("-","") + WebTest.Settings.Seperator + "0x" + h + extension;
                                 found = true;
                             }
                             else
                             {
-                                links += string.Format(@" <a target=""_blank"" href=""{0}"">{1}p</a> ", "/Image/" + id.ToString().Replace("-", "") + seperator + "0x" + h, h);
+                                links += string.Format(@" <a target=""_blank"" href=""{0}"">{1}p</a> ", "/Image/" + id.ToString().Replace("-", "") + WebTest.Settings.Seperator + "0x" + h + ".mp4", h);
                             }
                         }
                     }
@@ -1124,7 +1130,7 @@ namespace CustomMarkdownSharp
             }
             else if (alt == "thumb")
             {
-                result = string.Format("<a target=\"_blank\" href=\"{0}\"><img src=\"{0}{2}thumb\" alt=\"{1}\"", url, alt, seperator);
+                result = string.Format("<a target=\"_blank\" href=\"{0}\"><img src=\"{0}{2}thumb.jpg\" alt=\"{1}\"", url, alt, WebTest.Settings.Seperator);
 
                 if (!String.IsNullOrEmpty(title))
                 {

@@ -25,6 +25,11 @@ using ServiceStack.Logging;
 
 namespace WebTest
 {
+    public static class Settings
+    {
+        public const string Seperator = "!";
+    }
+
     public class Configuration
     {
         [PrimaryKey]
@@ -84,8 +89,59 @@ namespace WebTest
         }
     }
 
-    [Route("/Image/{Id}", "GET")]
-    public class Image : IReturn<byte[]>
+    [Route("/Image/{RequestString}", "GET")]
+    public class ImageRequest : IReturn<byte[]>
+    {
+        public string RequestString
+        {
+            get
+            {
+                return requeststring;
+            }
+            set
+            {
+                requeststring = value;
+                Parse();
+            }
+        }
+
+        string requeststring;
+        Guid id;
+        string param = string.Empty;
+
+        void Parse()
+        {
+            string filename = Path.GetFileNameWithoutExtension(requeststring);
+            int i = filename.IndexOf(Settings.Seperator);
+            if (i != -1)
+            {
+                param = filename.Substring(i);
+                filename = filename.Substring(0, i);
+            }
+            else
+            {
+                param = string.Empty;
+            }
+            id = Guid.Parse(filename);
+        }
+
+        public Guid Id
+        {
+            get
+            {
+                return id;
+            }
+        }
+        public string Param
+        {
+            get
+            {
+                return param;
+            }
+        }
+    }
+
+    public class Image
     {
         [PrimaryKey]
         public Guid Id { get; set; }
@@ -108,7 +164,7 @@ namespace WebTest
                         w -= 1;
                     var file = UploadService.GetFileInfo(img.Id);
 
-                    string output = Path.Combine(FileCache.GetCacheDir().FullName, img.Id + "%0x"+h+".mp4");
+                    string output = Path.Combine(FileCache.GetCacheDir().FullName, img.Id + WebTest.Settings.Seperator + "0x"+h+".mp4");
 
                     if (File.Exists(output))
                         continue;
@@ -334,13 +390,24 @@ namespace WebTest
         {
             FileInfo fi = new FileInfo(Path.Combine("data", "files", id.ToString()));
             if (!fi.Exists)
-                return null;
+            {
+                fi = new FileInfo(Path.Combine("data", "files", id.ToString().Replace("-","")));
+                if (!fi.Exists)
+                {
+                    return null;
+                }
+            }
             return fi.OpenRead();
         }
 
         public static FileInfo GetFileInfo(Guid id)
         {
-            return GetFileInfo(id.ToString());
+            FileInfo fi = GetFileInfo(id.ToString());
+            if (fi == null)
+            {
+                fi = GetFileInfo(id.ToString().Replace("-",""));
+            }
+            return fi;
         }
         public static FileInfo GetFileInfo(string filename)
         {
@@ -376,7 +443,7 @@ namespace WebTest
 
         public static string PutFile(Guid id, string mimetype, Stream s)
         {
-            return PutFile(id.ToString() + "." + MimeTypeExtension(mimetype), s);
+            return PutFile(id.ToString().Replace("-","") + "." + MimeTypeExtension(mimetype), s);
         }
         public static string PutFile(string filename, Stream s)
         {
@@ -434,16 +501,16 @@ namespace WebTest
         public static readonly int[] ResizeHeights = { 480, 720 };
         public static readonly int[] ResizeWidths = { 640, 1024, 1920 };
 
-        static HttpResult ResizeHelper(string url, Image img, int[] sizes, Func<int, string> x)
+        static HttpResult ResizeHelper(ImageRequest request, Image img, int[] sizes, Func<int, string> x)
         {
             foreach (var h in sizes)
             {
                 string tmp = x(h);
-                if (url.EndsWith("?" + tmp))
+                if (request.Param.Contains(tmp))
                 {
                     string extension = null;
                     string mimetype = null;
-                    string end = "%" + tmp;
+                    string end = WebTest.Settings.Seperator + tmp;
                     if (img.MimeType.StartsWith("video"))
                     {
                         extension = "mp4";
@@ -469,22 +536,27 @@ namespace WebTest
             return null;
         }
 
-        public object Get(Image request)
+        public object Get(ImageRequest request)
         {
             var img = Image.Load(request.Id);
             if (img != null)
             {
-                var res = ResizeHelper(Request.AbsoluteUri, img.Item1, ResizeHeights, x => "0x" + x);
-                if (res != null)
-                    return res;
-                res = ResizeHelper(Request.AbsoluteUri, img.Item1, ResizeWidths, x => x + "x0");
-                if (res != null)
-                    return res;
+                bool thumb3 = request.Param.Contains("thumb");
 
-                if (Request.AbsoluteUri.EndsWith("?thumb"))
+                if(!thumb3)
+                {
+                    var res = ResizeHelper(request, img.Item1, ResizeHeights, x => "0x" + x);
+                    if (res != null)
+                        return res;
+                    res = ResizeHelper(request, img.Item1, ResizeWidths, x => x + "x0");
+                    if (res != null)
+                        return res;
+                }
+
+                if (thumb3)
                 {
                     string filename_without_extension = Path.GetFileNameWithoutExtension(img.Item2.Name);
-                    string thumb = filename_without_extension + "%thumb.jpg";
+                    string thumb = filename_without_extension + WebTest.Settings.Seperator + "thumb.jpg";
                     var thumb_file = FileCache.GetFile(thumb);
                     if (thumb_file != null)
                     {
@@ -611,7 +683,7 @@ namespace WebTest
 
 ![](/Image/{0})
 
-![youtube](cxBcHLylFbw)", pic1);
+![youtube](cxBcHLylFbw)", pic1.ToString().Replace("-","") + ".jpg");
 
                 Guid article;
                 db.Insert<Article>(new Article() { Id = article = Guid.NewGuid(), ShowInBlog = true, Content = content, AuthorId = person1, Created = DateTime.Now, Title = "page1", VersionGroup = Guid.NewGuid() });
