@@ -670,9 +670,10 @@ namespace WebTest
                 db.ExecuteSql(@"CREATE UNIQUE INDEX category_unique on Category(ArticleId, Name);");
 
 
-                Guid pic1 = Guid.NewGuid(), pic2 = Guid.NewGuid();
+                Guid pic1 = Guid.NewGuid(), pic2 = Guid.NewGuid(), pic3 = Guid.NewGuid();
                 Image.Save(pic1, db, MimeTypes.ImageJpg, "acf7eede5be5aa69.jpg", new FileInfo("acf7eede5be5aa69.jpg").OpenRead());
                 Image.Save(pic2, db, MimeTypes.ImageJpg, "e3939e928899550f.jpg", new FileInfo("e3939e928899550f.jpg").OpenRead());
+                Image.Save(pic3, db, "video/webm", "d552c86d2ebd373c.webm", new FileInfo("d552c86d2ebd373c.webm").OpenRead());
 
                 Guid person1;
                 db.Insert<User>(new User() { Id = person1 = Guid.NewGuid(), ImageId = pic1, UserName = "cody", Password = Util.SHA1("cody"), FirstName = "cody", LastName = "test", Age = 32 });
@@ -682,8 +683,8 @@ namespace WebTest
                 string content = string.Format(@"-CONTENT-
 
 ![](/Image/{0})
-
-![youtube](cxBcHLylFbw)", pic1.ToString().Replace("-","") + ".jpg");
+![video](/Image/{1})
+![youtube](cxBcHLylFbw)", pic1.ToString().Replace("-", "") + ".jpg", pic3.ToString().Replace("-", "") + ".webm");
 
                 Guid article;
                 db.Insert<Article>(new Article() { Id = article = Guid.NewGuid(), ShowInBlog = true, Content = content, AuthorId = person1, Created = DateTime.Now, Title = "page1", VersionGroup = Guid.NewGuid() });
