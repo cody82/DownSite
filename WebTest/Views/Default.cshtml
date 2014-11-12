@@ -125,9 +125,35 @@
     <div class="container">
         
 <div id="main_content" class="row">
+    <div class="col-sm-9">
     @RenderBody()
-</div>
-<div id="article_id" class="row">
+    </div>
+    <div class="col-sm-3">
+			<h4><span class="glyphicon glyphicon-facetime-video"></span> YouTube:</h4>
+			<a target="_blank" href="//www.youtube.com/user/cody83462">cody@youtube</a>
+			<hr/>
+			<h4><span class="glyphicon glyphicon-user"></span> GitHub:</h4>
+			<a target="_blank" href="//github.com/cody82">cody@github</a>
+			<hr/>
+			<h4><span class="glyphicon glyphicon-envelope"></span> Mail:</h4>
+			ndkwzvbsn at gmx.de
+			<hr/>
+			<h4><span class="glyphicon glyphicon-comment"></span> Jabber:</h4>
+			cody@jabber.org
+			<hr/>
+			<h4>Latest posts:</h4>
+        @foreach (WebTest.Article a in WebTest.Blog.LoadBlog().Take(5))
+        {
+            <h5><a href="@a.Link">@a.Title</a></h5>
+          @a.Created
+        }
+        <hr/>
+			<h4>Tags:</h4>
+        @foreach (string t in WebTest.TagsService.LoadTags())
+        {
+            <h5><a href="/blog/?tag=@t">@t</a></h5>
+        }
+    </div>
 </div>
 
       <hr>
