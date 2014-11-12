@@ -117,10 +117,13 @@ namespace WebTest
             }*/
 
             var article_dir = output.CreateSubdirectory("Article");
-            var articles = db.Select<Article>();
+            var articles = db.LoadSelect<Article>();
             foreach (var a in articles)
             {
                 string path = Path.Combine(article_dir.FullName, a.Id.ToString().Replace("-","") + ".html");
+
+                if (a.Author != null)
+                    a.AuthorName = a.Author.UserName;
                 using (StreamWriter sw = new StreamWriter(path, false))
                 {
                     GenerateArticle(a, sw);
