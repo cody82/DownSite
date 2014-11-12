@@ -200,7 +200,11 @@ namespace WebTest
         
         public static void Save(Guid id, IDbConnection db, string mimetype, string filename, Stream s)
         {
-            string path = UploadService.PutFile(id, mimetype, s);
+            string extension = UploadService.MimeTypeExtension(mimetype);
+            if (extension == null)
+                extension = Path.GetExtension(filename);
+
+            string path = UploadService.PutFile(id, extension, s);
             var img = new Image() { Id = id, MimeType = mimetype, FileName = filename };
             if (img.MimeType.StartsWith("video"))
             {
@@ -214,7 +218,7 @@ namespace WebTest
                     ConvertVideo(img);
                 }
             }
-            else
+            else if(mimetype.StartsWith("image"))
             {
                 using (var bmp = new Bitmap(path))
                 {
@@ -437,13 +441,13 @@ namespace WebTest
                 case "video/mp4":
                     return "mp4";
                 default:
-                    throw new Exception("no extension for mime type " + mimetype);
+                    return null;
             }
         }
 
-        public static string PutFile(Guid id, string mimetype, Stream s)
+        public static string PutFile(Guid id, string extension, Stream s)
         {
-            return PutFile(id.ToString().Replace("-","") + "." + MimeTypeExtension(mimetype), s);
+            return PutFile(id.ToString().Replace("-", "") + extension, s);
         }
         public static string PutFile(string filename, Stream s)
         {
@@ -461,13 +465,13 @@ namespace WebTest
             var file = Request.Files.FirstOrDefault();
 
             Guid pic1 = Guid.NewGuid();
-            var mimetypes = new string[] { MimeTypes.ImageJpg, "video/webm", MimeTypes.ImagePng, MimeTypes.ImageGif, "video/mp4" };
+            //var mimetypes = new string[] { MimeTypes.ImageJpg, "video/webm", MimeTypes.ImagePng, MimeTypes.ImageGif, "video/mp4" };
             if (file == null)
             {
                 if(request.RequestStream == null)
                     return new HttpError(System.Net.HttpStatusCode.InternalServerError, "File missing.");
 
-                if (mimetypes.Contains(Request.ContentType))
+                //if (mimetypes.Contains(Request.ContentType))
                 {
                     string filename = null;
                     if (Request.Headers.AllKeys.Contains("Content-Disposition"))
@@ -482,19 +486,18 @@ namespace WebTest
 
                     return new UploadResult() { Guid = pic1 };
                 }
-                else
-                    return new HttpError(System.Net.HttpStatusCode.InternalServerError, string.Format("Unknown file type: {0}.", file.ContentType));
+                //else
+                //    return new HttpError(System.Net.HttpStatusCode.InternalServerError, string.Format("Unknown file type: {0}.", file.ContentType));
             }
 
-            if(!mimetypes.Contains(file.ContentType))
-                return new HttpError(System.Net.HttpStatusCode.InternalServerError, string.Format("Unknown file type: {0}.", file.ContentType));
+            //if(!mimetypes.Contains(file.ContentType))
+            //    return new HttpError(System.Net.HttpStatusCode.InternalServerError, string.Format("Unknown file type: {0}.", file.ContentType));
 
             Image.Save(pic1, PersonRepository.db, Request.ContentType, file.FileName, file.InputStream);
 
             return new UploadResult(){ Guid= pic1 };
         }
     }
-
 
     public class ImageService : Service
     {
@@ -593,7 +596,12 @@ namespace WebTest
                 }
                 else
                 {
-                    return new HttpResult(img.Item2, string.IsNullOrWhiteSpace(img.Item1.MimeType) ? MimeTypes.ImageJpg : img.Item1.MimeType) { };
+                    var res = new HttpResult(img.Item2, string.IsNullOrWhiteSpace(img.Item1.MimeType) ? MimeTypes.ImageJpg : img.Item1.MimeType ) { };
+                    if(img.Item1.MimeType == "application/octet-stream")
+                    {
+                        res.Options.Add("Content-Disposition", "attachment; filename=\""+img.Item1.FileName+"\"");
+                    }
+                    return res;
                 }
             }
             return new HttpResult(System.Net.HttpStatusCode.NotFound, "No image with that ID.");
