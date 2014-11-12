@@ -5,13 +5,13 @@
       <input class="delete" id="<%= row.Id %>" type="checkbox"/>
     </td>
 		<td>
-      <a href="javascript:article_add_text('![<%= function() {if(row.MimeType.substring(0,5) == 'video'){return "video";} else {return "";}}() %>](/Image/<%= row.Id %>.<%= row.MimeType.split('/')[1].replace('jpeg','jpg') %>)')">![<%= function() {if(row.MimeType.substring(0,5) == 'video'){return "video";} else {return "";}}() %>](/Image/<%= row.Id %>.<%= row.MimeType.split('/')[1].replace('jpeg','jpg') %>)</a>
+      <a href="javascript:article_add_text('![<%= function() {if(row.MimeType.substring(0,5) == 'video'){return "video";} else {return "";}}() %>](/image/<%= row.Id %>.<%= row.MimeType.split('/')[1].replace('jpeg','jpg') %>)')">![<%= function() {if(row.MimeType.substring(0,5) == 'video'){return "video";} else {return "";}}() %>](/image/<%= row.Id %>.<%= row.MimeType.split('/')[1].replace('jpeg','jpg') %>)</a>
     </td>
     <td>
       <%= row.FileName %>
     </td>
     <td>
-      <a target="_blank" href="/Image/<%= row.Id %>"><img src="/Image/<%= row.Id %>!thumb.jpg"/></a>
+      <a target="_blank" href="/image/<%= row.Id %>"><img src="/image/<%= row.Id %>!thumb.jpg"/></a>
     </td>
 	</tr>
   <% }) %>

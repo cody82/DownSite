@@ -141,8 +141,9 @@ namespace WebTest
 
             string html = RazorFormat.Instance.RenderToHtml(page, blog, "Default");
 
-            string content = html.Replace("\"/Image/", "\"Image/");
-            content = content.Replace("\"/Article/Id/", "\"Article/");
+            string content = html.Replace("\"/image/", "\"Image/");
+            content = content.Replace("\"/article/id/", "\"article/");
+            content = content.Replace("\"/Article/Id/", "\"article/");
             content = content.Replace("\"/article/Id/", "\"article/");
             content = content.Replace("\"/js/", "\"js/");
             content = content.Replace("\"/css/", "\"css/");
@@ -165,9 +166,10 @@ namespace WebTest
             string html = RazorFormat.Instance.RenderToHtml(page, a, "Default");
             a.Html = null;
 
-            string content = html.Replace("\"/Image/", "\"../Image/");
-            content = content.Replace("\"/Article/Id/", "\"../Article/");
-            content = content.Replace("\"/article/Id/", "\"../article/");
+            string content = html.Replace("\"/image/", "\"../image/");
+            content = content.Replace("\"/article/id/", "\"article/");
+            content = content.Replace("\"/Article/Id/", "\"article/");
+            content = content.Replace("\"/article/Id/", "\"article/");
             content = content.Replace("\"/js/", "\"../js/");
             content = content.Replace("\"/css/", "\"../css/");
             content = content.Replace("\"//", "\"http://");

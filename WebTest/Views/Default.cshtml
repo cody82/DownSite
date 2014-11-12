@@ -146,7 +146,7 @@
         $('#fileupload').fileupload({
             dataType: 'json',
             done: function (e, data) {
-                $('#upload_result').html('<img src="/Image/' + data.result.Guid + '"></img>');
+                $('#upload_result').html('<img src="/image/' + data.result.Guid + '"></img>');
                 $('#input_image_guid').val(data.result.Guid);
                 //$.each(data.result.files, function (index, file) {
                 //    $('<p/>').text(file.name).appendTo(document.body);

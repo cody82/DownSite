@@ -23,9 +23,9 @@ using HtmlAgilityPack;
 namespace WebTest
 {
     [Route("/article")]
-    [Route("/article/Id/{Id}")]
-    [Route("/article/Id/{Id}.html")]
-    [Route("/article/Title/{Title}")]
+    [Route("/article/id/{Id}")]
+    [Route("/article/id/{Id}.html")]
+    [Route("/article/title/{Title}")]
     public class Article : IReturn<Article>
     {
         [PrimaryKey]
@@ -47,7 +47,7 @@ namespace WebTest
         public User Author { get; set; }
 
         [Reference]
-        public List<Category> Category { get; set; }
+        public List<Tag> Category { get; set; }
 
         [Ignore]
         public string AuthorName { get; set; }
@@ -60,7 +60,7 @@ namespace WebTest
         {
             get
             {
-                return "/article/Id/" + Id.ToString().Replace("-", "") +".html";
+                return "/article/id/" + Id.ToString().Replace("-", "") +".html";
             }
         }
 
@@ -79,7 +79,7 @@ namespace WebTest
         }
     }
 
-    public class Category
+    public class Tag
     {
         [PrimaryKey, AutoIncrement]
         public int Id { get; set; }
@@ -91,17 +91,17 @@ namespace WebTest
         public string Name { get; set; }
     }
 
-    [Route("/categories")]
-    public class CategoryListRequest : IReturn<Category[]>
+    [Route("/tags")]
+    public class TagListRequest : IReturn<Tag[]>
     {
     }
 
-    public class CategoryService : Service
+    public class TagsService : Service
     {
-        [DefaultView("Categories")]
-        public object Get(CategoryListRequest request)
+        [DefaultView("Tags")]
+        public object Get(TagListRequest request)
         {
-            var c = PersonRepository.db.Select<Category>().Select(x => x.Name).Distinct().ToArray();
+            var c = PersonRepository.db.Select<Tag>().Select(x => x.Name).Distinct().ToArray();
             return c;
             /*return new HttpResult(c)
             {
@@ -111,7 +111,7 @@ namespace WebTest
         }
     }
 
-    [Route("/Articles")]
+    [Route("/articles")]
     public class ArticleListRequest : IReturn<Article[]>
     {
     }
@@ -178,13 +178,13 @@ namespace WebTest
                         string url = img.GetAttributeValue("src", null);
                         if (url != null && url.Length > 1 && url[0] == '/' && url[1] != '/')
                         {
-                            if (url.StartsWith("/Image/"))
+                            if (url.StartsWith("/image/"))
                             {
                                 url = url.Substring(7);
                                 url = Path.GetFileNameWithoutExtension(url);
                                 url = url.Split(Settings.Seperator[0])[0];
                                 url += Settings.Seperator + "thumb.jpg";
-                                url = "/Image/" + url;
+                                url = "/image/" + url;
                                 if (!br_inserted)
                                 {
                                     text += "<br/>";
@@ -206,13 +206,13 @@ namespace WebTest
                         string url = video.GetAttributeValue("src", null);
                         if (url != null && url.Length > 1 && url[0] == '/' && url[1] != '/')
                         {
-                            if (url.StartsWith("/Image/"))
+                            if (url.StartsWith("/image/"))
                             {
                                 url = url.Substring(7);
                                 url = Path.GetFileNameWithoutExtension(url);
                                 url = url.Split(Settings.Seperator[0])[0];
                                 url += Settings.Seperator + "thumb.jpg";
-                                url = "/Image/" + url;
+                                url = "/image/" + url;
                                 if (!br_inserted)
                                 {
                                     text += "<br/>";
@@ -278,7 +278,7 @@ namespace WebTest
             if (article.Id == Guid.Empty)
                 return new HttpResult(HttpStatusCode.NotFound, "no such article.");
 
-            PersonRepository.db.Delete<Category>(x => x.ArticleId == article.Id);
+            PersonRepository.db.Delete<Tag>(x => x.ArticleId == article.Id);
 
             int count = PersonRepository.db.Delete<Article>(x => x.Id == article.Id);
             if (count == 0)
@@ -374,7 +374,7 @@ namespace WebTest
             foreach (var c in article.Category.Where(x => original == null || original.Category == null || !original.Category.Any(y => y.Name == x.Name)))
             {
                 c.ArticleId = article.Id;
-                PersonRepository.db.Insert<Category>(c);
+                PersonRepository.db.Insert<Tag>(c);
             }
 
             if (original.Category != null)
@@ -382,7 +382,7 @@ namespace WebTest
                 foreach (var c in original.Category.Where(x => !article.Category.Any(y => y.Name == x.Name)))
                 {
                     c.ArticleId = article.Id;
-                    PersonRepository.db.Delete<Category>(c);
+                    PersonRepository.db.Delete<Tag>(c);
                 }
             }
 

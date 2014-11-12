@@ -1121,7 +1121,7 @@ namespace CustomMarkdownSharp
                             }
                             else
                             {
-                                links += string.Format(@" <a target=""_blank"" href=""{0}"">{1}p</a> ", "/Image/" + id.ToString().Replace("-", "") + WebTest.Settings.Seperator + "0x" + h + ".mp4", h);
+                                links += string.Format(@" <a target=""_blank"" href=""{0}"">{1}p</a> ", "/image/" + id.ToString().Replace("-", "") + WebTest.Settings.Seperator + "0x" + h + ".mp4", h);
                             }
                         }
                     }

@@ -89,7 +89,7 @@ namespace WebTest
         }
     }
 
-    [Route("/Image/{RequestString}", "GET")]
+    [Route("/image/{RequestString}", "GET")]
     public class ImageRequest : IReturn<byte[]>
     {
         public string RequestString
@@ -240,7 +240,7 @@ namespace WebTest
         }
     };
 
-    [Route("/Images", "GET")]
+    [Route("/images", "GET")]
     public class Images : IReturn<Image[]>
     {
     };
@@ -662,12 +662,12 @@ namespace WebTest
                 db.CreateTable<User>(true);
                 db.CreateTable<Image>(true);
                 db.CreateTable<Article>(true);
-                db.CreateTable<Category>(true);
+                db.CreateTable<Tag>(true);
                 db.CreateTable<Configuration>(true);
 
                 db.Insert<Configuration>(new Configuration() { Id = Guid.Empty, SiteName = "WebTest" });
 
-                db.ExecuteSql(@"CREATE UNIQUE INDEX category_unique on Category(ArticleId, Name);");
+                db.ExecuteSql(@"CREATE UNIQUE INDEX tag_unique on Tag(ArticleId, Name);");
 
 
                 Guid pic1 = Guid.NewGuid(), pic2 = Guid.NewGuid(), pic3 = Guid.NewGuid();
@@ -682,16 +682,16 @@ namespace WebTest
 
                 string content = string.Format(@"-CONTENT-
 
-![](/Image/{0})
-![video](/Image/{1})
+![](/image/{0})
+![video](/image/{1})
 ![youtube](cxBcHLylFbw)", pic1.ToString().Replace("-", "") + ".jpg", pic3.ToString().Replace("-", "") + ".webm");
 
                 Guid article;
                 db.Insert<Article>(new Article() { Id = article = Guid.NewGuid(), ShowInBlog = true, Content = content, AuthorId = person1, Created = DateTime.Now, Title = "page1", VersionGroup = Guid.NewGuid() });
 
-                db.Insert<Category>(new Category() { ArticleId = article, Name = "a" });
-                db.Insert<Category>(new Category() { ArticleId = article, Name = "b" });
-                db.Insert<Category>(new Category() { ArticleId = article, Name = "c" });
+                db.Insert<Tag>(new Tag() { ArticleId = article, Name = "a" });
+                db.Insert<Tag>(new Tag() { ArticleId = article, Name = "b" });
+                db.Insert<Tag>(new Tag() { ArticleId = article, Name = "c" });
 
 
                 db.Insert<Article>(new Article() { Id = Guid.NewGuid(), ShowInMenu = true, Content = "#MenuItem 1", Created = DateTime.Now, Title = "MenuItem 1", VersionGroup = Guid.NewGuid() });

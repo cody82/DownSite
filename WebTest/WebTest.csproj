@@ -165,7 +165,7 @@
     <None Include="Views\Article.cshtml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="Views\Categories.cshtml">
+    <None Include="Views\Tags.cshtml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

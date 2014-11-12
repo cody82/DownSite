@@ -74,7 +74,7 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
                 data: JSON.stringify(article),
                 processData: false,
                 success: function (r) {
-                    $('#preview')[0].src = '/Article/Id/' + id;
+                    $('#preview')[0].src = '/article/id/' + id;
                 },
                 error: function (r) {
                     alert("error");
@@ -103,11 +103,11 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
         }
 
         function load_select(callback) {
-            ejs_update('/articles-options.ejs', 'article_select', "/Articles?format=json", function () { load_article(); if (callback) callback();});
+            ejs_update('/articles-options.ejs', 'article_select', "/articles?format=json", function () { load_article(); if (callback) callback();});
         }
 
         function load_images() {
-            ejs_update('/images.ejs', 'images', "/Images?format=json");
+            ejs_update('/images.ejs', 'images', "/images?format=json");
         };
 
         function load_article() {
@@ -119,7 +119,7 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
                     $('#menu_check')[0].checked = article.ShowInMenu;
                     $('#blog_check')[0].checked = article.ShowInBlog;
                     $('#article_category').val(function (row) { if (row.Category) { return row.Category.map(function (x) { return x.Name }).join(); } else { return ""; } }(article));
-                    $('#preview')[0].src = '/Article/Id/' + id;
+                    $('#preview')[0].src = '/article/id/' + id;
                 });
             }
         };
@@ -142,7 +142,7 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
                         get_article_by_id(id, function (article) {
                             $('#article_title').val(article.Title);
                             $('#article_content').val(article.Content);
-                            $('#preview')[0].src = '/Article/Id/' + id;
+                            $('#preview')[0].src = '/article/id/' + id;
                             $('#article_select').val(article.Id);
                             $('#menu_check')[0].checked = article.ShowInMenu;
                             $('#blog_check')[0].checked = article.ShowInBlog;
@@ -187,7 +187,7 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
             multipart: false,
             dataType: 'json',
             done: function (e, data) {
-                //$('#upload_result').html('<img src="/Image/' + data.result.Guid + '?thumb"></img>');
+                //$('#upload_result').html('<img src="/image/' + data.result.Guid + '?thumb"></img>');
                 //$('#input_image_guid').val(data.result.Guid);
                 load_images();
                 //$.each(data.result.files, function (index, file) {
