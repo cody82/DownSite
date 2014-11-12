@@ -163,6 +163,11 @@ namespace WebTest
                     if (w % 2 == 1)
                         w -= 1;
                     var file = UploadService.GetFileInfo(img.Id);
+                    if (file == null)
+                    {
+                        Console.WriteLine("???");
+                        continue;
+                    }
 
                     string output = Path.Combine(FileCache.GetCacheDir().FullName, img.Id + WebTest.Settings.Seperator + "0x"+h+".mp4");
 
@@ -392,7 +397,7 @@ namespace WebTest
 
         public static FileStream GetFile(Guid id)
         {
-            FileInfo fi = new FileInfo(Path.Combine("data", "files", id.ToString()));
+            FileInfo fi = new FileInfo(Path.Combine("data", "files", id.ToString().Replace("-", "")));
             if (!fi.Exists)
             {
                 fi = new FileInfo(Path.Combine("data", "files", id.ToString().Replace("-","")));
@@ -406,7 +411,7 @@ namespace WebTest
 
         public static FileInfo GetFileInfo(Guid id)
         {
-            FileInfo fi = GetFileInfo(id.ToString());
+            FileInfo fi = GetFileInfo(id.ToString().Replace("-", ""));
             if (fi == null)
             {
                 fi = GetFileInfo(id.ToString().Replace("-",""));
@@ -447,6 +452,8 @@ namespace WebTest
 
         public static string PutFile(Guid id, string extension, Stream s)
         {
+            if (extension.Length > 0 && !extension.StartsWith("."))
+                extension = "." + extension;
             return PutFile(id.ToString().Replace("-", "") + extension, s);
         }
         public static string PutFile(string filename, Stream s)

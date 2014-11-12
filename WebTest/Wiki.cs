@@ -101,13 +101,18 @@ namespace WebTest
         [DefaultView("Tags")]
         public object Get(TagListRequest request)
         {
-            var c = PersonRepository.db.Select<Tag>().Select(x => x.Name).Distinct().ToArray();
-            return c;
+            return LoadTags();
             /*return new HttpResult(c)
             {
                 View = "Categories",
                 Template = "Default",
             };*/
+        }
+
+        public static string[] LoadTags()
+        {
+            var c = PersonRepository.db.Select<Tag>().Select(x => x.Name).Distinct().ToArray();
+            return c;
         }
     }
 
@@ -116,24 +121,24 @@ namespace WebTest
     {
     }
 
-    [Route("/Blog/")]
+    [Route("/blog/")]
     public class BlogRequest : IReturn<Article[]>
     {
-        public string Category { get; set; }
+        public string Tag { get; set; }
     }
 
     public class Blog : Service
     {
         public object Get(BlogRequest request)
         {
-            return Get(request.Category);
+            return Get(request.Tag);
         }
 
-        public static object Get(string category = null)
+        public static Article[] LoadBlog(string category = null)
         {
             var blog = PersonRepository.db.LoadSelect<Article>(x => x.ShowInBlog).OrderByDescending(x => x.Created).ToArray();
 
-            if(!string.IsNullOrWhiteSpace(category))
+            if (!string.IsNullOrWhiteSpace(category))
                 blog = blog.Where(y => y.Category != null && y.Category.Any(x => x.Name.ToLower() == category.ToLower())).ToArray();
 
             foreach (var b in blog)
@@ -146,6 +151,13 @@ namespace WebTest
                     b.AuthorName = "unknown author";
                 b.Author = null;
             }
+
+            return blog;
+        }
+
+        public static object Get(string tag = null)
+        {
+            var blog = LoadBlog(tag);
 
             return new HttpResult(blog.ToArray())
             {
