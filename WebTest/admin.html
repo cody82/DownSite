@@ -36,13 +36,13 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
 	        var data = { "UserName": $('#input_name').val(), "PlainTextPassword": $('#input_password').val() };
 	        $.ajax({
 	            type: "POST",
-	            url: "/User",
+	            url: "/user",
 	            processData: false,
 	            contentType: 'application/json',
 	            data: JSON.stringify(data),
 	            success: function (r) {
 	                //new EJS({ url: '/comments.ejs' }).update('element_id', '/Persons?format=json');
-	                ejs_update('/comments.ejs', 'element_id', '/Users?format=json');
+	                ejs_update('/comments.ejs', 'element_id', '/users?format=json');
 	            }
 	        });
 	    }
@@ -53,7 +53,7 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
 	        items.each(function (index) {
 	            $.ajax({
 	                type: "DELETE",
-	                url: "/Users/" + this,
+	                url: "/users/" + this,
 	                processData: false,
 	                contentType: 'application/json',
 	                data: "",
@@ -61,14 +61,14 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
 	                    i++;
 	                    if (count == i) {
 	                        //new EJS({ url: '/comments.ejs' }).update('element_id', '/Persons?format=json');
-	                        ejs_update('/comments.ejs', 'element_id', '/Users?format=json');
+	                        ejs_update('/comments.ejs', 'element_id', '/users?format=json');
 	                    }
 	                }
 	            });
 	        });
 	    }
 	    $(document).ready(function () {
-	        ejs_update('/comments.ejs', 'element_id', '/Users?format=json');
+	        ejs_update('/comments.ejs', 'element_id', '/users?format=json');
 	        //new EJS({ url: '/comments.ejs' }).update('element_id', '/Persons?format=json');
 	    });
     </script>

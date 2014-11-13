@@ -43,8 +43,8 @@ namespace WebTest
         }
     }
 
-    [Route("/User", "POST")]
-    [Route("/User/{Id}", "PUT")]
+    [Route("/user", "POST")]
+    [Route("/user/{Id}", "PUT")]
     public class User
     {
         [PrimaryKey]
@@ -318,9 +318,9 @@ namespace WebTest
 
     //REST Resource DTO
     [Authenticate]
-    [Route("/Users")]
-    [Route("/Users/{Ids}")]
-    [Route("/Users/{Ids}", "DELETE")]
+    [Route("/users")]
+    [Route("/users/{Ids}")]
+    [Route("/users/{Ids}", "DELETE")]
     public class Users : IReturn<List<User>>
     {
         public Guid[] Ids { get; set; }
