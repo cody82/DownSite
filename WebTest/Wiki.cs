@@ -22,6 +22,21 @@ using HtmlAgilityPack;
 
 namespace WebTest
 {
+    public class Comment
+    {
+        [PrimaryKey]
+        public Guid Id { get; set; }
+
+        public string Content { get; set; }
+        public DateTime Created { get; set; }
+
+        [References(typeof(Article))]
+        public Guid ArticleId { get; set; }
+
+        [Reference]
+        public Article Article { get; set; }
+    }
+
     [Route("/article")]
     [Route("/article/id/{Id}")]
     [Route("/article/id/{Id}.html")]
@@ -48,6 +63,9 @@ namespace WebTest
 
         [Reference]
         public List<Tag> Category { get; set; }
+
+        [Reference]
+        public List<Comment> Comment { get; set; }
 
         [Ignore]
         public string AuthorName { get; set; }

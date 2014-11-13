@@ -679,6 +679,7 @@ namespace WebTest
                 db.CreateTable<Article>(true);
                 db.CreateTable<Tag>(true);
                 db.CreateTable<Configuration>(true);
+                db.CreateTable<Comment>(true);
 
                 db.Insert<Configuration>(new Configuration() { Id = Guid.Empty, SiteName = "WebTest" });
 
@@ -711,6 +712,9 @@ namespace WebTest
 
                 db.Insert<Article>(new Article() { Id = Guid.NewGuid(), ShowInMenu = true, Content = "#MenuItem 1", Created = DateTime.Now, Title = "MenuItem 1", VersionGroup = Guid.NewGuid() });
                 db.Insert<Article>(new Article() { Id = Guid.NewGuid(), ShowInMenu = true, Content = "#MenuItem 2", Created = DateTime.Now, Title = "MenuItem 2", VersionGroup = Guid.NewGuid() });
+
+                db.Insert<Comment>(new Comment() { Id = Guid.NewGuid(), ArticleId = article, Content = "blabla1", Created = DateTime.Now });
+                db.Insert<Comment>(new Comment() { Id = Guid.NewGuid(), ArticleId = article, Content = "blabla2", Created = DateTime.Now });
 
                 var a = db.LoadSingleById<Article>(article);
                 if (a.Category == null)

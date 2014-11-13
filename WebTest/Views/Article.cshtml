@@ -12,4 +12,11 @@
     <p>
       @Html.Raw(Model.ContentHtml())
     </p>
+        @if (Model.Comment != null)
+        {
+            foreach (WebTest.Comment c in Model.Comment)
+            {
+                <p>@c.Content</p>
+            }
+        }
 	</div>
