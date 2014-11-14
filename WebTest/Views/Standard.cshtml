@@ -97,6 +97,10 @@
         </div>
         <div class="navbar-collapse collapse">
           <ul class="nav navbar-nav">
+              @foreach (WebTest.Menu m in WebTest.Menu.Load())
+              {
+                  <li><a href="@m.Link">@m.Caption</a></li>
+              }
               @foreach (WebTest.Article a in WebTest.ArticleService.GetMenuArticles())
               {
                   <li><a href="@a.Link">@a.Title</a></li>

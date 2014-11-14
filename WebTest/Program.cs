@@ -25,6 +25,20 @@ using ServiceStack.Logging;
 
 namespace WebTest
 {
+    public class Menu
+    {
+        [PrimaryKey]
+        public Guid Id { get; set; }
+
+        public string Caption { get; set; }
+        public string Link { get; set; }
+
+        public static Menu[] Load()
+        {
+            return PersonRepository.db.Select<Menu>().ToArray();
+        }
+    }
+
     public static class Settings
     {
         public const string Seperator = "!";
@@ -731,6 +745,7 @@ namespace WebTest
                 db.CreateTable<Tag>(true);
                 db.CreateTable<Configuration>(true);
                 db.CreateTable<Comment>(true);
+                db.CreateTable<Menu>(true);
 
                 db.Insert<Configuration>(new Configuration() { Id = Guid.Empty, SiteName = "WebTest" });
 
@@ -766,6 +781,8 @@ namespace WebTest
 
                 db.Insert<Comment>(new Comment() { Id = Guid.NewGuid(), ArticleId = article, Content = "blabla1", Created = DateTime.Now });
                 db.Insert<Comment>(new Comment() { Id = Guid.NewGuid(), ArticleId = article, Content = "blabla2", Created = DateTime.Now });
+
+                db.Insert<Menu>(new Menu() { Id = Guid.NewGuid(), Caption = "Blog", Link = "/blog/" });
 
                 var a = db.LoadSingleById<Article>(article);
                 if (a.Category == null)
