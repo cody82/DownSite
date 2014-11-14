@@ -427,7 +427,7 @@
     <Content Include="js\jquery-2.1.1.min.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <None Include="Views\Default.cshtml">
+    <None Include="Views\Standard.cshtml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

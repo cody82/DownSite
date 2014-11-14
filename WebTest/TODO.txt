@@ -1,2 +1,3 @@
 ﻿- pagination
 - better user editing
+- links in menu bar

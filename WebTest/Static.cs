@@ -142,7 +142,7 @@ namespace WebTest
                 a.Content = Blog.Preview(a.Content);
             }
 
-            string html = RazorFormat.Instance.RenderToHtml(page, blog, "Default");
+            string html = RazorFormat.Instance.RenderToHtml(page, blog, "Standard");
 
             string content = html.Replace("\"/image/", "\"Image/");
             content = content.Replace("\"/article/id/", "\"article/");
@@ -161,12 +161,9 @@ namespace WebTest
 
         static void GenerateArticle(Article a, StreamWriter sw)
         {
-            //var razor = new RazorFormat();
-            //razor.Init();
-            //string html = RazorFormat.Instance.CreateAndRenderToHtml(new StreamReader(Path.Combine("Views", "Article.cshtml")).ReadToEnd(), a, "Default");
             var page = RazorFormat.Instance.GetViewPage("Article");
             a.Html = new CustomMarkdownSharp.Markdown() { Static = true }.Transform(a.Content);
-            string html = RazorFormat.Instance.RenderToHtml(page, a, "Default");
+            string html = RazorFormat.Instance.RenderToHtml(page, a, "Standard");
             a.Html = null;
 
             string content = html.Replace("\"/image/", "\"../image/");

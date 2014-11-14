@@ -393,7 +393,7 @@ namespace WebTest
         public Stream RequestStream { get; set; }
     }
     
-    [FallbackRoute("/")]
+    /*[FallbackRoute("/")]
     [Route("/page/{Name}")]
     [Route("/page/{Name}/{Id}")]
     public class PageRequest
@@ -410,7 +410,7 @@ namespace WebTest
         {
             return Blog.Get();
         }
-    }
+    }*/
 
     public class FileCache
     {

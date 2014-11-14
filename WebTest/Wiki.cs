@@ -225,7 +225,7 @@ namespace WebTest
             return new HttpResult(blog.ToArray())
             {
                 View = "Blog",
-                Template = "Default",
+                Template = "Standard",
             };
             //return blog.ToArray();
         }
@@ -332,7 +332,7 @@ namespace WebTest
             return new HttpResult(a)
             {
                 View = "Article",
-                Template = "Default",
+                Template = "Standard",
             };
         }
 
