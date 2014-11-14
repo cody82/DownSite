@@ -135,16 +135,6 @@ namespace WebTest
 
             var index = RazorFormat.Instance.GetContentPage("");
             string html = RazorFormat.Instance.RenderToHtml(index, null, "Standard");
-            /*
-            string content = html.Replace("\"/image/", "\"../image/");
-            content = content.Replace("\"/article/id/", "\"article/");
-            content = content.Replace("\"/Article/Id/", "\"article/");
-            content = content.Replace("\"/article/Id/", "\"article/");
-            content = content.Replace("\"/js/", "\"../js/");
-            content = content.Replace("\"/css/", "\"../css/");
-            content = content.Replace("\"//", "\"http://");
-            content = content.Replace("\"/\"", "../index.html");
-            */
 
 
             html = FixLinks(html);
@@ -155,17 +145,6 @@ namespace WebTest
         }
         static string FixLinks(string html, string root = "./")
         {
-            /*html = html.Replace("\"/image/", "\"../image/");
-            html = html.Replace("\"/article/id/", "\"../article/");
-            html = html.Replace("\"/Article/Id/", "\"../article/");
-            html = html.Replace("\"/article/Id/", "\"../article/");
-            html = html.Replace("\"/js/", "\"../js/");
-            html = html.Replace("\"/css/", "\"../css/");
-            html = html.Replace("\"/blog/\"", "\"../blog/page1.html\"");
-            html = html.Replace("\"/blog/", "\"../blog/");
-            html = html.Replace("\"//", "\"http://");
-            html = html.Replace("\"/\"", "../index.html");*/
-
             html = html.Replace("\"/article/id/", "\"/article/");
             html = html.Replace("\"/Article/Id/", "\"/article/");
             html = html.Replace("\"/article/Id/", "\"/article/");
@@ -206,18 +185,6 @@ namespace WebTest
                     bloginfo.Articles = articles.Skip((i - 1) * Settings.ArticlesPerPage).Take(Settings.ArticlesPerPage).ToArray();
                     string html = RazorFormat.Instance.RenderToHtml(page, bloginfo, "Standard");
 
-                    /*
-                    string content = html.Replace("\"/image/", "\"../image/");
-                    content = content.Replace("\"/article/id/", "\"../article/");
-                    content = content.Replace("\"/Article/Id/", "\"../article/");
-                    content = content.Replace("\"/article/Id/", "\"../article/");
-                    content = content.Replace("\"/js/", "\"../js/");
-                    content = content.Replace("\"/css/", "\"../css/");
-                    content = content.Replace("\"/blog/\"", "\"../blog/page1.html\"");
-                    content = content.Replace("\"/blog/", "\"../blog/");
-                    content = content.Replace("\"//", "\"http://");
-                    content = content.Replace("\"/\"", "../index.html");
-                    */
                     string content = FixLinks(html, "../");
 
                     string filename = "page" + i;
@@ -243,16 +210,6 @@ namespace WebTest
             a.Html = new CustomMarkdownSharp.Markdown() { Static = true }.Transform(a.Content);
             string html = RazorFormat.Instance.RenderToHtml(page, a, "Standard");
             a.Html = null;
-            /*
-            string content = html.Replace("\"/image/", "\"../image/");
-            content = content.Replace("\"/article/id/", "\"article/");
-            content = content.Replace("\"/Article/Id/", "\"article/");
-            content = content.Replace("\"/article/Id/", "\"article/");
-            content = content.Replace("\"/js/", "\"../js/");
-            content = content.Replace("\"/css/", "\"../css/");
-            content = content.Replace("\"//", "\"http://");
-            content = content.Replace("\"/\"", "../index.html");
-            */
             string content = FixLinks(html, "../");
 
             sw.Write(content);
