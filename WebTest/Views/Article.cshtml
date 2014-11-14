@@ -6,7 +6,7 @@
 
     <div>
         <h1>
-            <a href="/article/id/@(Model.Id.ToString()+".html")">@Model.Title</a>
+            <a href="/article/id/@(Model.Id.ToString().Replace("-","")+".html")">@Model.Title</a>
         </h1>
 		<p>@Model.AuthorName, @Model.Created, [@Model.CategoryString()]</p>
     <p>

@@ -194,8 +194,13 @@ namespace WebTest
         {
             get
             {
-                return ((TotalArticleCount + Settings.ArticlesPerPage - 1) / Settings.ArticlesPerPage);
+                return CalcPageCount(TotalArticleCount);
             }
+        }
+
+        public static int CalcPageCount(int count)
+        {
+            return ((count + Settings.ArticlesPerPage - 1) / Settings.ArticlesPerPage);
         }
     }
 

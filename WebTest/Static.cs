@@ -95,8 +95,9 @@ namespace WebTest
             DirectoryCopy("data/", Path.Combine(output.FullName, "fonts"), true);
 
             db = Database.OpenDbConnection(Path.Combine("data", "db.sqlite3"));
-            
-            var image_dir = output.CreateSubdirectory("Image");
+
+            var image_dir = output.CreateSubdirectory("image");
+            var blog_dir = output.CreateSubdirectory("blog");
 
             foreach (FileInfo fi in new DirectoryInfo(Path.Combine("data", "files")).GetFiles())
             {
@@ -130,42 +131,11 @@ namespace WebTest
                 }
             }
 
-            GenerateBlog(new BlogInfo() { Articles = articles.Where(x => x.ShowInBlog).ToArray(), TotalArticleCount = articles.Count() }, output);
-        }
+            GenerateBlog(articles.Where(x => x.ShowInBlog).ToArray(), blog_dir);
 
-        static void GenerateBlog(BlogInfo blog, DirectoryInfo output)
-        {
-            var page = RazorFormat.Instance.GetViewPage("Blog");
-
-            foreach (var a in blog.Articles)
-            {
-                a.Content = Blog.Preview(a.Content);
-            }
-
-            string html = RazorFormat.Instance.RenderToHtml(page, blog, "Standard");
-
-            string content = html.Replace("\"/image/", "\"Image/");
-            content = content.Replace("\"/article/id/", "\"article/");
-            content = content.Replace("\"/Article/Id/", "\"article/");
-            content = content.Replace("\"/article/Id/", "\"article/");
-            content = content.Replace("\"/js/", "\"js/");
-            content = content.Replace("\"/css/", "\"css/");
-            content = content.Replace("\"//", "\"http://");
-            content = content.Replace("\"/\"", "../index.html");
-
-            using (StreamWriter sw = new StreamWriter(Path.Combine(output.FullName, "index.html")))
-            {
-                sw.Write(content);
-            }
-        }
-
-        static void GenerateArticle(Article a, StreamWriter sw)
-        {
-            var page = RazorFormat.Instance.GetViewPage("Article");
-            a.Html = new CustomMarkdownSharp.Markdown() { Static = true }.Transform(a.Content);
-            string html = RazorFormat.Instance.RenderToHtml(page, a, "Standard");
-            a.Html = null;
-
+            var index = RazorFormat.Instance.GetContentPage("");
+            string html = RazorFormat.Instance.RenderToHtml(index, null, "Standard");
+            /*
             string content = html.Replace("\"/image/", "\"../image/");
             content = content.Replace("\"/article/id/", "\"article/");
             content = content.Replace("\"/Article/Id/", "\"article/");
@@ -174,6 +144,117 @@ namespace WebTest
             content = content.Replace("\"/css/", "\"../css/");
             content = content.Replace("\"//", "\"http://");
             content = content.Replace("\"/\"", "../index.html");
+            */
+
+
+            html = FixLinks(html);
+            using (StreamWriter sw = new StreamWriter(Path.Combine(output.FullName, "index.html")))
+            {
+                sw.Write(html);
+            }
+        }
+        static string FixLinks(string html, string root = "./")
+        {
+            /*html = html.Replace("\"/image/", "\"../image/");
+            html = html.Replace("\"/article/id/", "\"../article/");
+            html = html.Replace("\"/Article/Id/", "\"../article/");
+            html = html.Replace("\"/article/Id/", "\"../article/");
+            html = html.Replace("\"/js/", "\"../js/");
+            html = html.Replace("\"/css/", "\"../css/");
+            html = html.Replace("\"/blog/\"", "\"../blog/page1.html\"");
+            html = html.Replace("\"/blog/", "\"../blog/");
+            html = html.Replace("\"//", "\"http://");
+            html = html.Replace("\"/\"", "../index.html");*/
+
+            html = html.Replace("\"/article/id/", "\"/article/");
+            html = html.Replace("\"/Article/Id/", "\"/article/");
+            html = html.Replace("\"/article/Id/", "\"/article/");
+
+            html = html.Replace("\"/", "\"" + root);
+            html = html.Replace("\"" + root + "\"", "\"" + root + "index.html\"");
+
+            return html;
+        }
+
+        static void GenerateBlog(Article[] blog, DirectoryInfo output)
+        {
+            var page = RazorFormat.Instance.GetViewPage("Blog");
+
+
+            var all_tags = PersonRepository.db.Select<Tag>().ToArray();
+            var tags = all_tags.Select(x => x.Name).Distinct().ToList();
+            tags.Add(null);
+
+            foreach (var a in blog)
+            {
+                a.Content = Blog.Preview(a.Content);
+            }
+
+            foreach (string tag in tags)
+            {
+                var articles = blog.Where(x => tag == null || all_tags.Any(y => y.ArticleId == x.Id && y.Name == tag)).OrderByDescending(x => x.Created).ToArray();
+                
+                BlogInfo bloginfo = new BlogInfo()
+                {
+                    Tag = tag,
+                    TotalArticleCount = articles.Length
+                };
+
+                for (int i = 1; i <= bloginfo.PageCount; ++i)
+                {
+                    bloginfo.Page = i;
+                    bloginfo.Articles = articles.Skip((i - 1) * Settings.ArticlesPerPage).Take(Settings.ArticlesPerPage).ToArray();
+                    string html = RazorFormat.Instance.RenderToHtml(page, bloginfo, "Standard");
+
+                    /*
+                    string content = html.Replace("\"/image/", "\"../image/");
+                    content = content.Replace("\"/article/id/", "\"../article/");
+                    content = content.Replace("\"/Article/Id/", "\"../article/");
+                    content = content.Replace("\"/article/Id/", "\"../article/");
+                    content = content.Replace("\"/js/", "\"../js/");
+                    content = content.Replace("\"/css/", "\"../css/");
+                    content = content.Replace("\"/blog/\"", "\"../blog/page1.html\"");
+                    content = content.Replace("\"/blog/", "\"../blog/");
+                    content = content.Replace("\"//", "\"http://");
+                    content = content.Replace("\"/\"", "../index.html");
+                    */
+                    string content = FixLinks(html, "../");
+
+                    string filename = "page" + i;
+                    if (tag != null)
+                    {
+                        filename += "!tag_" + tag;
+                    }
+                    filename += ".html";
+
+                    using (StreamWriter sw = new StreamWriter(Path.Combine(output.FullName, filename)))
+                    {
+                        sw.Write(content);
+                    }
+                }
+            }
+
+
+        }
+
+        static void GenerateArticle(Article a, StreamWriter sw)
+        {
+            var page = RazorFormat.Instance.GetViewPage("Article");
+            a.Html = new CustomMarkdownSharp.Markdown() { Static = true }.Transform(a.Content);
+            string html = RazorFormat.Instance.RenderToHtml(page, a, "Standard");
+            a.Html = null;
+            /*
+            string content = html.Replace("\"/image/", "\"../image/");
+            content = content.Replace("\"/article/id/", "\"article/");
+            content = content.Replace("\"/Article/Id/", "\"article/");
+            content = content.Replace("\"/article/Id/", "\"article/");
+            content = content.Replace("\"/js/", "\"../js/");
+            content = content.Replace("\"/css/", "\"../css/");
+            content = content.Replace("\"//", "\"http://");
+            content = content.Replace("\"/\"", "../index.html");
+            */
+            string content = FixLinks(html, "../");
+
             sw.Write(content);
         }
     }

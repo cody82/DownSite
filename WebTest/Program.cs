@@ -790,7 +790,7 @@ namespace WebTest
                 db.Insert<Comment>(new Comment() { Id = Guid.NewGuid(), ArticleId = article, Content = "blabla1", Created = DateTime.Now });
                 db.Insert<Comment>(new Comment() { Id = Guid.NewGuid(), ArticleId = article, Content = "blabla2", Created = DateTime.Now });
 
-                db.Insert<Menu>(new Menu() { Id = Guid.NewGuid(), Caption = "Blog", Link = "/blog/" });
+                db.Insert<Menu>(new Menu() { Id = Guid.NewGuid(), Caption = "Blog", Link = "/blog/page1.html" });
 
                 var a = db.LoadSingleById<Article>(article);
                 if (a.Category == null)
