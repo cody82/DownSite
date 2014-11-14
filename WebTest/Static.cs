@@ -117,7 +117,7 @@ namespace WebTest
                 File.Copy(source, path, true);
             }*/
 
-            var article_dir = output.CreateSubdirectory("Article");
+            var article_dir = output.CreateSubdirectory("article");
             var articles = db.LoadSelect<Article>();
             foreach (var a in articles)
             {
