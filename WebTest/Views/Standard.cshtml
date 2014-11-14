@@ -146,7 +146,7 @@
 			cody@jabber.org
 			<hr/>
 			<h4>Latest posts:</h4>
-        @foreach (WebTest.Article a in WebTest.Blog.LoadBlog().Take(5))
+        @foreach (WebTest.Article a in WebTest.Blog.LoadBlog().Articles.Take(5))
         {
             <h5><a href="@a.Link">@a.Title</a></h5>
           @a.Created

@@ -1,10 +1,32 @@
-﻿@inherits ServiceStack.Razor.ViewPage<WebTest.Article[]>
+﻿@inherits ServiceStack.Razor.ViewPage<WebTest.BlogInfo>
 
 @{
     Layout = "Default";
 }
 
-@foreach (var a in Model)
+@{
+    string tag = "";
+
+    if(!string.IsNullOrEmpty(Model.Tag))
+    {
+        tag = "!tag_" + Model.Tag;
+    }
+}
+
+@if(Model.Page>1)
+{
+    <a href="page@((Model.Page-1)+tag).html">prev</a>
+}
+
+@Model.Page / @Model.PageCount
+
+
+@if(Model.Page<Model.PageCount)
+{
+    <a href="page@((Model.Page+1)+tag).html">next</a>
+}
+
+@foreach (var a in Model.Articles)
 {
     <div>
         <h1>

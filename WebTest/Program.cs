@@ -42,6 +42,7 @@ namespace WebTest
     public static class Settings
     {
         public const string Seperator = "!";
+        public const int ArticlesPerPage = 3;
     }
 
     public class Configuration
@@ -776,8 +777,15 @@ namespace WebTest
                 db.Insert<Tag>(new Tag() { ArticleId = article, Name = "c" });
 
 
-                db.Insert<Article>(new Article() { Id = Guid.NewGuid(), ShowInMenu = true, Content = "#MenuItem 1", Created = DateTime.Now, Title = "MenuItem 1", VersionGroup = Guid.NewGuid() });
-                db.Insert<Article>(new Article() { Id = Guid.NewGuid(), ShowInMenu = true, Content = "#MenuItem 2", Created = DateTime.Now, Title = "MenuItem 2", VersionGroup = Guid.NewGuid() });
+                db.Insert<Article>(new Article() { Id = Guid.NewGuid(), AuthorId = person1, ShowInMenu = true, Content = "#MenuItem 1", Created = DateTime.Now, Title = "MenuItem 1", VersionGroup = Guid.NewGuid() });
+                db.Insert<Article>(new Article() { Id = Guid.NewGuid(), AuthorId = person1, ShowInMenu = true, Content = "#MenuItem 2", Created = DateTime.Now, Title = "MenuItem 2", VersionGroup = Guid.NewGuid() });
+
+                for (int i = 0; i < 20; ++i)
+                {
+                    Guid id;
+                    db.Insert<Article>(new Article() { Id = id = Guid.NewGuid(), AuthorId = person1, ShowInBlog = true, Content = "blog" + i, Created = DateTime.Now, Title = "blog" + i, VersionGroup = Guid.NewGuid() });
+                    db.Insert<Tag>(new Tag() { ArticleId = id, Name = "c" });
+                }
 
                 db.Insert<Comment>(new Comment() { Id = Guid.NewGuid(), ArticleId = article, Content = "blabla1", Created = DateTime.Now });
                 db.Insert<Comment>(new Comment() { Id = Guid.NewGuid(), ArticleId = article, Content = "blabla2", Created = DateTime.Now });

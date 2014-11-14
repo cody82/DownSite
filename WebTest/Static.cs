@@ -130,14 +130,14 @@ namespace WebTest
                 }
             }
 
-            GenerateBlog(articles.Where(x => x.ShowInBlog).ToArray(), output);
+            GenerateBlog(new BlogInfo() { Articles = articles.Where(x => x.ShowInBlog).ToArray(), TotalArticleCount = articles.Count() }, output);
         }
 
-        static void GenerateBlog(Article[] blog, DirectoryInfo output)
+        static void GenerateBlog(BlogInfo blog, DirectoryInfo output)
         {
             var page = RazorFormat.Instance.GetViewPage("Blog");
 
-            foreach (var a in blog)
+            foreach (var a in blog.Articles)
             {
                 a.Content = Blog.Preview(a.Content);
             }

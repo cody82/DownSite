@@ -184,25 +184,45 @@ namespace WebTest
         }
     }
 
+    public class BlogInfo
+    {
+        public Article[] Articles;
+        public int TotalArticleCount;
+        public int Page;
+        public string Tag;
+        public int PageCount
+        {
+            get
+            {
+                return ((TotalArticleCount + Settings.ArticlesPerPage - 1) / Settings.ArticlesPerPage);
+            }
+        }
+    }
+
     public class Blog : Service
     {
         public object Get(BlogRequest request)
         {
             string tag = null;
-            if (request.Parts != null && request.Parts.Length > 1 && request.Parts[1].StartsWith("tag_"))
+            int page = 1;
+            if (request.Parts != null)
             {
-                tag = request.Parts[1].Substring(4);
+                if(request.Parts.Length > 1 && request.Parts[1].StartsWith("tag_"))
+                    tag = request.Parts[1].Substring(4);
+
+                if (request.Parts.Length > 0 && request.Parts[0].StartsWith("page"))
+                    page = int.Parse(request.Parts[0].Substring(4));
             }
 
-            return Get(tag);
+            return Get(tag, page);
         }
 
-        public static Article[] LoadBlog(string category = null)
+        public static BlogInfo LoadBlog(string tag = null, int page = 1)
         {
             var blog = PersonRepository.db.LoadSelect<Article>(x => x.ShowInBlog).OrderByDescending(x => x.Created).ToArray();
 
-            if (!string.IsNullOrWhiteSpace(category))
-                blog = blog.Where(y => y.Category != null && y.Category.Any(x => x.Name.ToLower() == category.ToLower())).ToArray();
+            if (!string.IsNullOrWhiteSpace(tag))
+                blog = blog.Where(y => y.Category != null && y.Category.Any(x => x.Name.ToLower() == tag.ToLower())).ToArray();
 
             foreach (var b in blog)
             {
@@ -215,14 +235,29 @@ namespace WebTest
                 b.Author = null;
             }
 
-            return blog;
+            BlogInfo bloginfo = new BlogInfo()
+            {
+                TotalArticleCount = blog.Length,
+                Page = page,
+                Tag = tag
+            };
+
+            var itemsperpage = Settings.ArticlesPerPage;
+            if (page > 0)
+                page -= 1;
+
+
+            blog = blog.Skip(page * itemsperpage).Take(itemsperpage).ToArray();
+            bloginfo.Articles = blog;
+
+            return bloginfo;
         }
 
-        public static object Get(string tag = null)
+        public static object Get(string tag = null, int page = 1)
         {
-            var blog = LoadBlog(tag);
+            var blog = LoadBlog(tag, page);
 
-            return new HttpResult(blog.ToArray())
+            return new HttpResult(blog)
             {
                 View = "Blog",
                 Template = "Standard",
