@@ -151,7 +151,7 @@
 			<h4>Tags:</h4>
         @foreach (string t in WebTest.TagsService.LoadTags())
         {
-            <h5><a href="/blog/?tag=@t">@t</a></h5>
+            <h5><a href="/blog/page1!tag_@(t).html">@t</a></h5>
         }
     </div>
 </div>

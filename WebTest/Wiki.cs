@@ -139,17 +139,62 @@ namespace WebTest
     {
     }
 
+    [Route("/blog/{RequestString}")]
     [Route("/blog/")]
     public class BlogRequest : IReturn<Article[]>
     {
-        public string Tag { get; set; }
+        public string RequestString
+        {
+            get
+            {
+                return requeststring;
+            }
+            set
+            {
+                requeststring = value;
+                Parse();
+            }
+        }
+
+        string requeststring;
+        Guid id;
+        string[] parts;
+
+        void Parse()
+        {
+            string filename = Path.GetFileNameWithoutExtension(requeststring);
+            parts = filename.Split(Settings.Seperator[0]);
+            Guid.TryParse(parts[0], out id);
+        }
+
+        public Guid Id
+        {
+            get
+            {
+                return id;
+            }
+        }
+
+        public string[] Parts
+        {
+            get
+            {
+                return parts;
+            }
+        }
     }
 
     public class Blog : Service
     {
         public object Get(BlogRequest request)
         {
-            return Get(request.Tag);
+            string tag = null;
+            if (request.Parts.Length > 1 && request.Parts[1].StartsWith("tag_"))
+            {
+                tag = request.Parts[1].Substring(4);
+            }
+
+            return Get(tag);
         }
 
         public static Article[] LoadBlog(string category = null)

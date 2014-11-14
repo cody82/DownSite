@@ -1,0 +1,2 @@
+﻿- pagination
+- better user editing

@@ -89,6 +89,57 @@ namespace WebTest
         }
     }
 
+    public class RequestParser
+    {
+        public string RequestString
+        {
+            get
+            {
+                return requeststring;
+            }
+            set
+            {
+                requeststring = value;
+                Parse();
+            }
+        }
+
+        string requeststring;
+        Guid id;
+        string param = string.Empty;
+
+        void Parse()
+        {
+            string filename = Path.GetFileNameWithoutExtension(requeststring);
+            int i = filename.IndexOf(Settings.Seperator);
+            if (i != -1)
+            {
+                param = filename.Substring(i);
+                filename = filename.Substring(0, i);
+            }
+            else
+            {
+                param = string.Empty;
+            }
+            id = Guid.Parse(filename);
+        }
+
+        public Guid Id
+        {
+            get
+            {
+                return id;
+            }
+        }
+        public string Param
+        {
+            get
+            {
+                return param;
+            }
+        }
+    }
+
     [Route("/image/{RequestString}", "GET")]
     public class ImageRequest : IReturn<byte[]>
     {

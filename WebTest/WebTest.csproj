@@ -312,6 +312,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="js\stuff.js" />
+    <Content Include="TODO.txt" />
     <Content Include="upload\angularjs.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
