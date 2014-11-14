@@ -189,7 +189,7 @@ namespace WebTest
         public object Get(BlogRequest request)
         {
             string tag = null;
-            if (request.Parts.Length > 1 && request.Parts[1].StartsWith("tag_"))
+            if (request.Parts != null && request.Parts.Length > 1 && request.Parts[1].StartsWith("tag_"))
             {
                 tag = request.Parts[1].Substring(4);
             }
