@@ -25,6 +25,21 @@ using ServiceStack.Logging;
 
 namespace WebTest
 {
+
+    [Route("/generator")]
+    public class GeneratorRequest
+    {
+    }
+
+    public class GeneratorService : Service
+    {
+        public object Get(GeneratorRequest request)
+        {
+            Static.Generate();
+            return new HttpResult(HttpStatusCode.OK, "Page was generated");
+        }
+    }
+
     public static class Static
     {
         static IDbConnection db;

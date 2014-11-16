@@ -880,9 +880,17 @@ rejgn
             appHost.Init();
             appHost.Start(BaseUri);
 
-            Static.Generate();
-
-            Console.ReadLine();
+            string line;
+            do
+            {
+                Console.WriteLine("Press return to generate the page");
+                line = Console.ReadLine();
+                if (line.Length == 0)
+                {
+                    Static.Generate();
+                }
+            }
+            while (line.Length == 0);
         }
     }
 }
