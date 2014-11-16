@@ -160,7 +160,7 @@ namespace WebTest
             var page = RazorFormat.Instance.GetViewPage("Blog");
 
 
-            var all_tags = PersonRepository.db.Select<Tag>().ToArray();
+            var all_tags = db.Select<Tag>().ToArray();
             var tags = all_tags.Select(x => x.Name).Distinct().ToList();
             tags.Add(null);
 

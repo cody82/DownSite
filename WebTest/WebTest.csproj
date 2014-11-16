@@ -312,6 +312,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="js\stuff.js" />
+    <Content Include="loading-icon.gif">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="TODO.txt" />
     <Content Include="upload\angularjs.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

@@ -164,10 +164,25 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
                 processData: false,
                 contentType: 'application/json',
                 //data: article,
-                success: function (r) {
+                complete: function (r) {
                     load_select();
                     $('#article_title').val("");
                     $('#article_content').val("");
+                }
+            });
+        }
+
+
+        function delete_image(id) {
+            //var article_id = $('#article_select').val();
+            $.ajax({
+                type: "DELETE",
+                url: "/image/" + id,
+                processData: false,
+                contentType: 'application/json',
+                //data: article,
+                complete: function (data,status,tmp) {
+                    load_images();
                 }
             });
         }

@@ -51,6 +51,7 @@ namespace WebTest
         public Guid Id { get; set; }
 
         public string SiteName { get; set; }
+        public int Version { get; set; }
 
         public static Configuration Load()
         {
@@ -155,7 +156,7 @@ namespace WebTest
         }
     }
 
-    [Route("/image/{RequestString}", "GET")]
+    [Route("/image/{RequestString}")]
     public class ImageRequest : IReturn<byte[]>
     {
         public string RequestString
@@ -612,6 +613,25 @@ namespace WebTest
             return null;
         }
 
+        public object Delete(ImageRequest request)
+        {
+            PersonRepository.db.Delete<Image>(x => x.Id == request.Id);
+
+            FileInfo fi = UploadService.GetFileInfo(request.Id);
+            if (fi != null)
+            {
+                fi.Delete();
+            }
+
+            DirectoryInfo di = FileCache.GetCacheDir();
+            FileInfo[] cachefiles = di.GetFiles(request.Id.ToString().Replace("-", "") + "*");
+            foreach (var f in cachefiles)
+            {
+                f.Delete();
+            }
+            return new HttpResult(System.Net.HttpStatusCode.OK, "File deleted.");
+        }
+
         public object Get(ImageRequest request)
         {
             var img = Image.Load(request.Id);
@@ -647,7 +667,7 @@ namespace WebTest
                     {
                         if (VideoThumbnailer.MakeThumbnail(img.Item2.FullName, thumb_file.FullName))
                         {
-                            return new HttpResult(new FileInfo(thumb), MimeTypes.ImageJpg) { };
+                            return new HttpResult(thumb_file, MimeTypes.ImageJpg) { };
                         }
                         else
                             return new HttpResult(System.Net.HttpStatusCode.NotFound, string.Format("No thumbnails for type {0}.", img.Item1.MimeType));
