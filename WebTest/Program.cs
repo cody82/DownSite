@@ -797,7 +797,13 @@ namespace WebTest
                 db.Insert<Tag>(new Tag() { ArticleId = article, Name = "c" });
 
 
-                db.Insert<Article>(new Article() { Id = Guid.NewGuid(), AuthorId = person1, ShowInMenu = true, Content = "#MenuItem 1", Created = DateTime.Now, Title = "MenuItem 1", VersionGroup = Guid.NewGuid() });
+                db.Insert<Article>(new Article() { Id = Guid.NewGuid(), AuthorId = person1, ShowInMenu = true, Content = @"#MenuItem 1
+
+<pre><code>blablalb
+rhgb
+regj
+rejgn
+</code></pre>", Created = DateTime.Now, Title = "MenuItem 1", VersionGroup = Guid.NewGuid() });
                 db.Insert<Article>(new Article() { Id = Guid.NewGuid(), AuthorId = person1, ShowInMenu = true, Content = "#MenuItem 2", Created = DateTime.Now, Title = "MenuItem 2", VersionGroup = Guid.NewGuid() });
 
                 for (int i = 0; i < 20; ++i)
