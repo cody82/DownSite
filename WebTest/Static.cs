@@ -31,6 +31,7 @@ namespace WebTest
     {
     }
 
+    [Authenticate]
     public class GeneratorService : Service
     {
         public object Get(GeneratorRequest request)
