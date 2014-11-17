@@ -36,11 +36,10 @@ namespace WebTest
     {
         public object Get(FeedRequest request)
         {
-            string site = "http://komputer:1337";
-            string title = "WebTest Feed";
-            string description = title;
+            var config = Configuration.Load();
+            string site = config.SiteUrl;
             string id = "WebTestID";
-            SyndicationFeed feed = new SyndicationFeed(title, description, new Uri(site), id, DateTime.Now);
+            SyndicationFeed feed = new SyndicationFeed(config.SiteName ?? "Test", config.SiteDescription ?? "Test", new Uri(site), id, DateTime.Now);
             List<SyndicationItem> items = new List<SyndicationItem>();
 
             var blog = PersonRepository.db.Select<Article>(x => x.ShowInBlog).OrderByDescending(x => x.Created);
@@ -87,6 +86,9 @@ namespace WebTest
 
         public string SiteName { get; set; }
         public int Version { get; set; }
+
+        public string SiteUrl { get; set; }
+        public string SiteDescription { get; set; }
 
         public static Configuration Load()
         {
