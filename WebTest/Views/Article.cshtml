@@ -6,7 +6,7 @@
 }
 <script>
     function post_comment(article_id) {
-        var comment = { "ArticleId": article_id, "Content": $('#comment_text').val() };
+        var comment = { "ArticleId": article_id, "Name": $('#comment_name').val(), "Content": $('#comment_text').val() };
         $.ajax({
             type: "PUT",
             url: "/comment",// + article.Title,// + "?format=json",
@@ -34,11 +34,11 @@
         {
             if (Model.Comment != null && Model.Comment.Count > 0)
             {
-                <h3>Comments</h3>
+                <h3>Comments(@Model.Comment.Count)</h3>
                 foreach (WebTest.Comment c in Model.Comment)
                 {
                     <hr />
-                    <p>@Model.AuthorName, @Model.Created</p>
+                    <p>@c.Name, @c.Created</p>
                     <p>@c.Content</p>
                 }
             }

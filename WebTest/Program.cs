@@ -775,7 +775,7 @@ namespace WebTest
                 db.CreateTable<Comment>(true);
                 db.CreateTable<Menu>(true);
 
-                db.Insert<Configuration>(new Configuration() { Id = Guid.Empty, SiteName = "WebTest" });
+                db.Insert<Configuration>(new Configuration() { Id = Guid.Empty, SiteName = "WebTest", ShowComments = true, AllowWriteComments = true });
 
                 db.ExecuteSql(@"CREATE UNIQUE INDEX tag_unique on Tag(ArticleId, Name);");
 
@@ -820,8 +820,8 @@ rejgn
                     db.Insert<Tag>(new Tag() { ArticleId = id, Name = "c" });
                 }
 
-                db.Insert<Comment>(new Comment() { Id = Guid.NewGuid(), ArticleId = article, Content = "blabla1", Created = DateTime.Now });
-                db.Insert<Comment>(new Comment() { Id = Guid.NewGuid(), ArticleId = article, Content = "blabla2", Created = DateTime.Now });
+                db.Insert<Comment>(new Comment() { Id = Guid.NewGuid(), ArticleId = article, Content = "blabla1", Created = DateTime.Now, Name = "anon" });
+                db.Insert<Comment>(new Comment() { Id = Guid.NewGuid(), ArticleId = article, Content = "blabla2", Created = DateTime.Now, Name = "anon" });
 
                 db.Insert<Menu>(new Menu() { Id = Guid.NewGuid(), Caption = "Blog", Link = "/blog/page1.html" });
 

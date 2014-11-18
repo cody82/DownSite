@@ -30,6 +30,7 @@ namespace WebTest
 
         public string Content { get; set; }
         public DateTime Created { get; set; }
+        public string Name { get; set; }
 
         [References(typeof(Article))]
         public Guid ArticleId { get; set; }
