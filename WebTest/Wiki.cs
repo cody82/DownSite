@@ -32,11 +32,24 @@ namespace WebTest
         public DateTime Created { get; set; }
         public string Name { get; set; }
 
+        public string Link
+        {
+            get
+            {
+                return "/article/id/" + ArticleId.ToString().Replace("-", "");
+            }
+        }
+
         [References(typeof(Article))]
         public Guid ArticleId { get; set; }
 
         [Reference]
         public Article Article { get; set; }
+
+        public static Comment[] LoadLatest(int n)
+        {
+            return PersonRepository.db.Select<Comment>().OrderByDescending(x => x.Created).Take(n).ToArray();
+        }
     }
 
     public class CommentService : Service

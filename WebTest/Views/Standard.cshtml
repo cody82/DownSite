@@ -1,4 +1,8 @@
-﻿<!DOCTYPE html>
+﻿@{
+    WebTest.Configuration config = WebTest.Configuration.Load();
+}
+
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
@@ -8,7 +12,7 @@
     <meta name="author" content="">
     <link rel="icon" href="/favicon.ico">
 
-    <title>@WebTest.Configuration.Load().SiteName</title>
+    <title>@config.SiteName</title>
       
     <script src="/js/jquery-2.1.1.min.js"></script>
     <script type="text/javascript" src="/js/ejs.js"></script>
@@ -152,6 +156,16 @@
           @a.Created
         }
         <hr/>
+        @if(config.ShowComments)
+        {
+			<h4>Latest comments:</h4>
+            foreach (WebTest.Comment a in WebTest.Comment.LoadLatest(5))
+            {
+                <h5><a href="@a.Link">@a.Name</a></h5>
+              @a.Created
+            }
+            <hr/>
+        }
 			<h4>Tags:</h4>
         @foreach (string t in WebTest.TagsService.LoadTags())
         {
