@@ -36,7 +36,7 @@ namespace WebTest
         {
             get
             {
-                return "/article/id/" + ArticleId.ToString().Replace("-", "");
+                return "/article/id/" + ArticleId.ToString().Replace("-", "") + ".html";
             }
         }
 
