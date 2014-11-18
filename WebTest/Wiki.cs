@@ -22,6 +22,7 @@ using HtmlAgilityPack;
 
 namespace WebTest
 {
+    [Route("/comment", "PUT")]
     public class Comment
     {
         [PrimaryKey]
@@ -35,6 +36,17 @@ namespace WebTest
 
         [Reference]
         public Article Article { get; set; }
+    }
+
+    public class CommentService : Service
+    {
+        public object Put(Comment c)
+        {
+            c.Created = DateTime.Now;
+            c.Id = Guid.NewGuid();
+            PersonRepository.db.Insert<Comment>(c);
+            return c;
+        }
     }
 
     [Route("/article")]

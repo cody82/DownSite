@@ -57,6 +57,9 @@ namespace WebTest
         public string SiteUrl { get; set; }
         public string SiteDescription { get; set; }
 
+        public bool ShowComments { get; set; }
+        public bool AllowWriteComments { get; set; }
+
         public static Configuration Load()
         {
             return PersonRepository.db.SingleById<Configuration>(Guid.Empty);
