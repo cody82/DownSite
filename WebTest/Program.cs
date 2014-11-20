@@ -227,6 +227,61 @@ namespace WebTest
 
         public static List<string> ConvertQueue = new List<string>();
 
+        static Bitmap resizeImage(Bitmap imgToResize, Size size)
+        {
+            return new Bitmap(imgToResize, size);
+        }
+
+        static void ConvertImage(Image img)
+        {
+            foreach (int w in ImageService.ResizeWidths)
+            {
+                if (img.Width > w)
+                {
+                    int h3 = (int)((double)img.Height / (double)img.Width * (double)w);
+                    if (h3 % 2 == 1)
+                        h3 -= 1;
+                    var file = UploadService.GetFileInfo(img.Id);
+                    if (file == null)
+                    {
+                        Console.WriteLine("???");
+                        continue;
+                    }
+
+                    string output = Path.Combine(FileCache.GetCacheDir().FullName, img.Id + WebTest.Settings.Seperator + w + "x0" + ".jpg");
+
+                    if (File.Exists(output))
+                        continue;
+
+                    int h2 = h3;
+                    int w2 = w;
+                    //new Thread(() =>
+                    {
+                        /*lock (ConvertQueue)
+                        {
+                            if (ConvertQueue.Contains(output))
+                                return;
+                            ConvertQueue.Add(output);
+                        }*/
+
+                        Console.WriteLine("converting image to " + w2 + "x" + h2);
+                        using(var bmp = new Bitmap(file.FullName))
+                        {
+                            using(var resized = resizeImage(bmp, new Size(w2,h2)))
+                            {
+                                resized.Save(output);
+                            }
+                        }
+
+                        /*lock (ConvertQueue)
+                        {
+                            ConvertQueue.Remove(output);
+                        }*/
+                    }//).Start();
+                }
+            }
+        }
+
         static void ConvertVideo(Image img)
         {
             foreach (int h in ImageService.ResizeHeights)
@@ -303,6 +358,7 @@ namespace WebTest
                 {
                     img.Width = bmp.Width;
                     img.Height = bmp.Height;
+                    ConvertImage(img);
                 }
             }
             db.Insert<Image>(img);
@@ -316,6 +372,8 @@ namespace WebTest
 
             if (img.MimeType.StartsWith("video"))
                 ConvertVideo(img);
+            else
+                ConvertImage(img);
 
             var s = UploadService.GetFileInfo(id);
 
