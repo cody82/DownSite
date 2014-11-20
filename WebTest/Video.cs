@@ -238,7 +238,10 @@ namespace WebTest
             if(Environment.OSVersion.Platform != PlatformID.Unix && Environment.OSVersion.Platform != PlatformID.MacOSX)
                 output.Replace("%","%%");
 
-            ProcessStartInfo psi = new ProcessStartInfo("ffmpeg", string.Format(@"-i ""{0}"" -vframes 1 -vf scale=""'if(gt(a,1),80,-1)':'if(gt(a,1),-1,80)'"" ""{1}""", input, output))
+            //ProcessStartInfo psi = new ProcessStartInfo("ffmpeg", string.Format(@"-i ""{0}"" -vframes 1 -vf scale=""'if(gt(a,1),80,-1)':'if(gt(a,1),-1,80)'"" ""{1}""", input, output))
+            string param = string.Format(@"-i ""{0}"" -vframes 1 -vf scale=80:80 ""{1}""", input, output);
+            Console.WriteLine("ffmpeg " + param);
+            ProcessStartInfo psi = new ProcessStartInfo("ffmpeg", param)
             {
                 CreateNoWindow = true,
                 UseShellExecute = false
