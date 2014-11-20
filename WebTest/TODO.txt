@@ -1,1 +1,2 @@
 ﻿- better user editing
+- display resized images
