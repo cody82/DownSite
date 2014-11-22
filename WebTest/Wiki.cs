@@ -32,6 +32,7 @@ namespace WebTest
         public DateTime Created { get; set; }
         public string Name { get; set; }
 
+        [Ignore]
         public string Link
         {
             get
