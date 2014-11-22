@@ -1144,6 +1144,58 @@ namespace CustomMarkdownSharp
                 result += _emptyElementSuffix;
                 result += "</a>";
             }
+            else if(alt == "responsive")
+            {
+                if (url.ToLower().StartsWith("/image/"))
+                {
+                    string tmp = url.Substring(7);
+                    tmp = Path.GetFileNameWithoutExtension(tmp);
+                    string extension = Path.GetExtension(url);
+                    string[] split = tmp.Split(Settings.Seperator[0]);
+
+                    Guid id = Guid.Parse(split[0]);
+
+
+                    var img = Image.Load(id);
+                    if (img == null)
+                        return string.Empty;
+
+                    List<string> srcset = new List<string>();
+                    foreach (int w in ImageService.ResizeWidths)
+                    {
+                        var w480 = FileCache.GetFile(id + WebTest.Settings.Seperator + w + "x0.jpg");
+                        if (w480 != null)
+                        {
+                            srcset.Add("/image/" + id.ToString().Replace("-", "") + WebTest.Settings.Seperator + w + "x0.jpg " + w + "w");
+                        }
+                    }
+
+                    if(srcset.Count > 0)
+                    {
+                        string default_image = srcset[0].Split(' ')[0];
+                        srcset.Add("/image/" + id.ToString().Replace("-", "") + ".jpg " + img.Item1.Width + "w");
+                        result = string.Format("<img src=\"{0}\" class=\"img-responsive img-rounded\" sizes=\"80vw\" srcset=\"{1}\" />", default_image, string.Join(", ", srcset));
+                    }
+                    else
+                    {
+                        result = string.Format("<img src=\"{0}\" alt=\"{1}\"", url, alt);
+
+                        if (!String.IsNullOrEmpty(title))
+                        {
+                            title = EscapeBoldItalic(title);
+                            result += string.Format(" title=\"{0}\"", title);
+                        }
+
+                        //if (alt == "")
+                        {
+                            result += string.Format(" class=\"{0}\"", "img-responsive img-rounded");
+                        }
+                        result += _emptyElementSuffix;
+                    }
+                }
+                else
+                    result = string.Empty;
+            }
             else
             {
                 result = string.Format("<img src=\"{0}\" alt=\"{1}\"", url, alt);
