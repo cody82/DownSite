@@ -49,7 +49,7 @@ namespace WebTest
 
         public static Comment[] LoadLatest(int n)
         {
-            return PersonRepository.db.Select<Comment>().OrderByDescending(x => x.Created).Take(n).ToArray();
+            return Database.Db.Select<Comment>().OrderByDescending(x => x.Created).Take(n).ToArray();
         }
     }
 
@@ -59,7 +59,7 @@ namespace WebTest
         {
             c.Created = DateTime.Now;
             c.Id = Guid.NewGuid();
-            PersonRepository.db.Insert<Comment>(c);
+            Database.Db.Insert<Comment>(c);
             return c;
         }
     }
@@ -156,7 +156,7 @@ namespace WebTest
 
         public static string[] LoadTags()
         {
-            var c = PersonRepository.db.Select<Tag>().Select(x => x.Name).Distinct().ToArray();
+            var c = Database.Db.Select<Tag>().Select(x => x.Name).Distinct().ToArray();
             return c;
         }
     }
@@ -251,7 +251,7 @@ namespace WebTest
 
         public static BlogInfo LoadBlog(string tag = null, int page = 1)
         {
-            var blog = PersonRepository.db.LoadSelect<Article>(x => x.ShowInBlog).OrderByDescending(x => x.Created).ToArray();
+            var blog = Database.Db.LoadSelect<Article>(x => x.ShowInBlog).OrderByDescending(x => x.Created).ToArray();
 
             if (!string.IsNullOrWhiteSpace(tag))
                 blog = blog.Where(y => y.Category != null && y.Category.Any(x => x.Name.ToLower() == tag.ToLower())).ToArray();
@@ -259,7 +259,7 @@ namespace WebTest
             foreach (var b in blog)
             {
                 b.Content = Preview(b.Content);
-                //var user = PersonRepository.db.Single<User>(x => x.Id == b.AuthorId);
+                //var user = Database.db.Single<User>(x => x.Id == b.AuthorId);
                 if (b.Author != null)
                     b.AuthorName = b.Author.UserName;
                 else
@@ -375,7 +375,7 @@ namespace WebTest
     {
         public static Article[] GetMenuArticles()
         {
-            return PersonRepository.db.Select<Article>(x => x.ShowInMenu).OrderBy(x => x.Title).ToArray();
+            return Database.Db.Select<Article>(x => x.ShowInMenu).OrderBy(x => x.Title).ToArray();
         }
 
         public object Get(Article request)
@@ -388,7 +388,7 @@ namespace WebTest
             if (html)
                 return GetHtml(request);
 
-            var a = PersonRepository.db.LoadSelect<Article>(x => x.Title == request.Title || x.Id == request.Id).SingleOrDefault();
+            var a = Database.Db.LoadSelect<Article>(x => x.Title == request.Title || x.Id == request.Id).SingleOrDefault();
             
             if (a.Author != null)
                 a.AuthorName = a.Author.UserName;
@@ -410,7 +410,7 @@ namespace WebTest
 
         public static Article[] Get()
         {
-            var list = PersonRepository.db.LoadSelect<Article>();
+            var list = Database.Db.LoadSelect<Article>();
             return list.ToArray();
         }
 
@@ -420,9 +420,9 @@ namespace WebTest
             if (article.Id == Guid.Empty)
                 return new HttpResult(HttpStatusCode.NotFound, "no such article.");
 
-            PersonRepository.db.Delete<Tag>(x => x.ArticleId == article.Id);
+            Database.Db.Delete<Tag>(x => x.ArticleId == article.Id);
 
-            int count = PersonRepository.db.Delete<Article>(x => x.Id == article.Id);
+            int count = Database.Db.Delete<Article>(x => x.Id == article.Id);
             if (count == 0)
                 return new HttpResult(HttpStatusCode.NotFound, "no such article.");
 
@@ -434,20 +434,20 @@ namespace WebTest
         {
             var preview = Request != null ? Request.AbsoluteUri.EndsWith("?preview") : false;
 
-            //var article = PersonRepository.db.Single<Article>(x => x.Title == request.Title || x.Id == request.Id);
-            var article = PersonRepository.db.LoadSelect<Article>(x => x.Title == request.Title || x.Id == request.Id).SingleOrDefault();
+            //var article = Database.db.Single<Article>(x => x.Title == request.Title || x.Id == request.Id);
+            var article = Database.Db.LoadSelect<Article>(x => x.Title == request.Title || x.Id == request.Id).SingleOrDefault();
             if (article == null)
                 return new HttpResult(HttpStatusCode.NotFound, "no such article.");
 
-            //var author = PersonRepository.db.Single<User>(x => x.Id == article.AuthorId);
-            //var category = string.Join(",", PersonRepository.db.Select<Category>(x => x.ArticleId == article.Id).OrderBy(x => x.Name).Select(x => x.Name));
+            //var author = Database.db.Single<User>(x => x.Id == article.AuthorId);
+            //var category = string.Join(",", Database.db.Select<Category>(x => x.ArticleId == article.Id).OrderBy(x => x.Name).Select(x => x.Name));
             var category = article.Category != null ? string.Join(",", article.Category.OrderBy(x => x.Name).Select(x => x.Name)) : "";
             if (article.Author != null)
                 article.AuthorName = article.Author.UserName;
             else
                 article.AuthorName = "unknown author";
 
-            //var parts = PersonRepository.db.Select<Part>(x => x.ArticleId == article.Id).OrderBy(x => x.Number).ToArray();
+            //var parts = Database.db.Select<Part>(x => x.ArticleId == article.Id).OrderBy(x => x.Number).ToArray();
 
             string header = "<h1>" + article.Title + "</h1><p>" + (article.AuthorName ?? "unknown author") + ", " + article.Created + " [" + category + "]</p>";
             string html = "";
@@ -477,16 +477,16 @@ namespace WebTest
         [Authenticate]
         public object Put(Article article)
         {
-            if (PersonRepository.db.Exists<Article>(x => x.Title == article.Title))
+            if (Database.Db.Exists<Article>(x => x.Title == article.Title))
                 return new HttpResult(HttpStatusCode.NotFound, "article with that title already exists.");
             article.Id = Guid.NewGuid();
             article.Created = article.Modified = DateTime.Now;
 
             var session = GetSession();
             if (session.IsAuthenticated)
-                article.AuthorId = PersonRepository.db.Single<User>(x => x.UserName == session.UserAuthName).Id;
+                article.AuthorId = Database.Db.Single<User>(x => x.UserName == session.UserAuthName).Id;
 
-            PersonRepository.db.Insert<Article>(article);
+            Database.Db.Insert<Article>(article);
 
             return article;
         }
@@ -496,9 +496,9 @@ namespace WebTest
         {
             var session = GetSession();
             if (session.IsAuthenticated)
-                article.AuthorId = PersonRepository.db.Single<User>(x => x.UserName == session.UserAuthName).Id;
+                article.AuthorId = Database.Db.Single<User>(x => x.UserName == session.UserAuthName).Id;
 
-            var original = PersonRepository.db.LoadSelect<Article>(x => x.Id == article.Id).Single();
+            var original = Database.Db.LoadSelect<Article>(x => x.Id == article.Id).Single();
             article.Category = article.Category.Where(x => !string.IsNullOrWhiteSpace(x.Name)).ToList();
 
 
@@ -511,12 +511,12 @@ namespace WebTest
                 article.AuthorId = original.AuthorId;
             article.Created = original.Created;
 
-            PersonRepository.db.Update<Article>(article);
+            Database.Db.Update<Article>(article);
 
             foreach (var c in article.Category.Where(x => original == null || original.Category == null || !original.Category.Any(y => y.Name == x.Name)))
             {
                 c.ArticleId = article.Id;
-                PersonRepository.db.Insert<Tag>(c);
+                Database.Db.Insert<Tag>(c);
             }
 
             if (original.Category != null)
@@ -524,7 +524,7 @@ namespace WebTest
                 foreach (var c in original.Category.Where(x => !article.Category.Any(y => y.Name == x.Name)))
                 {
                     c.ArticleId = article.Id;
-                    PersonRepository.db.Delete<Tag>(c);
+                    Database.Db.Delete<Tag>(c);
                 }
             }
 

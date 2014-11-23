@@ -25,7 +25,7 @@ namespace WebTest
             SyndicationFeed feed = new SyndicationFeed(config.SiteName ?? "Test", config.SiteDescription ?? "Test", new Uri(site), id, DateTime.Now);
             List<SyndicationItem> items = new List<SyndicationItem>();
 
-            var blog = PersonRepository.db.Select<Article>(x => x.ShowInBlog).OrderByDescending(x => x.Created);
+            var blog = Database.Db.Select<Article>(x => x.ShowInBlog).OrderByDescending(x => x.Created);
             foreach (var a in blog)
             {
                 SyndicationItem item = new SyndicationItem(a.Title, a.Content, new Uri(site + a.Link), a.Id.ToString(), a.Created);

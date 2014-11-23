@@ -36,7 +36,7 @@ namespace WebTest
 
         public static Menu[] Load()
         {
-            return PersonRepository.db.Select<Menu>().ToArray();
+            return Database.Db.Select<Menu>().ToArray();
         }
     }
 
@@ -62,7 +62,7 @@ namespace WebTest
 
         public static Configuration Load()
         {
-            return PersonRepository.db.SingleById<Configuration>(Guid.Empty);
+            return Database.Db.SingleById<Configuration>(Guid.Empty);
         }
     }
 
@@ -351,7 +351,7 @@ namespace WebTest
 
         public static Tuple<Image, FileInfo> Load(Guid id)
         {
-            var img = PersonRepository.db.Select<Image>(x => x.Id == id).SingleOrDefault();
+            var img = Database.Db.Select<Image>(x => x.Id == id).SingleOrDefault();
             if (img == null)
                 return null;
 
@@ -379,7 +379,7 @@ namespace WebTest
             //Return true if credentials are valid, otherwise false
 
             password = Util.SHA1(password);
-            var user = PersonRepository.db.Select<User>(x => x.UserName == userName && x.Password == password);
+            var user = Database.Db.Select<User>(x => x.UserName == userName && x.Password == password);
             return user.Any();
         }
 
@@ -606,7 +606,7 @@ namespace WebTest
                         filename = content;
                     }
 
-                    Image.Save(pic1, PersonRepository.db, Request.ContentType, filename, request.RequestStream);
+                    Image.Save(pic1, Database.Db, Request.ContentType, filename, request.RequestStream);
 
                     return new UploadResult() { Guid = pic1 };
                 }
@@ -617,7 +617,7 @@ namespace WebTest
             //if(!mimetypes.Contains(file.ContentType))
             //    return new HttpError(System.Net.HttpStatusCode.InternalServerError, string.Format("Unknown file type: {0}.", file.ContentType));
 
-            Image.Save(pic1, PersonRepository.db, Request.ContentType, file.FileName, file.InputStream);
+            Image.Save(pic1, Database.Db, Request.ContentType, file.FileName, file.InputStream);
 
             return new UploadResult(){ Guid= pic1 };
         }
@@ -665,7 +665,7 @@ namespace WebTest
 
         public object Delete(ImageRequest request)
         {
-            PersonRepository.db.Delete<Image>(x => x.Id == request.Id);
+            Database.Db.Delete<Image>(x => x.Id == request.Id);
 
             FileInfo fi = UploadService.GetFileInfo(request.Id);
             if (fi != null)
@@ -753,7 +753,7 @@ namespace WebTest
         [AddHeader(ContentType = MimeTypes.Json)]
         public object Get(Images request)
         {
-            return PersonRepository.db.Select<Image>().ToArray();
+            return Database.Db.Select<Image>().ToArray();
         }
     }
 
@@ -795,108 +795,12 @@ namespace WebTest
 
     public class PersonRepository
     {
-        public static IDbConnection db;
-
-        public PersonRepository()
-        {
-            string dbfile = Path.Combine("data", "db.sqlite3");
-            bool init = !File.Exists(dbfile);
-            if (init)
-            {
-                if (Directory.Exists("data"))
-                    Directory.Delete("data", true);
-                var dir = Directory.CreateDirectory("data");
-                dir.CreateSubdirectory("files");
-                dir.CreateSubdirectory("cache");
-
-                db = Database.OpenDbConnection(dbfile);
-                db.CreateTable<User>(true);
-                db.CreateTable<Image>(true);
-                db.CreateTable<Article>(true);
-                db.CreateTable<Tag>(true);
-                db.CreateTable<Configuration>(true);
-                db.CreateTable<Comment>(true);
-                db.CreateTable<Menu>(true);
-
-                db.Insert<Configuration>(new Configuration() { Id = Guid.Empty, SiteName = "WebTest", ShowComments = true, AllowWriteComments = true });
-
-                db.ExecuteSql(@"CREATE UNIQUE INDEX tag_unique on Tag(ArticleId, Name);");
-
-
-                Guid pic1 = Guid.NewGuid(), pic2 = Guid.NewGuid(), pic3 = Guid.NewGuid();
-                Image.Save(pic1, db, MimeTypes.ImageJpg, "acf7eede5be5aa69.jpg", new FileInfo("acf7eede5be5aa69.jpg").OpenRead());
-                Image.Save(pic2, db, MimeTypes.ImageJpg, "e3939e928899550f.jpg", new FileInfo("e3939e928899550f.jpg").OpenRead());
-                Image.Save(pic3, db, "video/webm", "d552c86d2ebd373c.webm", new FileInfo("d552c86d2ebd373c.webm").OpenRead());
-
-                Guid person1;
-                db.Insert<User>(new User() { Id = person1 = Guid.NewGuid(), ImageId = pic1, UserName = "cody", Password = Util.SHA1("cody"), FirstName = "cody", LastName = "test", Age = 32 });
-                db.Insert<User>(new User() { Id = Guid.NewGuid(), ImageId = pic2, FirstName = "cody1", LastName = "test", Age = 37 });
-                db.Insert<User>(new User() { Id = Guid.NewGuid(), FirstName = "cody2", LastName = "test", Age = 34 });
-
-                string content = string.Format(@"-CONTENT-
-
-![](/image/{0})
-![video](/image/{1})
-![youtube](cxBcHLylFbw)", pic1.ToString().Replace("-", "") + ".jpg", pic3.ToString().Replace("-", "") + ".webm");
-
-                Guid article;
-                db.Insert<Article>(new Article() { Id = article = Guid.NewGuid(), ShowInBlog = true, Content = content, AuthorId = person1, Created = DateTime.Now, Title = "page1", VersionGroup = Guid.NewGuid() });
-
-                db.Insert<Tag>(new Tag() { ArticleId = article, Name = "a" });
-                db.Insert<Tag>(new Tag() { ArticleId = article, Name = "b" });
-                db.Insert<Tag>(new Tag() { ArticleId = article, Name = "c" });
-
-
-                db.Insert<Article>(new Article() { Id = Guid.NewGuid(), AuthorId = person1, ShowInMenu = true, Content = @"#MenuItem 1
-
-<pre><code>blablalb
-rhgb
-regj
-rejgn
-</code></pre>", Created = DateTime.Now, Title = "MenuItem 1", VersionGroup = Guid.NewGuid() });
-                db.Insert<Article>(new Article() { Id = Guid.NewGuid(), AuthorId = person1, ShowInMenu = true, Content = "#MenuItem 2", Created = DateTime.Now, Title = "MenuItem 2", VersionGroup = Guid.NewGuid() });
-
-                for (int i = 0; i < 20; ++i)
-                {
-                    Guid id;
-                    db.Insert<Article>(new Article() { Id = id = Guid.NewGuid(), AuthorId = person1, ShowInBlog = true, Content = "blog" + i, Created = DateTime.Now, Title = "blog" + i, VersionGroup = Guid.NewGuid() });
-                    db.Insert<Tag>(new Tag() { ArticleId = id, Name = "c" });
-                }
-
-                db.Insert<Comment>(new Comment() { Id = Guid.NewGuid(), ArticleId = article, Content = "blabla1", Created = DateTime.Now, Name = "anon" });
-                db.Insert<Comment>(new Comment() { Id = Guid.NewGuid(), ArticleId = article, Content = "blabla2", Created = DateTime.Now, Name = "anon" });
-
-                db.Insert<Menu>(new Menu() { Id = Guid.NewGuid(), Caption = "Blog", Link = "/blog/page1.html" });
-
-                var a = db.LoadSingleById<Article>(article);
-                if (a.Category == null)
-                    throw new Exception("BUG");
-                a = db.LoadSelect<Article>(y => y.Id == article).First();
-                if (a.Category == null)
-                    throw new Exception("BUG");
-            }
-            else
-                db = Database.OpenDbConnection(dbfile);
-
-            foreach (var f in new DirectoryInfo(Path.Combine("data", "cache")).GetFiles("*.tmp"))
-            {
-                try
-                {
-                    f.Delete();
-                }
-                catch
-                {
-                }
-            }
-
-        }
-
         public List<User> GetByIds(Guid[] ids)
         {
             List<User> list = new List<User>();
             foreach (var id in ids)
             {
-                var p = db.Select<User>().Where(x => x.Id == id).SingleOrDefault();
+                var p = Database.Db.Select<User>().Where(x => x.Id == id).SingleOrDefault();
                 if(p != null)
                     list.Add(p);
             }
@@ -904,18 +808,18 @@ rejgn
         }
         public List<User> GetAll()
         {
-            return db.Select<User>();
+            return Database.Db.Select<User>();
         }
         public User Store(User todo)
         {
             if (todo.Id == Guid.Empty)
                 todo.Id = Guid.NewGuid();
-            db.Insert<User>(todo);
+            Database.Db.Insert<User>(todo);
             return todo;
         }
         public void DeleteByIds(params Guid[] ids)
         {
-            db.DeleteByIds<User>(ids);
+            Database.Db.DeleteByIds<User>(ids);
         }
     }
 
