@@ -1079,7 +1079,8 @@ namespace CustomMarkdownSharp
             url = EncodeProblemUrlChars(url);
             url = EscapeBoldItalic(url);
 
-            //HACK
+            string link = null;
+
             if (alt == "youtube")
             {
                 result = string.Format(@"<div class=""embed-responsive embed-responsive-16by9"">
@@ -1173,11 +1174,13 @@ namespace CustomMarkdownSharp
                     if(srcset.Count > 0)
                     {
                         string default_image = srcset[0].Split(' ')[0];
+                        link = "/image/" + id.ToString().Replace("-", "") + ".jpg ";
                         srcset.Add("/image/" + id.ToString().Replace("-", "") + ".jpg " + img.Item1.Width + "w");
                         result = string.Format("<img src=\"{0}\" class=\"img-responsive img-rounded\" sizes=\"80vw\" srcset=\"{1}\" />", default_image, string.Join(", ", srcset));
                     }
                     else
                     {
+                        link = url;
                         result = string.Format("<img src=\"{0}\" alt=\"{1}\"", url, alt);
 
                         if (!String.IsNullOrEmpty(title))
@@ -1198,6 +1201,7 @@ namespace CustomMarkdownSharp
             }
             else
             {
+                link = url;
                 result = string.Format("<img src=\"{0}\" alt=\"{1}\"", url, alt);
 
                 if (!String.IsNullOrEmpty(title))
@@ -1213,6 +1217,10 @@ namespace CustomMarkdownSharp
                 result += _emptyElementSuffix;
             }
 
+            if(link != null)
+            {
+                result = "<a target=\"_blank\" href=\"" + link + "\">" + result + "</a>";
+            }
 
             return result;
         }
