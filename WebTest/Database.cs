@@ -19,10 +19,39 @@ namespace WebTest
 {
     public class Database
     {
-        public const int Version = 0;
+        public const int Version = 1;
 
-        public static void Migrate()
+        public static void Migrate(int from, int to)
         {
+            if (from == to)
+                return;
+            if (from > to)
+                throw new Exception("BUG");
+            if(to - from > 1)
+            {
+                for(int i = from; i < to; ++i)
+                {
+                    Migrate(i, i + 1);
+                }
+            }
+
+            switch(to)
+            {
+                case 1:
+                    Migrate001();
+                    break;
+                case 2:
+                    throw new Exception("BUG");
+                case 3:
+                    throw new Exception("BUG");
+            }
+
+            Db.Update<Configuration>(new { Version = to});
+        }
+
+        static void Migrate001()
+        {
+
         }
 
         public static IDbConnection OpenDbConnection(string connString)
@@ -55,7 +84,7 @@ namespace WebTest
                 Db.CreateTable<Comment>(true);
                 Db.CreateTable<Menu>(true);
 
-                Db.Insert<Configuration>(new Configuration() { Id = Guid.Empty, SiteName = "WebTest", ShowComments = true, AllowWriteComments = true });
+                Db.Insert<Configuration>(new Configuration() { Id = Guid.Empty, SiteName = "WebTest", ShowComments = true, AllowWriteComments = true, Version = Version });
 
                 Db.ExecuteSql(@"CREATE UNIQUE INDEX tag_unique on Tag(ArticleId, Name);");
 
@@ -84,13 +113,22 @@ namespace WebTest
                 Db.Insert<Tag>(new Tag() { ArticleId = article, Name = "c" });
 
 
-                Db.Insert<Article>(new Article() { Id = Guid.NewGuid(), AuthorId = person1, ShowInMenu = true, Content = @"#MenuItem 1
+                Db.Insert<Article>(new Article()
+                {
+                    Id = Guid.NewGuid(),
+                    AuthorId = person1,
+                    ShowInMenu = true,
+                    Content = @"#MenuItem 1
 
 <pre><code>blablalb
 rhgb
 regj
 rejgn
-</code></pre>", Created = DateTime.Now, Title = "MenuItem 1", VersionGroup = Guid.NewGuid() });
+</code></pre>",
+                    Created = DateTime.Now,
+                    Title = "MenuItem 1",
+                    VersionGroup = Guid.NewGuid()
+                });
                 Db.Insert<Article>(new Article() { Id = Guid.NewGuid(), AuthorId = person1, ShowInMenu = true, Content = "#MenuItem 2", Created = DateTime.Now, Title = "MenuItem 2", VersionGroup = Guid.NewGuid() });
 
                 for (int i = 0; i < 20; ++i)
@@ -113,8 +151,19 @@ rejgn
                     throw new Exception("BUG");
             }
             else
+            {
                 Db = Database.OpenDbConnection(dbfile);
 
+                int version = Configuration.Load().Version;
+                if(version < Version)
+                {
+                    Migrate(version, Version);
+                }
+                else if(version > Version)
+                {
+                    throw new Exception(string.Format("Database version too high. ({0} vs. {1})", version, Version));
+                }
+            }
             foreach (var f in new DirectoryInfo(Path.Combine("data", "cache")).GetFiles("*.tmp"))
             {
                 try
