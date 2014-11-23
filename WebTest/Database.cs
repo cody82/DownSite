@@ -33,6 +33,7 @@ namespace WebTest
                 {
                     Migrate(i, i + 1);
                 }
+                return;
             }
 
             switch(to)
