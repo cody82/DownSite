@@ -78,8 +78,7 @@ namespace WebTest
         public string UserName { get; set; }
         public string Password { get; set; }
         public string PlainTextPassword { get; set; }
-        [Index]
-        public int Age { get; set; }
+
 
         [References(typeof(Image))]
         public Guid ImageId { get; set; }
@@ -830,6 +829,8 @@ namespace WebTest
 
         static void Main(string[] args)
         {
+            Database.Init();
+
             var appHost = new AppHost();
             appHost.Init();
             appHost.Start(BaseUri);

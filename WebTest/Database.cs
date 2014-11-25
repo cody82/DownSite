@@ -17,9 +17,18 @@ using ServiceStack;
 
 namespace WebTest
 {
+    public class TableInfo
+    {
+        public int cid { get; set; }
+        public string name { get; set; }
+        public string type { get; set; }
+        public bool notnull { get; set; }
+        public bool pk { get; set; }
+
+    }
     public class Database
     {
-        public const int Version = 1;
+        public const int Version = 2;
 
         public static void Migrate(int from, int to)
         {
@@ -36,24 +45,79 @@ namespace WebTest
                 return;
             }
 
-            switch(to)
+            using(var t = Db.BeginTransaction(IsolationLevel.Serializable))
             {
-                case 1:
-                    Migrate001();
-                    break;
-                case 2:
-                    throw new Exception("BUG");
-                case 3:
-                    throw new Exception("BUG");
-            }
+                switch(to)
+                {
+                    case 1:
+                        break;
+                    case 2:
+                        Migrate002();
+                        break;
+                    case 3:
+                        throw new Exception("BUG");
+                    default:
+                        throw new Exception("BUG");
+                }
 
-            Db.Update<Configuration>(new { Version = to});
+                Db.Update<Configuration>(new { Version = to});
+            }
         }
 
-        static void Migrate001()
+        static void Migrate002()
+        {
+            DropColumn("User", "Age");
+        }
+
+        public static string[] GetColumns(string table)
+        {
+            var cmd = Db.CreateCommand();
+            cmd.CommandText = "PRAGMA table_info('"+table+"')";
+            var reader = cmd.ExecuteReader();
+            List<string> list = new List<string>();
+            while(reader.Read())
+            {
+                string column = reader.GetString(1);
+                list.Add(column);
+            }
+            return list.ToArray();
+        }
+
+        public static void DropColumn(string table, string column)
+        {
+            var cmd = Db.CreateCommand();
+            cmd.CommandText = "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = '"+table+"'";
+            var reader = cmd.ExecuteReader();
+            reader.Read();
+            string sql = reader.GetString(0);
+            string[] lines = sql.Split('\n');
+            lines = lines.Where(x => !x.Contains("\"" + column + "\"")).ToArray();
+
+            Db.ExecuteNonQuery("ALTER TABLE '" + table + "' RENAME to '" + table + "_tmp'");
+            sql = lines.Join("\n");
+            Db.ExecuteNonQuery(sql);
+
+            sql = string.Format("INSERT INTO '{0}' SELECT {1} FROM '{2}'", table, GetColumns(table).Join(","), table + "_tmp");
+            Db.ExecuteNonQuery(sql);
+
+            Db.ExecuteNonQuery("DROP TABLE '" + table + "_tmp'");
+        }
+        /*public static TableInfo[] GetTableInfo(string table)
         {
 
-        }
+            var cmd = Db.CreateCommand();
+            cmd.CommandText = "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'User'";
+            var reader = cmd.ExecuteReader();
+            List<TableInfo> list = new List<TableInfo>();
+            while(reader.Read())
+            {
+                string column = reader.GetString(1);
+                var obj = reader.GetDto<TableInfo>();
+            }
+
+            return null;
+        }*/
+
 
         public static IDbConnection OpenDbConnection(string connString)
         {
@@ -64,7 +128,7 @@ namespace WebTest
 
         public static IDbConnection Db { get; private set; }
 
-        static Database()
+        public static void Init()
         {
             string dbfile = Path.Combine("data", "db.sqlite3");
             bool init = !File.Exists(dbfile);
@@ -96,9 +160,9 @@ namespace WebTest
                 Image.Save(pic3, Db, "video/webm", "d552c86d2ebd373c.webm", new FileInfo("d552c86d2ebd373c.webm").OpenRead());
 
                 Guid person1;
-                Db.Insert<User>(new User() { Id = person1 = Guid.NewGuid(), ImageId = pic1, UserName = "cody", Password = Util.SHA1("cody"), FirstName = "cody", LastName = "test", Age = 32 });
-                Db.Insert<User>(new User() { Id = Guid.NewGuid(), ImageId = pic2, FirstName = "cody1", LastName = "test", Age = 37 });
-                Db.Insert<User>(new User() { Id = Guid.NewGuid(), FirstName = "cody2", LastName = "test", Age = 34 });
+                Db.Insert<User>(new User() { Id = person1 = Guid.NewGuid(), ImageId = pic1, UserName = "cody", Password = Util.SHA1("cody"), FirstName = "cody", LastName = "test" });
+                Db.Insert<User>(new User() { Id = Guid.NewGuid(), ImageId = pic2, FirstName = "cody1", LastName = "test" });
+                Db.Insert<User>(new User() { Id = Guid.NewGuid(), FirstName = "cody2", LastName = "test" });
 
                 string content = string.Format(@"-CONTENT-
 
