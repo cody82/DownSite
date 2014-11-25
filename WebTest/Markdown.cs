@@ -1079,6 +1079,8 @@ namespace CustomMarkdownSharp
             url = EncodeProblemUrlChars(url);
             url = EscapeBoldItalic(url);
 
+            string default_image_class = "img-responsive";
+
             string link = null;
 
             if (alt == "youtube")
@@ -1140,7 +1142,7 @@ namespace CustomMarkdownSharp
                 }
 
                 {
-                    result += string.Format(" class=\"{0}\"", "img-rounded");
+                    //result += string.Format(" class=\"{0}\"", "img-rounded");
                 }
                 result += _emptyElementSuffix;
                 result += "</a>";
@@ -1176,7 +1178,7 @@ namespace CustomMarkdownSharp
                         string default_image = srcset[Array.IndexOf(ImageService.ResizeWidths, 1024)].Split(' ')[0];
                         link = "/image/" + id.ToString().Replace("-", "") + ".jpg ";
                         srcset.Add("/image/" + id.ToString().Replace("-", "") + ".jpg " + img.Item1.Width + "w");
-                        result = string.Format("<img src=\"{0}\" class=\"img-responsive img-rounded\" sizes=\"80vw\" srcset=\"{1}\" />", default_image, string.Join(", ", srcset));
+                        result = string.Format("<img src=\"{0}\" class=\"{2}\" sizes=\"80vw\" srcset=\"{1}\" />", default_image, string.Join(", ", srcset), default_image_class);
                     }
                     else
                     {
@@ -1191,7 +1193,7 @@ namespace CustomMarkdownSharp
 
                         //if (alt == "")
                         {
-                            result += string.Format(" class=\"{0}\"", "img-responsive img-rounded");
+                            result += string.Format(" class=\"{0}\"", default_image_class);
                         }
                         result += _emptyElementSuffix;
                     }
@@ -1212,7 +1214,7 @@ namespace CustomMarkdownSharp
 
                 //if (alt == "")
                 {
-                    result += string.Format(" class=\"{0}\"", "img-responsive img-rounded");
+                    result += string.Format(" class=\"{0}\"", default_image_class);
                 }
                 result += _emptyElementSuffix;
             }
