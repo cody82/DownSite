@@ -1173,7 +1173,7 @@ namespace CustomMarkdownSharp
 
                     if(srcset.Count > 0)
                     {
-                        string default_image = srcset[0].Split(' ')[0];
+                        string default_image = srcset[Array.IndexOf(ImageService.ResizeWidths, 1024)].Split(' ')[0];
                         link = "/image/" + id.ToString().Replace("-", "") + ".jpg ";
                         srcset.Add("/image/" + id.ToString().Replace("-", "") + ".jpg " + img.Item1.Width + "w");
                         result = string.Format("<img src=\"{0}\" class=\"img-responsive img-rounded\" sizes=\"80vw\" srcset=\"{1}\" />", default_image, string.Join(", ", srcset));
