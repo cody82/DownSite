@@ -28,7 +28,7 @@ namespace WebTest
     }
     public class Database
     {
-        public const int Version = 2;
+        public const int Version = 3;
 
         public static void Migrate(int from, int to)
         {
@@ -45,7 +45,8 @@ namespace WebTest
                 return;
             }
 
-            using(var t = Db.BeginTransaction(IsolationLevel.Serializable))
+            Console.WriteLine("Migrating database to version " + to + "...");
+            using(var t = Db.BeginTransaction())
             {
                 switch(to)
                 {
@@ -55,18 +56,25 @@ namespace WebTest
                         Migrate002();
                         break;
                     case 3:
-                        throw new Exception("BUG");
+                        Migrate003();
+                        break;
                     default:
                         throw new Exception("BUG");
                 }
 
                 Db.Update<Configuration>(new { Version = to});
+                t.Commit();
             }
         }
 
         static void Migrate002()
         {
             DropColumn("User", "Age");
+        }
+
+        static void Migrate003()
+        {
+            Db.ExecuteNonQuery("ALTER TABLE \"User\" ADD COLUMN \"Email\" VARCHAR;");
         }
 
         public static string[] GetColumns(string table)
@@ -90,17 +98,20 @@ namespace WebTest
             var reader = cmd.ExecuteReader();
             reader.Read();
             string sql = reader.GetString(0);
-            string[] lines = sql.Split('\n');
-            lines = lines.Where(x => !x.Contains("\"" + column + "\"")).ToArray();
+            reader.Dispose();
+            sql = sql.Replace("\n", "");
+            string[] lines = sql.Split(',');
+
+            lines = lines.Where(x => !x.Contains("\"" + column + "\"") && !x.Contains("`" + column + "`")).ToArray();
 
             Db.ExecuteNonQuery("ALTER TABLE '" + table + "' RENAME to '" + table + "_tmp'");
-            sql = lines.Join("\n");
+            sql = lines.Join(",\n");
             Db.ExecuteNonQuery(sql);
 
-            sql = string.Format("INSERT INTO '{0}' SELECT {1} FROM '{2}'", table, GetColumns(table).Join(","), table + "_tmp");
+            sql = string.Format("INSERT INTO '{0}' SELECT {1} FROM '{2}';", table, GetColumns(table).Join(","), table + "_tmp");
             Db.ExecuteNonQuery(sql);
 
-            Db.ExecuteNonQuery("DROP TABLE '" + table + "_tmp'");
+            Db.ExecuteNonQuery("DROP TABLE \"" + table +"_tmp\";");
         }
         /*public static TableInfo[] GetTableInfo(string table)
         {

@@ -78,6 +78,7 @@ namespace WebTest
         public string UserName { get; set; }
         public string Password { get; set; }
         public string PlainTextPassword { get; set; }
+        public string Email { get; set; }
 
 
         [References(typeof(Image))]
