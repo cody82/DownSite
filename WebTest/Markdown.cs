@@ -1086,12 +1086,12 @@ namespace CustomMarkdownSharp
             if (alt == "youtube")
             {
                 result = string.Format(@"<div class=""embed-responsive embed-responsive-16by9"">
-<iframe class=""embed-responsive-item"" src=""//www.youtube.com/embed/{0}"" frameborder=""0""> </iframe>
+<iframe class=""embed-responsive-item"" src=""https://www.youtube.com/embed/{0}"" frameborder=""0""> </iframe>
 </div>", url);
             }
             else if (alt == "vimeo")
             {
-                result = string.Format(@"<div class=""embed-responsive embed-responsive-16by9""><iframe class=""embed-responsive-item"" src=""//player.vimeo.com/video/{0}"" frameborder=""0"" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe></div>", url);
+                result = string.Format(@"<div class=""embed-responsive embed-responsive-16by9""><iframe class=""embed-responsive-item"" src=""https://player.vimeo.com/video/{0}"" frameborder=""0"" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe></div>", url);
             }
             else if (alt == "video")
             {
