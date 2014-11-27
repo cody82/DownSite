@@ -22,7 +22,8 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
 .scroll-y { overflow-y: auto; }
 
 .header.row { height: 100px; top: 0;}
-.body.row { top: 100px; bottom: 0px;}
+.body.row { top: 100px; bottom: 50px;}
+.footer.row { height: 50px; bottom: 0; }
 
 </style>
     <title></title>
@@ -233,30 +234,39 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
 </script>
 
 
-<div style="float:left;width:49%;height:70%">
-    <select id="article_select" onchange="load_article()">
-        <!--<option name=one value=one> one </option>
-        <option name=two value=two> two </option>
-        <option name=three value=three> three </option>-->
-    </select>
-<input id="article_title" type="text"></input><br />
-category/tags:<input id="article_category" type="text"></input><br />
-<input type="button" value="create" onclick="create_article()"/>
-<input type="button" value="delete" onclick="delete_article()"/>
-<p><input id="menu_check" type="checkbox"/>show in menu</p>
-<p><input id="blog_check" type="checkbox"/>show in blog</p>
-<textarea spellcheck="false" style="width:100%;height:45%" id="article_content" ></textarea>
-<input type="button" value="save" onclick="save_article()"/>
-    <div id="images" style="width:100%;height:400px;overflow:auto">
+<div style="float:left;width:49%;height:99%;position:absolute">
+    <div class="header row">
+        <select id="article_select" onchange="load_article()">
+            <!--<option name=one value=one> one </option>
+            <option name=two value=two> two </option>
+            <option name=three value=three> three </option>-->
+        </select>
+        <input id="article_title" type="text"></input><br />
+        tags:<input id="article_category" type="text"></input>
+        <span><input id="menu_check" type="checkbox" />show in menu</span>
+        <span><input id="blog_check" type="checkbox" />show in blog</span><br />
+        <input type="button" value="create" onclick="create_article()" />
+        <input type="button" value="delete" onclick="delete_article()" />
+        <input type="button" value="save" onclick="save_article()" />
+        <p>
+        </p>
+    </div>
+    
+    <div class="body row">
+        <textarea spellcheck="false" style="width:99%;height:49%" id="article_content"></textarea>
 
+        <div id="images" style="width:99%;height:49%;overflow:auto;">
+
+        </div>
     </div>
-    <div>
-        <input id="fileupload" type="file" name="files[]" data-url="upload/" multiple/>
-        <div id="progress"></div>
-        <div id="progressbar">
-        <div class="bar" style="width: 0%;"></div>
-</div>
-    </div>
+
+        <div class="footer row">
+            <input id="fileupload" type="file" name="files[]" data-url="upload/" multiple />
+            <div id="progress"></div>
+            <div id="progressbar">
+                <div class="bar" style="width: 0%;"></div>
+            </div>
+        </div>
 <!--<div id="upload_result">
 </div>-->
 

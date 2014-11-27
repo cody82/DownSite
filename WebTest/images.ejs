@@ -2,8 +2,7 @@
   <% this.forEach(function(row){ %>
 	<tr>
     <td>
-      <a href="javascript:delete_image('<%= row.Id %>')">
-      delete
+      <a target="_blank" href="/image/<%= row.Id %>"><img src="/image/<%= row.Id %>!thumb.jpg"/>
       </a>
     </td>
 		<td>
@@ -13,7 +12,9 @@
       <%= row.FileName %>
     </td>
     <td>
-      <a target="_blank" href="/image/<%= row.Id %>"><img src="/image/<%= row.Id %>!thumb.jpg"/></a>
+      <a href="javascript:delete_image('<%= row.Id %>')">
+        delete
+      </a>
     </td>
 	</tr>
   <% }) %>
