@@ -28,6 +28,12 @@ body { margin: 0; position:absolute; top:0; bottom:0; right:0; left:0; }
 	    function load_editor() {
 	        $('#content').html('<iframe style="width:100%;height:99%" src="editor.html"></iframe>');
 	    }
+	    function load_menu() {
+	        $('#content').html('<iframe style="width:100%;height:99%" src="menu.html"></iframe>');
+	    }
+	    function load_users() {
+	        $('#content').html('<iframe style="width:100%;height:99%" src="users.html"></iframe>');
+	    }
 
 	    function auth() {
 	        var data = { "UserName": $('#username').val(), "Password": $('#password').val(), "RememberMe": true };
@@ -77,45 +83,7 @@ body { margin: 0; position:absolute; top:0; bottom:0; right:0; left:0; }
 	        });
 	    }
 
-	    function add_user() {
-	        //var data = { "UserName": $('#input_name').val(), "Password": CryptoJS.SHA1($('#input_password').val()).toString(CryptoJS.enc.Hex) };
-	        var data = { "UserName": $('#input_name').val(), "PlainTextPassword": $('#input_password').val() };
-	        $.ajax({
-	            type: "POST",
-	            url: "/user",
-	            processData: false,
-	            contentType: 'application/json',
-	            data: JSON.stringify(data),
-	            success: function (r) {
-	                //new EJS({ url: '/comments.ejs' }).update('element_id', '/Persons?format=json');
-	                ejs_update('/comments.ejs', 'content', '/users?format=json');
-	            }
-	        });
-	    }
-	    function delete_user() {
-	        var items = $('.delete').filter(function (x) { return this.checked; }).map(function () { return this.id; });
-	        var count = items.length;
-	        var i = 0;
-	        items.each(function (index) {
-	            $.ajax({
-	                type: "DELETE",
-	                url: "/users/" + this,
-	                processData: false,
-	                contentType: 'application/json',
-	                data: "",
-	                success: function (r) {
-	                    i++;
-	                    if (count == i) {
-	                        //new EJS({ url: '/comments.ejs' }).update('element_id', '/Persons?format=json');
-	                        ejs_update('/comments.ejs', 'content', '/users?format=json');
-	                    }
-	                }
-	            });
-	        });
-	    }
 	    $(document).ready(function () {
-	        ejs_update('/comments.ejs', 'content', '/users?format=json');
-	        check_auth();
 	    });
     </script>
     
@@ -128,16 +96,13 @@ body { margin: 0; position:absolute; top:0; bottom:0; right:0; left:0; }
         <a href="/auth/logout" class="logout btn btn-danger">Sign out <span id="user_auth"></span></a>
 
         <a href="javascript:;" onclick="load_editor()">Editor</a>
+        <a href="javascript:;" onclick="load_menu()">Menu</a>
+        <a href="javascript:;" onclick="load_users()">Users</a>
 
     </div>
     <div id="content" class="body row scroll-y">
 
     </div>
-    
-<input id="input_name" type="text"/>
-<input id="input_password" type="text"/>
-<a href="javascript:;" onclick="add_user()">add</a>
-<a href="javascript:;" onclick="delete_user()">delete</a>
 
     <!--<script src="/js/bootstrap.min.js"></script>-->
 </body>

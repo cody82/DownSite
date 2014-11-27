@@ -1,0 +1,69 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <script src="/js/jquery-2.1.1.min.js"></script>
+    <script type="text/javascript" src="js/ejs.js"></script>
+    <style type="text/css">
+html { height:100%; }
+body { position:absolute; top:0; bottom:0; right:0; left:0; }
+#images{ overflow:auto }
+.bar {
+    height: 18px;
+    background: green;
+}
+
+
+.row, .col { overflow: hidden; position: absolute; }
+.row { left: 0; right: 0; }
+.col { top: 0; bottom: 0; }
+.scroll-x { overflow-x: auto; }
+.scroll-y { overflow-y: auto; }
+
+.header.row { height: 100px; top: 0;}
+.body.row { top: 100px; bottom: 50px;}
+.footer.row { height: 50px; bottom: 0; }
+
+</style>
+    <title></title>
+</head>
+<body>
+	<script type="text/javascript">
+        function ejs_update(ejs_url, id, source_url, callback) {
+            $.ajax({
+                type: "GET",
+                url: source_url,
+                //processData: false,
+                success: function (r) {
+                    $.ajax({
+                        type: "GET",
+                        url: ejs_url,
+                        //processData: false,
+                        success: function (r2) {
+                            new EJS({ text: r2 }).update(id, r);
+                            if(callback)
+                                callback(r);
+                        }
+                    });
+                }
+            });
+        }
+
+
+        $(document).ready(function () {
+        });
+
+    </script>
+
+
+<div id="menulist">
+</div>
+
+    <input id="input_name" type="text" />
+    <input id="input_link" type="text" />
+    <a href="javascript:;" onclick="add_menu()">add</a>
+    <a href="javascript:;" onclick="delete_menu()">delete</a>
+
+</body>
+</html>
