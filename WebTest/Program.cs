@@ -26,6 +26,8 @@ using System.ServiceModel.Syndication;
 
 namespace WebTest
 {
+    [Route("/menu", "POST")]
+    [Route("/menu/{Id}", "PUT")]
     public class Menu
     {
         [PrimaryKey]
@@ -37,6 +39,19 @@ namespace WebTest
         public static Menu[] Load()
         {
             return Database.Db.Select<Menu>().ToArray();
+        }
+    }
+
+    [Route("/menus")]
+    [Route("/menus/{Ids}")]
+    [Route("/menus/{Ids}", "DELETE")]
+    public class MenuListRequest : IReturn<List<Menu>>
+    {
+        public Guid[] Ids { get; set; }
+        public MenuListRequest() { }
+        public MenuListRequest(params Guid[] ids)
+        {
+            this.Ids = ids;
         }
     }
 
@@ -757,6 +772,52 @@ namespace WebTest
         }
     }
 
+    public class MenuService : Service
+    {
+        List<Menu> GetByIds(Guid[] ids)
+        {
+            List<Menu> list = new List<Menu>();
+            foreach (var id in ids)
+            {
+                var p = Database.Db.Select<Menu>().Where(x => x.Id == id).SingleOrDefault();
+                if (p != null)
+                    list.Add(p);
+            }
+            return list;
+        }
+        List<Menu> GetAll()
+        {
+            return Database.Db.Select<Menu>();
+        }
+
+        public object Get(MenuListRequest request)
+        {
+            return request.Ids.IsEmpty()
+            ? GetAll()
+            : GetByIds(request.Ids);
+        }
+        [Authenticate]
+        public object Post(Menu todo)
+        {
+            if (todo.Id == Guid.Empty)
+                todo.Id = Guid.NewGuid();
+            Database.Db.Insert<Menu>(todo);
+            return todo;
+        }
+        [Authenticate]
+        public object Put(Menu todo)
+        {
+            if (todo.Id == Guid.Empty)
+                todo.Id = Guid.NewGuid();
+            Database.Db.Insert<Menu>(todo);
+            return todo;
+        }
+        [Authenticate]
+        public void Delete(MenuListRequest request)
+        {
+            Database.Db.DeleteByIds<Menu>(request.Ids);
+        }
+    }
     public class PersonsService : Service
     {
         public PersonRepository Repository { get; set; } //Injected by IOC
