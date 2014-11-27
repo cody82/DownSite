@@ -176,6 +176,7 @@ namespace WebTest
         {
             var page = RazorFormat.Instance.GetViewPage("Blog");
 
+            var config = Configuration.Load();
 
             var all_tags = db.Select<Tag>().ToArray();
             var tags = all_tags.Select(x => x.Name).Distinct().ToList();
@@ -199,7 +200,7 @@ namespace WebTest
                 for (int i = 1; i <= bloginfo.PageCount; ++i)
                 {
                     bloginfo.Page = i;
-                    bloginfo.Articles = articles.Skip((i - 1) * Settings.ArticlesPerPage).Take(Settings.ArticlesPerPage).ToArray();
+                    bloginfo.Articles = articles.Skip((i - 1) * config.ArticlesPerPage).Take(config.ArticlesPerPage).ToArray();
                     string html = RazorFormat.Instance.RenderToHtml(page, bloginfo, "Standard");
 
                     string content = FixLinks(html, "../");

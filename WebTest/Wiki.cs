@@ -227,7 +227,8 @@ namespace WebTest
 
         public static int CalcPageCount(int count)
         {
-            return ((count + Settings.ArticlesPerPage - 1) / Settings.ArticlesPerPage);
+            var config = Configuration.Load();
+            return ((count + config.ArticlesPerPage - 1) / config.ArticlesPerPage);
         }
     }
 
@@ -274,7 +275,8 @@ namespace WebTest
                 Tag = tag
             };
 
-            var itemsperpage = Settings.ArticlesPerPage;
+            var config = Configuration.Load();
+            var itemsperpage = config.ArticlesPerPage;
             if (page > 0)
                 page -= 1;
 
