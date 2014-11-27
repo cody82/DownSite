@@ -164,6 +164,7 @@ namespace WebTest
             html = html.Replace("\"/article/id/", "\"/article/");
             html = html.Replace("\"/Article/Id/", "\"/article/");
             html = html.Replace("\"/article/Id/", "\"/article/");
+            html = html.Replace(" /image/", "../image/");
 
             html = html.Replace("\"/", "\"" + root);
             html = html.Replace("\"" + root + "\"", "\"" + root + "index.html\"");
