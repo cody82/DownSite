@@ -1,5 +1,5 @@
 ﻿@{
-    WebTest.Configuration config = WebTest.Configuration.Load();
+    WebTest.Settings config = WebTest.Settings.Load();
 }
 
 <!DOCTYPE html>
@@ -99,7 +99,7 @@
             <span class="icon-bar"></span>
             <span class="icon-bar"></span>
           </button>
-          <a class="navbar-brand" href="/">@WebTest.Configuration.Load().SiteName</a>
+          <a class="navbar-brand" href="/">@WebTest.Settings.Load().SiteName</a>
         </div>
         <div class="navbar-collapse collapse">
           <ul class="nav navbar-nav">

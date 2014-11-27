@@ -176,7 +176,7 @@ namespace WebTest
         {
             var page = RazorFormat.Instance.GetViewPage("Blog");
 
-            var config = Configuration.Load();
+            var config = Settings.Load();
 
             var all_tags = db.Select<Tag>().ToArray();
             var tags = all_tags.Select(x => x.Name).Distinct().ToList();

@@ -1102,7 +1102,7 @@ namespace CustomMarkdownSharp
                     string tmp = url.Substring(7);
                     tmp = Path.GetFileNameWithoutExtension(tmp);
                     string extension = Path.GetExtension(url);
-                    string[] split = tmp.Split(Settings.Seperator[0]);
+                    string[] split = tmp.Split(Constants.Seperator[0]);
 
                     Guid id = Guid.Parse(split[0]);
                     
@@ -1113,18 +1113,18 @@ namespace CustomMarkdownSharp
 
                     foreach (int h in ImageService.ResizeHeights)
                     {
-                        var w480 = FileCache.GetFile(id + WebTest.Settings.Seperator + "0x" + h + ".mp4");
+                        var w480 = FileCache.GetFile(id + WebTest.Constants.Seperator + "0x" + h + ".mp4");
                         if (w480 != null)
                         {
                             if (!found)
                             {
                                 links += string.Format(@" <a target=""_blank"" href=""{0}"">{1}p(Original)</a> ", url, img.Item1.Height);
-                                url = url.Substring(0, 7) + id.ToString().Replace("-","") + WebTest.Settings.Seperator + "0x" + h + ".mp4";
+                                url = url.Substring(0, 7) + id.ToString().Replace("-","") + WebTest.Constants.Seperator + "0x" + h + ".mp4";
                                 found = true;
                             }
                             else
                             {
-                                links += string.Format(@" <a target=""_blank"" href=""{0}"">{1}p</a> ", "/image/" + id.ToString().Replace("-", "") + WebTest.Settings.Seperator + "0x" + h + ".mp4", h);
+                                links += string.Format(@" <a target=""_blank"" href=""{0}"">{1}p</a> ", "/image/" + id.ToString().Replace("-", "") + WebTest.Constants.Seperator + "0x" + h + ".mp4", h);
                             }
                         }
                     }
@@ -1133,7 +1133,7 @@ namespace CustomMarkdownSharp
             }
             else if (alt == "thumb")
             {
-                result = string.Format("<a target=\"_blank\" href=\"{0}\"><img src=\"{0}{2}thumb.jpg\" alt=\"{1}\"", url, alt, WebTest.Settings.Seperator);
+                result = string.Format("<a target=\"_blank\" href=\"{0}\"><img src=\"{0}{2}thumb.jpg\" alt=\"{1}\"", url, alt, WebTest.Constants.Seperator);
 
                 if (!String.IsNullOrEmpty(title))
                 {
@@ -1154,7 +1154,7 @@ namespace CustomMarkdownSharp
                     string tmp = url.Substring(7);
                     tmp = Path.GetFileNameWithoutExtension(tmp);
                     string extension = Path.GetExtension(url);
-                    string[] split = tmp.Split(Settings.Seperator[0]);
+                    string[] split = tmp.Split(Constants.Seperator[0]);
 
                     Guid id = Guid.Parse(split[0]);
 
@@ -1166,10 +1166,10 @@ namespace CustomMarkdownSharp
                     List<string> srcset = new List<string>();
                     foreach (int w in ImageService.ResizeWidths)
                     {
-                        var w480 = FileCache.GetFile(id + WebTest.Settings.Seperator + w + "x0.jpg");
+                        var w480 = FileCache.GetFile(id + WebTest.Constants.Seperator + w + "x0.jpg");
                         if (w480 != null)
                         {
-                            srcset.Add("/image/" + id.ToString().Replace("-", "") + WebTest.Settings.Seperator + w + "x0.jpg " + w + "w");
+                            srcset.Add("/image/" + id.ToString().Replace("-", "") + WebTest.Constants.Seperator + w + "x0.jpg " + w + "w");
                         }
                     }
 

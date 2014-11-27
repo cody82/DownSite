@@ -190,7 +190,7 @@ namespace WebTest
         void Parse()
         {
             string filename = Path.GetFileNameWithoutExtension(requeststring);
-            parts = filename.Split(Settings.Seperator[0]);
+            parts = filename.Split(Constants.Seperator[0]);
             Guid.TryParse(parts[0], out id);
         }
 
@@ -227,7 +227,7 @@ namespace WebTest
 
         public static int CalcPageCount(int count)
         {
-            var config = Configuration.Load();
+            var config = Settings.Load();
             return ((count + config.ArticlesPerPage - 1) / config.ArticlesPerPage);
         }
     }
@@ -275,7 +275,7 @@ namespace WebTest
                 Tag = tag
             };
 
-            var config = Configuration.Load();
+            var config = Settings.Load();
             var itemsperpage = config.ArticlesPerPage;
             if (page > 0)
                 page -= 1;
@@ -326,8 +326,8 @@ namespace WebTest
                             {
                                 url = url.Substring(7);
                                 url = Path.GetFileNameWithoutExtension(url);
-                                url = url.Split(Settings.Seperator[0])[0];
-                                url += Settings.Seperator + "thumb.jpg";
+                                url = url.Split(Constants.Seperator[0])[0];
+                                url += Constants.Seperator + "thumb.jpg";
                                 url = "/image/" + url;
                                 if (!br_inserted)
                                 {
@@ -354,8 +354,8 @@ namespace WebTest
                             {
                                 url = url.Substring(7);
                                 url = Path.GetFileNameWithoutExtension(url);
-                                url = url.Split(Settings.Seperator[0])[0];
-                                url += Settings.Seperator + "thumb.jpg";
+                                url = url.Split(Constants.Seperator[0])[0];
+                                url += Constants.Seperator + "thumb.jpg";
                                 url = "/image/" + url;
                                 if (!br_inserted)
                                 {

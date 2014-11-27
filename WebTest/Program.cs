@@ -55,7 +55,7 @@ namespace WebTest
         }
     }
 
-    public static class Settings
+    public static class Constants
     {
         public const string Seperator = "!";
     }
@@ -65,8 +65,20 @@ namespace WebTest
         [PrimaryKey]
         public Guid Id { get; set; }
 
-        public string SiteName { get; set; }
         public int Version { get; set; }
+
+        public static Configuration Load()
+        {
+            return Database.Db.SingleById<Configuration>(Guid.Empty);
+        }
+    }
+
+    public class Settings
+    {
+        [PrimaryKey]
+        public Guid Id { get; set; }
+
+        public string SiteName { get; set; }
 
         public string SiteUrl { get; set; }
         public string SiteDescription { get; set; }
@@ -76,9 +88,9 @@ namespace WebTest
 
         public bool ShowLogin { get; set; }
         public int ArticlesPerPage { get; set; }
-        public static Configuration Load()
+        public static Settings Load()
         {
-            return Database.Db.SingleById<Configuration>(Guid.Empty);
+            return Database.Db.SingleById<Settings>(Guid.Empty);
         }
     }
 
@@ -150,7 +162,7 @@ namespace WebTest
         void Parse()
         {
             string filename = Path.GetFileNameWithoutExtension(requeststring);
-            int i = filename.IndexOf(Settings.Seperator);
+            int i = filename.IndexOf(Constants.Seperator);
             if (i != -1)
             {
                 param = filename.Substring(i);
@@ -202,7 +214,7 @@ namespace WebTest
         void Parse()
         {
             string filename = Path.GetFileNameWithoutExtension(requeststring);
-            int i = filename.IndexOf(Settings.Seperator);
+            int i = filename.IndexOf(Constants.Seperator);
             if (i != -1)
             {
                 param = filename.Substring(i);
@@ -264,7 +276,7 @@ namespace WebTest
                         continue;
                     }
 
-                    string output = Path.Combine(FileCache.GetCacheDir().FullName, img.Id + WebTest.Settings.Seperator + w + "x0" + ".jpg");
+                    string output = Path.Combine(FileCache.GetCacheDir().FullName, img.Id + WebTest.Constants.Seperator + w + "x0" + ".jpg");
 
                     if (File.Exists(output))
                         continue;
@@ -299,7 +311,7 @@ namespace WebTest
                         continue;
                     }
 
-                    string output = Path.Combine(FileCache.GetCacheDir().FullName, img.Id + WebTest.Settings.Seperator + "0x"+h+".mp4");
+                    string output = Path.Combine(FileCache.GetCacheDir().FullName, img.Id + WebTest.Constants.Seperator + "0x"+h+".mp4");
 
                     if (File.Exists(output))
                         continue;
@@ -653,7 +665,7 @@ namespace WebTest
                 {
                     string extension = null;
                     string mimetype = null;
-                    string end = WebTest.Settings.Seperator + tmp;
+                    string end = WebTest.Constants.Seperator + tmp;
                     if (img.MimeType.StartsWith("video"))
                     {
                         extension = "mp4";
@@ -718,7 +730,7 @@ namespace WebTest
                 if (thumb3)
                 {
                     string filename_without_extension = Path.GetFileNameWithoutExtension(img.Item2.Name);
-                    string thumb = filename_without_extension + WebTest.Settings.Seperator + "thumb.jpg";
+                    string thumb = filename_without_extension + WebTest.Constants.Seperator + "thumb.jpg";
                     var thumb_file = FileCache.GetFile(thumb);
                     if (thumb_file != null)
                     {

@@ -28,7 +28,7 @@ namespace WebTest
     }
     public class Database
     {
-        public const int Version = 4;
+        public const int Version = 5;
 
         public static void Migrate(int from, int to)
         {
@@ -61,11 +61,13 @@ namespace WebTest
                     case 4:
                         Migrate004();
                         break;
+                    case 5:
+                        throw new Exception("Not supported");
                     default:
                         throw new Exception("BUG");
                 }
 
-                Db.Update<Configuration>(new { Version = to});
+                Db.Update<Settings>(new { Version = to});
                 t.Commit();
             }
         }
@@ -166,11 +168,13 @@ namespace WebTest
                 Db.CreateTable<Image>(true);
                 Db.CreateTable<Article>(true);
                 Db.CreateTable<Tag>(true);
+                Db.CreateTable<Settings>(true);
                 Db.CreateTable<Configuration>(true);
                 Db.CreateTable<Comment>(true);
                 Db.CreateTable<Menu>(true);
 
-                Db.Insert<Configuration>(new Configuration() { Id = Guid.Empty, SiteName = "WebTest", ShowComments = true, AllowWriteComments = true, Version = Version });
+                Db.Insert<Configuration>(new Configuration() { Id = Guid.Empty, Version = Version });
+                Db.Insert<Settings>(new Settings() { Id = Guid.Empty, SiteName = "WebTest", ShowComments = true, AllowWriteComments = true });
 
                 Db.ExecuteSql(@"CREATE UNIQUE INDEX tag_unique on Tag(ArticleId, Name);");
 

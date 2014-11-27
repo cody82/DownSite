@@ -19,7 +19,7 @@ namespace WebTest
     {
         public object Get(FeedRequest request)
         {
-            var config = Configuration.Load();
+            var config = Settings.Load();
             string site = config.SiteUrl;
             string id = "WebTestID";
             SyndicationFeed feed = new SyndicationFeed(config.SiteName ?? "Test", config.SiteDescription ?? "Test", new Uri(site), id, DateTime.Now);
