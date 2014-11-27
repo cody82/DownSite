@@ -75,6 +75,8 @@ namespace WebTest
         public bool ShowComments { get; set; }
         public bool AllowWriteComments { get; set; }
 
+        public bool ShowLogin { get; set; }
+        public int ArticlesPerPage { get; set; }
         public static Configuration Load()
         {
             return Database.Db.SingleById<Configuration>(Guid.Empty);

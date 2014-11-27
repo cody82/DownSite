@@ -28,7 +28,7 @@ namespace WebTest
     }
     public class Database
     {
-        public const int Version = 3;
+        public const int Version = 4;
 
         public static void Migrate(int from, int to)
         {
@@ -58,6 +58,9 @@ namespace WebTest
                     case 3:
                         Migrate003();
                         break;
+                    case 4:
+                        Migrate004();
+                        break;
                     default:
                         throw new Exception("BUG");
                 }
@@ -75,6 +78,13 @@ namespace WebTest
         static void Migrate003()
         {
             Db.ExecuteNonQuery("ALTER TABLE \"User\" ADD COLUMN \"Email\" VARCHAR;");
+        }
+
+        static void Migrate004()
+        {
+            Db.ExecuteNonQuery("ALTER TABLE \"Configuration\" ADD COLUMN \"ArticlesPerPage\" INTEGER NOT NULL DEFAULT 10;");
+            Db.ExecuteNonQuery("ALTER TABLE \"Configuration\" ADD COLUMN \"ShowLogin\" BOOLEAN NOT NULL DEFAULT FALSE;");
+            //Db.ExecuteNonQuery("UPDATE \"Configuration\" SET \"ShowLogin\" = FALSE, \"ArticlesPerPage\" = 10;");
         }
 
         public static string[] GetColumns(string table)
