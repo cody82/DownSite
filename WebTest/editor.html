@@ -13,6 +13,17 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
     height: 18px;
     background: green;
 }
+
+
+.row, .col { overflow: hidden; position: absolute; }
+.row { left: 0; right: 0; }
+.col { top: 0; bottom: 0; }
+.scroll-x { overflow-x: auto; }
+.scroll-y { overflow-y: auto; }
+
+.header.row { height: 100px; top: 0;}
+.body.row { top: 100px; bottom: 0px;}
+
 </style>
     <title></title>
 </head>
@@ -222,7 +233,7 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
 </script>
 
 
-<div style="float:left;width:49%;height:100%">
+<div style="float:left;width:49%;height:70%">
     <select id="article_select" onchange="load_article()">
         <!--<option name=one value=one> one </option>
         <option name=two value=two> two </option>
@@ -234,7 +245,7 @@ category/tags:<input id="article_category" type="text"></input><br />
 <input type="button" value="delete" onclick="delete_article()"/>
 <p><input id="menu_check" type="checkbox"/>show in menu</p>
 <p><input id="blog_check" type="checkbox"/>show in blog</p>
-<textarea spellcheck="false" style="width:100%;height:40%" id="article_content" ></textarea>
+<textarea spellcheck="false" style="width:100%;height:45%" id="article_content" ></textarea>
 <input type="button" value="save" onclick="save_article()"/>
     <div id="images" style="width:100%;height:400px;overflow:auto">
 
@@ -252,7 +263,7 @@ category/tags:<input id="article_category" type="text"></input><br />
 
     </div>
 
-<iframe id="preview" src="/" style="float:right;width:49%;height:100%">
+<iframe id="preview" src="/" style="float:right;width:49%;height:99%">
 </iframe>
 
 </body>
