@@ -67,7 +67,7 @@ namespace WebTest
                         throw new Exception("BUG");
                 }
 
-                Db.Update<Settings>(new { Version = to});
+                Db.Update<Configuration>(new { Version = to});
                 t.Commit();
             }
         }
