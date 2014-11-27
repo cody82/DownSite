@@ -1,0 +1,130 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <script src="/js/jquery-2.1.1.min.js"></script>
+    <script type="text/javascript" src="js/ejs.js"></script>
+    <style type="text/css">
+html { height:100%; }
+body { position:absolute; top:0; bottom:0; right:0; left:0; }
+#images{ overflow:auto }
+.bar {
+    height: 18px;
+    background: green;
+}
+
+
+.row, .col { overflow: hidden; position: absolute; }
+.row { left: 0; right: 0; }
+.col { top: 0; bottom: 0; }
+.scroll-x { overflow-x: auto; }
+.scroll-y { overflow-y: auto; }
+
+.header.row { height: 100px; top: 0;}
+.body.row { top: 100px; bottom: 50px;}
+.footer.row { height: 50px; bottom: 0; }
+
+</style>
+    <title></title>
+</head>
+<body>
+	<script type="text/javascript">
+
+        function ejs_update(ejs_url, id, source_url, callback) {
+            $.ajax({
+                type: "GET",
+                url: source_url,
+                //processData: false,
+                success: function (r) {
+                    $.ajax({
+                        type: "GET",
+                        url: ejs_url,
+                        //processData: false,
+                        success: function (r2) {
+                            new EJS({ text: r2 }).update(id, r);
+                            if (callback)
+                                callback(r);
+                        }
+                    });
+                }
+            });
+        }
+
+        function save_settings() {
+            var data = {
+                "SiteName": $('#SiteName').val(),
+                "SiteUrl": $('#SiteUrl').val(),
+                "SiteDescription": $('#SiteDescription').val(),
+                "ShowComments": $('#ShowComments').val(),
+                "AllowWriteComments": $('#AllowWriteComments').val(),
+                "ShowLogin": $('#ShowLogin').val(),
+                "ArticlesPerPage": $('#ArticlesPerPage').val()
+            };
+            $.ajax({
+                type: "POST",
+                url: "/settings",
+                processData: false,
+                contentType: 'application/json',
+                data: JSON.stringify(data),
+                success: function (r) {
+                    //ejs_update('/menu.ejs', 'menulist', '/menus?format=json');
+                    load_settings();
+                }
+            });
+        }
+
+        function load_settings() {
+            $.getJSON('/settings', null, function (data, status, xhr) {
+                $('#SiteName').val(data.SiteName);
+                $('#SiteUrl').val(data.SiteUrl);
+                $('#SiteDescription').val(data.SiteDescription);
+                $('#ShowComments').val(data.ShowComments);
+                $('#AllowWriteComments').val(data.AllowWriteComments);
+                $('#ShowLogin').val(data.ShowLogin);
+                $('#ArticlesPerPage').val(data.ArticlesPerPage);
+            });
+        }
+        $(document).ready(function () {
+            //ejs_update('/menu.ejs', 'menulist', '/menus?format=json');
+            load_settings();
+        });
+
+    </script>
+
+
+<div id="menulist">
+</div>
+
+    <p>
+        Articles per page
+        <input id="ArticlesPerPage" type="text" />
+    </p>
+    <p>
+        SiteName
+        <input id="SiteName" type="text" />
+    </p>
+    <p>
+        SiteUrl
+        <input id="SiteUrl" type="text" />
+    </p>
+    <p>
+        SiteDescription
+        <input id="SiteDescription" type="text" />
+    </p>
+    <p>
+        ShowComments
+        <input id="ShowComments" type="text" />
+    </p>
+    <p>
+        AllowWriteComments
+        <input id="AllowWriteComments" type="text" />
+    </p>
+    <p>
+        ShowLogin
+        <input id="ShowLogin" type="text" />
+    </p>
+    <a href="javascript:;" onclick="save_settings()">save</a>
+
+</body>
+</html>

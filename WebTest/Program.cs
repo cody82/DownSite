@@ -73,6 +73,7 @@ namespace WebTest
         }
     }
 
+    [Route("/settings")]
     public class Settings
     {
         [PrimaryKey]
@@ -91,6 +92,27 @@ namespace WebTest
         public static Settings Load()
         {
             return Database.Db.SingleById<Settings>(Guid.Empty);
+        }
+    }
+
+    public class SettingsService : Service
+    {
+        public object Get(Settings s)
+        {
+            return Database.Db.SingleById<Settings>(Guid.Empty);
+        }
+
+        [Authenticate]
+        public object Post(Settings s)
+        {
+            Database.Db.Update<Settings>(s);
+            return s;
+        }
+
+        [Authenticate]
+        public object Put(Settings s)
+        {
+            return Post(s);
         }
     }
 
