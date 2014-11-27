@@ -58,7 +58,7 @@ namespace WebTest
     public static class Settings
     {
         public const string Seperator = "!";
-        public const int ArticlesPerPage = 3;
+        public const int ArticlesPerPage = 10;
     }
 
     public class Configuration
