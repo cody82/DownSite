@@ -174,7 +174,7 @@ namespace WebTest
                 Db.CreateTable<Menu>(true);
 
                 Db.Insert<Configuration>(new Configuration() { Id = Guid.Empty, Version = Version });
-                Db.Insert<Settings>(new Settings() { Id = Guid.Empty, SiteName = "WebTest", ShowComments = true, AllowWriteComments = true });
+                Db.Insert<Settings>(new Settings() { Id = Guid.Empty, SiteName = "WebTest", ShowComments = true, AllowWriteComments = true, ShowLogin = false, ArticlesPerPage = 10, SiteDescription = "Test", SiteUrl = "" });
 
                 Db.ExecuteSql(@"CREATE UNIQUE INDEX tag_unique on Tag(ArticleId, Name);");
 
