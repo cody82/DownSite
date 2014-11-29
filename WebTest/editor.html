@@ -229,7 +229,7 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
             done: function (e, data) {
                 //$('#upload_result').html('<img src="/image/' + data.result.Guid + '?thumb"></img>');
                 //$('#input_image_guid').val(data.result.Guid);
-                load_images();
+                vm.imagelist.load();
                 //$.each(data.result.files, function (index, file) {
                 //    $('<p/>').text(file.name).appendTo(document.body);
                 //});
