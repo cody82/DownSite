@@ -5,6 +5,7 @@
     <meta charset="utf-8" />
     <script src="/js/jquery-2.1.1.min.js"></script>
     <script type="text/javascript" src="js/ejs.js"></script>
+    <script type="text/javascript" src="js/knockout-3.2.0.js"></script>
     <style type="text/css">
 html { height:100%; }
 body { position:absolute; top:0; bottom:0; right:0; left:0; }
@@ -118,10 +119,6 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
             ejs_update('/articles-options.ejs', 'article_select', "/articles?format=json", function () { load_article(); if (callback) callback();});
         }
 
-        function load_images() {
-            ejs_update('/images.ejs', 'images', "/images?format=json");
-        };
-
         function load_article() {
             var id = $('#article_select').val();
             if (id) {
@@ -184,24 +181,83 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
             });
         }
 
+        function ImageViewModel(data) {
+            var self = this;
+            self.FileName = ko.observable(data.FileName);
+            self.Id = ko.observable(data.Id);
+            self.MimeType = ko.observable(data.MimeType);
 
-        function delete_image(id) {
-            //var article_id = $('#article_select').val();
-            $.ajax({
-                type: "DELETE",
-                url: "/image/" + id,
-                processData: false,
-                contentType: 'application/json',
-                //data: article,
-                complete: function (data,status,tmp) {
-                    load_images();
+            self.helper = function (obj) {
+                if(obj.MimeType().substring(0,5) == 'video'){
+                    return "video";
+                } else {
+                    return "";
                 }
-            });
+            }
+            
+            
+            self.markdown = ko.computed(function () {
+                return '![' +
+                    this.helper(this)+
+                    '](' +
+                    '/image/' + this.Id() + '.' + this.MimeType().split('/')[1].replace('jpeg','jpg') +
+                    ')';
+
+            }, self);
+            self.markdownLink = ko.computed(function () {
+                return "javascript:article_add_text('" + self.markdown() + "')"
+
+            }, self);
+            self.previewLink = ko.computed(function () {
+                return "/image/" + this.Id();
+            }, self);
+            self.deleteLink = ko.computed(function () {
+                return "javascript:vm.imagelist.delete('" + this.Id() + "')";
+            }, self);
+            self.previewImage = ko.computed(function () {
+                return "/image/" + this.Id() + "!thumb.jpg";
+            }, self);
+        }
+
+        function ImageListViewModel() {
+            var self = this;
+
+            self.images = ko.observableArray([]);
+
+            self.load = function () {
+                $.getJSON("/images?format=json", function (allData) {
+                    var images = $.map(allData, function(item) { return new ImageViewModel(item) });
+                    self.images(images);
+                });
+
+            };
+
+            self.delete = function (id) {
+                $.ajax({
+                    type: "DELETE",
+                    url: "/image/" + id,
+                    processData: false,
+                    contentType: 'application/json',
+                    //data: article,
+                    complete: function (data, status, tmp) {
+                        self.load();
+                    }
+                });
+            }
+
+            self.load();
+        }
+
+        function EditorViewModel() {
+            var self = this;
+
+            self.imagelist = new ImageListViewModel();
         }
 
         $(document).ready(function () {
-            load_images();
             load_select();
+            vm = new EditorViewModel();
+            ko.applyBindings(vm);
         });
 
     </script>
@@ -256,6 +312,35 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
         <textarea spellcheck="false" style="width:99%;height:49%" id="article_content"></textarea>
 
         <div id="images" style="width:99%;height:49%;overflow:auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>preview</th>
+                        <th>markdown</th>
+                        <th>filename</th>
+                        <th>delete</th>
+                    </tr>
+                </thead>
+                <tbody data-bind="foreach: imagelist.images">
+                    <tr>
+                        <td>
+                            <a data-bind="attr: {href: previewLink}" target="_blank">
+                                <img data-bind="attr: {src: previewImage}" />
+                            </a>
+                        </td>
+                        <td>
+                            <a data-bind="text: markdown, attr: {href: markdownLink}">
+                            </a>
+                        </td>
+                        <td data-bind="text: FileName"/>
+                        <td>
+                            <a data-bind="attr: {href: deleteLink}">
+                                delete
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
 
         </div>
     </div>
