@@ -85,7 +85,7 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
 
             self.save = function () {
                 var id = self.Id();
-                var cat = self.Tags.split(",").map(function (x) { return { "ArticleId": id, "Name": x } });
+                var cat = self.Tags().split(",").map(function (x) { return { "ArticleId": id, "Name": x } });
                 var article = { "Id": id, "Title": self.Title(), "Content": self.Content(), "Category": cat, "ShowInBlog": self.ShowInBlog(), "ShowInMenu": self.ShowInMenu() };
                 $.ajax({
                     type: "POST",
@@ -115,7 +115,7 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
                 return '/article/id/' + this.Id() + ".html";
             }, self);
 
-            self.Tags = self.helper(data);
+            self.Tags = ko.observable(self.helper(data));
         }
 
         function ArticleListViewModel() {
