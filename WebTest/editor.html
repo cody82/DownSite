@@ -4,7 +4,6 @@
 <head>
     <meta charset="utf-8" />
     <script src="/js/jquery-2.1.1.min.js"></script>
-    <script type="text/javascript" src="js/ejs.js"></script>
     <script type="text/javascript" src="js/knockout-3.2.0.js"></script>
     <style type="text/css">
 html { height:100%; }
@@ -31,128 +30,11 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
 </head>
 <body>
 	<script type="text/javascript">
-        
-        function get_article(name,callback) {
-            $.ajax({
-                type: "GET",
-                url: "/article/title/"+name+"?format=json",
-                processData: false,
-                success: function (r) {
-                    callback(r);
-                }
-            });
-        }
-
-        function get_article_by_id(id, callback) {
-            $.ajax({
-                type: "GET",
-                url: "/article/id/" + id + "?format=json",
-                processData: false,
-                success: function (r) {
-                    callback(r);
-                }
-            });
-        }
-
-        function save_article() {
-            var id = $('#article_select').val();
-            var cat = $('#article_category').val().split(",").map(function (x) { return { "ArticleId": id, "Name": x } });
-            var article = { "Id": id, "Title": $('#article_title').val(), "Content": $('#article_content').val(), "Category": cat, "ShowInBlog": $('#blog_check')[0].checked, "ShowInMenu": $('#menu_check')[0].checked };
-            $.ajax({
-                type: "POST",
-                url: "/article",// + article.Title,// + "?format=json",
-                contentType: 'application/json',
-                data: JSON.stringify(article),
-                processData: false,
-                success: function (r) {
-                    $('#preview')[0].src = '/article/id/' + id;
-                },
-                error: function (r) {
-                    alert("error");
-                }
-            });
-        }
-
-        function ejs_update(ejs_url, id, source_url, callback) {
-            $.ajax({
-                type: "GET",
-                url: source_url,
-                //processData: false,
-                success: function (r) {
-                    $.ajax({
-                        type: "GET",
-                        url: ejs_url,
-                        //processData: false,
-                        success: function (r2) {
-                            new EJS({ text: r2 }).update(id, r);
-                            if(callback)
-                                callback(r);
-                        }
-                    });
-                }
-            });
-        }
-
-        function load_article() {
-            var id = $('#article_select').val();
-            if (id) {
-                get_article(id, function (article) {
-                    $('#article_title').val(article.Title);
-                    $('#article_content').val(article.Content);
-                    $('#menu_check')[0].checked = article.ShowInMenu;
-                    $('#blog_check')[0].checked = article.ShowInBlog;
-                    $('#article_category').val(function (row) { if (row.Category) { return row.Category.map(function (x) { return x.Name }).join(); } else { return ""; } }(article));
-                    $('#preview')[0].src = '/article/id/' + id;
-                });
-            }
-        };
-
         function article_add_text(text) {
-            $('#article_content').val($('#article_content').val() + "\n" + text);
-        }
-
-        function create_article() {
-            var article = { "Title": $('#article_title').val() };
-            $.ajax({
-                type: "PUT",
-                url: "/article",// + article.Title,// + "?format=json",
-                contentType: 'application/json',
-                data: JSON.stringify(article),
-                processData: false,
-                success: function (r) {
-                    load_select(function () {
-                        var id = r.Id;
-                        get_article_by_id(id, function (article) {
-                            $('#article_title').val(article.Title);
-                            $('#article_content').val(article.Content);
-                            $('#preview')[0].src = '/article/id/' + id;
-                            $('#article_select').val(article.Id);
-                            $('#menu_check')[0].checked = article.ShowInMenu;
-                            $('#blog_check')[0].checked = article.ShowInBlog;
-                            load_article();
-                        });
-                    });
-                },
-                error: function (r) {
-                    alert("error");
-                }
-            });
-        };
-
-        function delete_article() {
-            var article_id = $('#article_select').val();
-            $.ajax({
-                type: "DELETE",
-                url: "/article/id/" + article_id,
-                processData: false,
-                contentType: 'application/json',
-                //data: article,
-                complete: function (r) {
-                    load_select();
-                    $('#article_title').val("");
-                    $('#article_content').val("");
-                }
-            });
+            if (vm.selectedArticle()) {
+                var tmp = vm.selectedArticle().Content();
+                vm.selectedArticle().Content(tmp + "\n" + text);
+            }
         }
 
         function ImageViewModel(data) {
@@ -168,7 +50,6 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
                     return "";
                 }
             }
-            
             
             self.markdown = ko.computed(function () {
                 return '![' +
@@ -201,6 +82,40 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
             self.Content = ko.observable(data.Content);
             self.ShowInMenu = ko.observable(data.ShowInMenu);
             self.ShowInBlog = ko.observable(data.ShowInBlog);
+
+            self.save = function () {
+                var id = self.Id();
+                var cat = self.Tags.split(",").map(function (x) { return { "ArticleId": id, "Name": x } });
+                var article = { "Id": id, "Title": self.Title(), "Content": self.Content(), "Category": cat, "ShowInBlog": self.ShowInBlog(), "ShowInMenu": self.ShowInMenu() };
+                $.ajax({
+                    type: "POST",
+                    url: "/article",// + article.Title,// + "?format=json",
+                    contentType: 'application/json',
+                    data: JSON.stringify(article),
+                    processData: false,
+                    success: function (r) {
+                        $('#preview')[0].src = '/article/id/' + id + '.html';
+                    },
+                    error: function (r) {
+                        alert("error");
+                    }
+                });
+
+            };
+
+            self.helper = function (row) {
+                if (row.Category) {
+                    return row.Category.map(function (x) { return x.Name }).join();
+                } else {
+                    return "";
+                }
+            };
+
+            self.link = ko.computed(function () {
+                return '/article/id/' + this.Id() + ".html";
+            }, self);
+
+            self.Tags = self.helper(data);
         }
 
         function ArticleListViewModel() {
@@ -254,6 +169,47 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
             self.imagelist = new ImageListViewModel();
             self.articlelist = new ArticleListViewModel();
 
+            self.selectedArticle = ko.observable();
+
+            self.createArticle = function () {
+                var article = { "Title": "NEW ARTICLE" };
+                $.ajax({
+                    type: "PUT",
+                    url: "/article",// + article.Title,// + "?format=json",
+                    contentType: 'application/json',
+                    data: JSON.stringify(article),
+                    processData: false,
+                    success: function (r) {
+                        var id = r.Id;
+                        var a = new ArticleViewModel({ Id: id, Title: article.Title, ShowInBlog: false, ShowInMenu: false, Content: "" });
+                        self.articlelist.articles.push(a);
+                        
+                        self.selectedArticle(a);
+                        $('#preview')[0].src = '/article/id/' + id + ".html";
+                    },
+                    error: function (r) {
+                        alert("error");
+                    }
+                });
+            }
+            self.deleteArticle = function () {
+                var article = self.selectedArticle();
+                var article_id = article.Id();
+                $.ajax({
+                    type: "DELETE",
+                    url: "/article/id/" + article_id,
+                    processData: false,
+                    contentType: 'application/json',
+                    //data: article,
+                    complete: function (r) {
+                        self.articlelist.articles.remove(article);
+                        self.selectedArticle(self.articlelist.articles[0]);
+                    }
+                });
+            }
+            self.saveArticle = function () {
+                self.selectedArticle().save();
+            }
         }
 
         $(document).ready(function () {
@@ -293,22 +249,20 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
 
 <div style="float:left;width:49%;height:99%;position:absolute">
     <div class="header row">
-        <select data-bind="foreach: articlelist.articles" id="article_select" onchange="load_article()">
-            <option data-bind="text: Title, attr: {value: Id}"></option>
-        </select>
-        <input id="article_title" type="text"></input><br />
-        tags:<input id="article_category" type="text"></input>
-        <span><input id="menu_check" type="checkbox" />show in menu</span>
-        <span><input id="blog_check" type="checkbox" />show in blog</span><br />
-        <input type="button" value="create" onclick="create_article()" />
-        <input type="button" value="delete" onclick="delete_article()" />
-        <input type="button" value="save" onclick="save_article()" />
+        <select data-bind="options: articlelist.articles, value: selectedArticle, optionsText: 'Title'" id="article_select"></select>
+        <input id="article_title" type="text" data-bind="value: selectedArticle() ? selectedArticle().Title : ''"></input><br />
+        tags:<input id="article_category" data-bind="value: selectedArticle() ? selectedArticle().Tags : ''" type="text"></input>
+        <span><input data-bind="checked: selectedArticle() ? selectedArticle().ShowInMenu : false" id="menu_check" type="checkbox" />show in menu</span>
+        <span><input data-bind="checked: selectedArticle() ? selectedArticle().ShowInBlog : false" id="blog_check" type="checkbox" />show in blog</span><br />
+        <input type="button" value="create" data-bind="click: createArticle" />
+        <input type="button" value="delete" data-bind="click: deleteArticle" />
+        <input type="button" value="save" data-bind="click: saveArticle" />
         <p>
         </p>
     </div>
     
     <div class="body row">
-        <textarea spellcheck="false" style="width:99%;height:49%" id="article_content"></textarea>
+        <textarea data-bind="value: selectedArticle() ? selectedArticle().Content : ''" spellcheck="false" style="width:99%;height:49%" id="article_content"></textarea>
 
         <div id="images" style="width:99%;height:49%;overflow:auto;">
             <table>
@@ -357,8 +311,7 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
 
     </div>
 
-<iframe id="preview" src="/" style="float:right;width:49%;height:99%">
-</iframe>
+    <iframe data-bind="attr: {src: selectedArticle() ? selectedArticle().link() : ''}" id="preview" src="/" style="float:right;width:49%;height:99%"></iframe>
 
 </body>
 </html>
