@@ -93,10 +93,6 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
             });
         }
 
-        function load_select(callback) {
-            ejs_update('/articles-options.ejs', 'article_select', "/articles?format=json", function () { load_article(); if (callback) callback();});
-        }
-
         function load_article() {
             var id = $('#article_select').val();
             if (id) {
@@ -197,6 +193,32 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
             }, self);
         }
 
+        function ArticleViewModel(data) {
+            var self = this;
+
+            self.Id = ko.observable(data.Id);
+            self.Title = ko.observable(data.Title);
+            self.Content = ko.observable(data.Content);
+            self.ShowInMenu = ko.observable(data.ShowInMenu);
+            self.ShowInBlog = ko.observable(data.ShowInBlog);
+        }
+
+        function ArticleListViewModel() {
+            var self = this;
+
+            self.articles = ko.observableArray([]);
+
+            self.load = function () {
+                $.getJSON("/articles?format=json", function (allData) {
+                    var articles = $.map(allData, function (item) { return new ArticleViewModel(item) });
+                    self.articles(articles);
+                });
+
+            }
+
+            self.load();
+        }
+
         function ImageListViewModel() {
             var self = this;
 
@@ -230,10 +252,11 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
             var self = this;
 
             self.imagelist = new ImageListViewModel();
+            self.articlelist = new ArticleListViewModel();
+
         }
 
         $(document).ready(function () {
-            load_select();
             vm = new EditorViewModel();
             ko.applyBindings(vm);
         });
@@ -270,10 +293,8 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
 
 <div style="float:left;width:49%;height:99%;position:absolute">
     <div class="header row">
-        <select id="article_select" onchange="load_article()">
-            <!--<option name=one value=one> one </option>
-            <option name=two value=two> two </option>
-            <option name=three value=three> three </option>-->
+        <select data-bind="foreach: articlelist.articles" id="article_select" onchange="load_article()">
+            <option data-bind="text: Title, attr: {value: Id}"></option>
         </select>
         <input id="article_title" type="text"></input><br />
         tags:<input id="article_category" type="text"></input>
