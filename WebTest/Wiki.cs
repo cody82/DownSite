@@ -252,7 +252,12 @@ namespace WebTest
 
         public static BlogInfo LoadBlog(string tag = null, int page = 1)
         {
-            var blog = Database.Db.LoadSelect<Article>(x => x.ShowInBlog).OrderByDescending(x => x.Created).ToArray();
+            Article[] blog;
+            
+            if(string.IsNullOrWhiteSpace(tag))
+                blog = Database.Db.LoadSelect<Article>(x => x.ShowInBlog).OrderByDescending(x => x.Created).ToArray();
+            else
+                blog = Database.Db.LoadSelect<Article>().OrderByDescending(x => x.Created).ToArray();
 
             if (!string.IsNullOrWhiteSpace(tag))
                 blog = blog.Where(y => y.Category != null && y.Category.Any(x => x.Name.ToLower() == tag.ToLower())).ToArray();
