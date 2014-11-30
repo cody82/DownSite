@@ -4,6 +4,9 @@ It features a webserver based on ServiceStack and a generator that creates stati
 It is easier to use than e.g. Jekyll and Wordpress as it can be edited in the browser and does not need a webserver.
 Also it can embed YouTube/Vimeo and convert/scale uploaded videos.
 
+Currently DownSite is in an early development state and does not have many features yet.
+Basically you can create a Blog or standalone pages with videos, Markdown text and images.
+
 ##How to use
 * Download a release/source and start the DownSite project.
 * Point your browser to "http://<your_computer_name>:1337/". An example website shows up.
@@ -15,6 +18,9 @@ Also it can embed YouTube/Vimeo and convert/scale uploaded videos.
 * Images are automatically scaled down and will be displayed in the right resolution according to screen size in newer browsers.
 * Rescale videos with FFmpeg. When you upload a 1080p video it will be reencoded to 480p and 720p. FFmpeg has to be installed seperately.
 * Write your pages in Markdown (or HTML) with preview (left side Markdown, right side preview).
+* Blog system
+* Tags
+* Comments for Posts/Articles
 
 ##Supported Operating Systems
 * Windows/.NET
