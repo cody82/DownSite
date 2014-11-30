@@ -108,7 +108,6 @@ namespace DownSite
             DirectoryCopy("js", Path.Combine(output.FullName, "js"), true);
             DirectoryCopy("css", Path.Combine(output.FullName, "css"), true);
             DirectoryCopy("fonts", Path.Combine(output.FullName, "fonts"), true);
-            DirectoryCopy("data/", Path.Combine(output.FullName, "fonts"), true);
 
             db = Database.OpenDbConnection(Path.Combine("data", "db.sqlite3"));
 
