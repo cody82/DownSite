@@ -13,7 +13,7 @@ using System.Security.Cryptography;
 using ServiceStack.Text.Json;
 using ServiceStack.Text;
 
-namespace WebTest
+namespace DownSite
 {
     public interface IVideoThumbnailer
     {

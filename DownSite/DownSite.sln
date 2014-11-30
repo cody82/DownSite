@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebTest", "WebTest.csproj", "{B7863312-4A87-4A67-A16C-E65E6730F31A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DownSite", "DownSite.csproj", "{B7863312-4A87-4A67-A16C-E65E6730F31A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ServiceStack", "..\ServiceStack\src\ServiceStack\ServiceStack.csproj", "{680A1709-25EB-4D52-A87F-EE03FFD94BAA}"
 EndProject

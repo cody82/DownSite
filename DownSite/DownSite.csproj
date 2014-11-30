@@ -7,8 +7,8 @@
     <ProjectGuid>{B7863312-4A87-4A67-A16C-E65E6730F31A}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>WebTest</RootNamespace>
-    <AssemblyName>WebTest</AssemblyName>
+    <RootNamespace>DownSite</RootNamespace>
+    <AssemblyName>DownSite</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>

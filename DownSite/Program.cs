@@ -24,7 +24,7 @@ using ServiceStack.Logging;
 using System.ServiceModel.Syndication;
 
 
-namespace WebTest
+namespace DownSite
 {
     [Route("/menu", "POST")]
     [Route("/menu/{Id}", "PUT")]
@@ -298,7 +298,7 @@ namespace WebTest
                         continue;
                     }
 
-                    string output = Path.Combine(FileCache.GetCacheDir().FullName, img.Id + WebTest.Constants.Seperator + w + "x0" + ".jpg");
+                    string output = Path.Combine(FileCache.GetCacheDir().FullName, img.Id + DownSite.Constants.Seperator + w + "x0" + ".jpg");
 
                     if (File.Exists(output))
                         continue;
@@ -333,7 +333,7 @@ namespace WebTest
                         continue;
                     }
 
-                    string output = Path.Combine(FileCache.GetCacheDir().FullName, img.Id + WebTest.Constants.Seperator + "0x"+h+".mp4");
+                    string output = Path.Combine(FileCache.GetCacheDir().FullName, img.Id + DownSite.Constants.Seperator + "0x"+h+".mp4");
 
                     if (File.Exists(output))
                         continue;
@@ -687,7 +687,7 @@ namespace WebTest
                 {
                     string extension = null;
                     string mimetype = null;
-                    string end = WebTest.Constants.Seperator + tmp;
+                    string end = DownSite.Constants.Seperator + tmp;
                     if (img.MimeType.StartsWith("video"))
                     {
                         extension = "mp4";
@@ -753,7 +753,7 @@ namespace WebTest
                 if (thumb3)
                 {
                     string filename_without_extension = Path.GetFileNameWithoutExtension(img.Item2.Name);
-                    string thumb = filename_without_extension + WebTest.Constants.Seperator + "thumb.jpg";
+                    string thumb = filename_without_extension + DownSite.Constants.Seperator + "thumb.jpg";
                     var thumb_file = FileCache.GetFile(thumb);
                     if (thumb_file != null)
                     {

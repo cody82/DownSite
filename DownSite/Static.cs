@@ -23,7 +23,7 @@ using ServiceStack.Razor;
 using ServiceStack.Logging;
 
 
-namespace WebTest
+namespace DownSite
 {
 
     [Route("/generator")]

@@ -20,7 +20,7 @@ using ServiceStack.Caching;
 using HtmlAgilityPack;
 
 
-namespace WebTest
+namespace DownSite
 {
     [Route("/comment", "PUT")]
     public class Comment

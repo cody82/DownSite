@@ -1,5 +1,5 @@
 ﻿@{
-    WebTest.Settings config = WebTest.Settings.Load();
+    DownSite.Settings config = DownSite.Settings.Load();
 }
 
 <!DOCTYPE html>
@@ -99,15 +99,15 @@
             <span class="icon-bar"></span>
             <span class="icon-bar"></span>
           </button>
-          <a class="navbar-brand" href="/">@WebTest.Settings.Load().SiteName</a>
+          <a class="navbar-brand" href="/">@DownSite.Settings.Load().SiteName</a>
         </div>
         <div class="navbar-collapse collapse">
           <ul class="nav navbar-nav">
-              @foreach (WebTest.Menu m in WebTest.Menu.Load())
+              @foreach (DownSite.Menu m in DownSite.Menu.Load())
               {
                   <li><a href="@m.Link">@m.Caption</a></li>
               }
-              @foreach (WebTest.Article a in WebTest.ArticleService.GetMenuArticles())
+              @foreach (DownSite.Article a in DownSite.ArticleService.GetMenuArticles())
               {
                   <li><a href="@a.Link">@a.Title</a></li>
               }
@@ -153,7 +153,7 @@
 			cody@jabber.org
 			<hr/>
 			<h4>Latest posts:</h4>
-        @foreach (WebTest.Article a in WebTest.Blog.LoadBlog().Articles.Take(5))
+        @foreach (DownSite.Article a in DownSite.Blog.LoadBlog().Articles.Take(5))
         {
             <h5><a href="@a.Link">@a.Title</a></h5>
           @a.Created
@@ -162,7 +162,7 @@
         @if(config.ShowComments)
         {
 			<h4>Latest comments:</h4>
-            foreach (WebTest.Comment a in WebTest.Comment.LoadLatest(5))
+            foreach (DownSite.Comment a in DownSite.Comment.LoadLatest(5))
             {
                 <h5><a href="@a.Link">@a.Name</a></h5>
               @a.Created
@@ -170,9 +170,9 @@
             <hr/>
         }
 			<h4>Tags:</h4>
-        @foreach (string t in WebTest.TagsService.LoadTags())
+        @foreach (string t in DownSite.TagsService.LoadTags())
         {
-            <h5><a href="/blog/page1!tag_@(t).html">@t</a></h5>
+            <span><a href="/blog/page1!tag_@(t).html">@t</a></span>
         }
     </div>
 </div>

@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using ServiceStack.OrmLite;
 
-namespace WebTest
+namespace DownSite
 {
     [Route("/feed/{FeedName}")]
     public class FeedRequest
@@ -21,7 +21,7 @@ namespace WebTest
         {
             var config = Settings.Load();
             string site = config.SiteUrl;
-            string id = "WebTestID";
+            string id = "DownSiteID";
             SyndicationFeed feed = new SyndicationFeed(config.SiteName ?? "Test", config.SiteDescription ?? "Test", new Uri(site), id, DateTime.Now);
             List<SyndicationItem> items = new List<SyndicationItem>();
 

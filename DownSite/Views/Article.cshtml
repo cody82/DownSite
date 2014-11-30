@@ -1,8 +1,8 @@
-﻿@inherits ServiceStack.Razor.ViewPage<WebTest.Article>
+﻿@inherits ServiceStack.Razor.ViewPage<DownSite.Article>
 
 @{
     Layout = "Default";
-    WebTest.Settings config = WebTest.Settings.Load();
+    DownSite.Settings config = DownSite.Settings.Load();
 }
 <script>
     function post_comment(article_id) {
@@ -35,7 +35,7 @@
             if (Model.Comment != null && Model.Comment.Count > 0)
             {
                 <h3>Comments(@Model.Comment.Count)</h3>
-                foreach (WebTest.Comment c in Model.Comment)
+                foreach (DownSite.Comment c in Model.Comment)
                 {
                     <hr />
                     <p>@c.Name, @c.Created</p>

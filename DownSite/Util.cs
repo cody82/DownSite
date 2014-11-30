@@ -11,7 +11,7 @@ using System.Threading;
 using System.Diagnostics;
 using System.Security.Cryptography;
 
-namespace WebTest
+namespace DownSite
 {
     public class Util
     {
