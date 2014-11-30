@@ -185,9 +185,9 @@ namespace DownSite
                 Image.Save(pic3, Db, "video/webm", "d552c86d2ebd373c.webm", new FileInfo("d552c86d2ebd373c.webm").OpenRead());
 
                 Guid person1;
-                Db.Insert<User>(new User() { Id = person1 = Guid.NewGuid(), ImageId = pic1, UserName = "cody", Password = Util.SHA1("cody"), FirstName = "cody", LastName = "test" });
-                Db.Insert<User>(new User() { Id = Guid.NewGuid(), ImageId = pic2, FirstName = "cody1", LastName = "test" });
-                Db.Insert<User>(new User() { Id = Guid.NewGuid(), FirstName = "cody2", LastName = "test" });
+                Db.Insert<User>(new User() { Id = person1 = Guid.NewGuid(), UserName = "admin", Password = Util.SHA1("downsite"), FirstName = "Firstname", LastName = "Lastname" });
+                Db.Insert<User>(new User() { Id = Guid.NewGuid(), UserName = "cody1", FirstName = "cody1", LastName = "test" });
+                Db.Insert<User>(new User() { Id = Guid.NewGuid(), UserName = "cody2", FirstName = "cody2", LastName = "test" });
 
                 string content = string.Format(@"-CONTENT-
 
