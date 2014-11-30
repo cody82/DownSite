@@ -713,6 +713,7 @@ namespace WebTest
             return null;
         }
 
+        [Authenticate]
         public object Delete(ImageRequest request)
         {
             Database.Db.Delete<Image>(x => x.Id == request.Id);
