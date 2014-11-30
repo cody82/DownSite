@@ -8,6 +8,8 @@ Also it can embed YouTube/Vimeo and convert/scale uploaded videos.
 Currently DownSite is in an early development state and does not have many features yet.
 Basically you can create a Blog or standalone pages with videos, Markdown text and images.
 
+![](DownSite.png)
+
 ##How to use
 * Download a release/source and start the DownSite project.
 * Point your browser to "http://<your_computer_name>:1337/". An example website shows up.
