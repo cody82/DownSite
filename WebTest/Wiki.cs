@@ -228,7 +228,11 @@ namespace WebTest
         public static int CalcPageCount(int count)
         {
             var config = Settings.Load();
-            return ((count + config.ArticlesPerPage - 1) / config.ArticlesPerPage);
+
+            if (count % config.ArticlesPerPage == 0)
+                return Math.Max(1, count / config.ArticlesPerPage);
+
+            return count / config.ArticlesPerPage + 1;
         }
     }
 
