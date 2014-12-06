@@ -30,7 +30,7 @@
 {
     <div>
         <h1>
-            <a href="/article/id/@(a.Id.ToString().Replace("-","")+".html")">@a.Title</a>
+            <a href="/article/@(a.Id.ToString().Replace("-","")+".html")">@a.Title</a>
         </h1>
 		<p>@a.AuthorName, @a.Created, [@a.CategoryString()]</p>
     <p>

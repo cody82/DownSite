@@ -37,7 +37,7 @@ namespace DownSite
         {
             get
             {
-                return "/article/id/" + ArticleId.ToString().Replace("-", "") + ".html";
+                return "/article/" + ArticleId.ToString().Replace("-", "") + ".html";
             }
         }
 
@@ -65,9 +65,8 @@ namespace DownSite
     }
 
     [Route("/article")]
-    [Route("/article/id/{Id}")]
-    [Route("/article/id/{Id}.html")]
-    [Route("/article/title/{Title}")]
+    [Route("/article/{Id}")]
+    [Route("/article/{Id}.html")]
     public class Article : IReturn<Article>
     {
         [PrimaryKey]
@@ -105,7 +104,7 @@ namespace DownSite
         {
             get
             {
-                return "/article/id/" + Id.ToString().Replace("-", "") +".html";
+                return "/article/" + Id.ToString().Replace("-", "") +".html";
             }
         }
 

@@ -922,8 +922,9 @@ namespace DownSite
 
     class Program
     {
-        const string BaseUri = "http://*:1337/";
-        //const string BaseUri = "http://localhost:1337/";
+        //const string BaseUri = "http://*:1337/";
+        const string BaseUri = "http://localhost:1337/";
+        //const string BaseUri = "http://service.spacewar-arena.com:1337/";
 
         static void Main(string[] args)
         {

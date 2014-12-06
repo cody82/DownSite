@@ -94,7 +94,7 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
                     data: JSON.stringify(article),
                     processData: false,
                     success: function (r) {
-                        $('#preview')[0].src = '/article/id/' + id + '.html';
+                        $('#preview')[0].src = '/article/' + id + '.html';
                     },
                     error: function (r) {
                         alert("error");
@@ -112,7 +112,7 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
             };
 
             self.link = ko.computed(function () {
-                return '/article/id/' + this.Id() + ".html";
+                return '/article/' + this.Id() + ".html";
             }, self);
 
             self.Tags = ko.observable(self.helper(data));
@@ -185,7 +185,7 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
                         self.articlelist.articles.push(a);
                         
                         self.selectedArticle(a);
-                        $('#preview')[0].src = '/article/id/' + id + ".html";
+                        $('#preview')[0].src = '/article/' + id + ".html";
                     },
                     error: function (r) {
                         alert("error");
@@ -197,7 +197,7 @@ body { position:absolute; top:0; bottom:0; right:0; left:0; }
                 var article_id = article.Id();
                 $.ajax({
                     type: "DELETE",
-                    url: "/article/id/" + article_id,
+                    url: "/article/" + article_id,
                     processData: false,
                     contentType: 'application/json',
                     //data: article,
