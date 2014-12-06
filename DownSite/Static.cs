@@ -94,31 +94,37 @@ namespace DownSite
             }
         }
 
-        public static void Generate()
+        public static void Generate(string output, string data)
         {
-            Generate(new DirectoryInfo("output"));
+            Generate(new DirectoryInfo(output), new DirectoryInfo(data));
         }
 
-        public static void Generate(DirectoryInfo output)
+        public static void Generate(DirectoryInfo output, DirectoryInfo data)
         {
             if (output.Exists)
-                output.Delete(true);
-            output.Create();
+            {
+                foreach(var d in output.GetDirectories())
+                    d.Delete(true);
+                foreach (var f in output.GetFiles())
+                    f.Delete();
+            }
+            else
+                output.Create();
 
             DirectoryCopy("js", Path.Combine(output.FullName, "js"), true);
             DirectoryCopy("css", Path.Combine(output.FullName, "css"), true);
             DirectoryCopy("fonts", Path.Combine(output.FullName, "fonts"), true);
 
-            db = Database.OpenDbConnection(Path.Combine("data", "db.sqlite3"));
+            db = Database.OpenDbConnection(Path.Combine(data.FullName, "db.sqlite3"));
 
             var image_dir = output.CreateSubdirectory("image");
             var blog_dir = output.CreateSubdirectory("blog");
 
-            foreach (FileInfo fi in new DirectoryInfo(Path.Combine("data", "files")).GetFiles())
+            foreach (FileInfo fi in new DirectoryInfo(Path.Combine(data.FullName, "files")).GetFiles())
             {
                 File.Copy(fi.FullName, Path.Combine(image_dir.FullName, fi.Name.Replace("-","")));
             }
-            foreach (FileInfo fi in new DirectoryInfo(Path.Combine("data", "cache")).GetFiles())
+            foreach (FileInfo fi in new DirectoryInfo(Path.Combine(data.FullName, "cache")).GetFiles())
             {
                 File.Copy(fi.FullName, Path.Combine(image_dir.FullName, fi.Name.Replace("-","")));
             }

@@ -938,6 +938,24 @@ namespace DownSite
             appHost.Init();
             appHost.Start(BaseUri);
 
+            string output = "output";
+            string data = "data";
+
+            int i = Array.IndexOf(args, "-o");
+            if(i>=0)
+            {
+                output = args[i + 1];
+            }
+
+            i = Array.IndexOf(args, "-d");
+            if (i >= 0)
+            {
+                data = args[i + 1];
+            }
+
+            Console.WriteLine("Data directory: {0}", data);
+            Console.WriteLine("Output directory: {0}", output);
+
             string line;
             do
             {
