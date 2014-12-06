@@ -18,6 +18,7 @@ using System.Threading;
 using ServiceStack.Auth;
 using ServiceStack.Caching;
 using HtmlAgilityPack;
+using System.Text.RegularExpressions;
 
 
 namespace DownSite
@@ -377,6 +378,18 @@ namespace DownSite
                 }
             }
 
+
+            Regex regex = new Regex(@"!\[youtube\]\(([A-Za-z0-9\-]+)\)");
+            Match match = regex.Match(markdown);
+            if(match.Success)
+            {
+                do
+                {
+                    string youtube_id = match.Groups[1].Value;
+                    text += string.Format(@"<img src=""{0}""/>", "https://img.youtube.com/vi/" + youtube_id + "/1.jpg");
+                }
+                while (match.Success);
+            }
             return text;
         }
     }
