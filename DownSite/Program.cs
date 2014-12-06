@@ -953,6 +953,9 @@ namespace DownSite
                 data = args[i + 1];
             }
 
+            GeneratorService.Data = data;
+            GeneratorService.Output = output;
+
             Console.WriteLine("Data directory: {0}", data);
             Console.WriteLine("Output directory: {0}", output);
 
@@ -963,7 +966,7 @@ namespace DownSite
                 line = Console.ReadLine();
                 if (line.Length == 0)
                 {
-                    Static.Generate();
+                    Static.Generate(output, data);
                 }
             }
             while (line.Length == 0);

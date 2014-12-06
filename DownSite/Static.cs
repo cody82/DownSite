@@ -34,9 +34,11 @@ namespace DownSite
     [Authenticate]
     public class GeneratorService : Service
     {
+        public static string Output;
+        public static string Data;
         public object Get(GeneratorRequest request)
         {
-            Static.Generate();
+            Static.Generate(Output, Data);
             return new HttpResult(HttpStatusCode.OK, "Page was generated");
         }
     }
