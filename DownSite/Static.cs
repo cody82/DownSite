@@ -36,9 +36,11 @@ namespace DownSite
     {
         public static string Output;
         public static string Data;
+        public static bool Delete;
+
         public object Get(GeneratorRequest request)
         {
-            Static.Generate(Output, Data);
+            Static.Generate(Output, Data, Delete);
             return new HttpResult(HttpStatusCode.OK, "Page was generated");
         }
     }
@@ -78,7 +80,7 @@ namespace DownSite
                 string temppath = Path.Combine(destDirName, file.Name);
 
                 // Copy the file.
-                file.CopyTo(temppath, false);
+                file.CopyTo(temppath, true);
             }
 
             // If copySubDirs is true, copy the subdirectories.
@@ -96,14 +98,14 @@ namespace DownSite
             }
         }
 
-        public static void Generate(string output, string data)
+        public static void Generate(string output, string data, bool delete)
         {
-            Generate(new DirectoryInfo(output), new DirectoryInfo(data));
+            Generate(new DirectoryInfo(output), new DirectoryInfo(data), delete);
         }
 
-        public static void Generate(DirectoryInfo output, DirectoryInfo data)
+        public static void Generate(DirectoryInfo output, DirectoryInfo data, bool delete)
         {
-            if (output.Exists)
+            if (output.Exists && delete)
             {
                 foreach(var d in output.GetDirectories())
                     d.Delete(true);

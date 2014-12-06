@@ -940,21 +940,30 @@ namespace DownSite
 
             string output = "output";
             string data = "data";
+            bool delete = false;
 
-            int i = Array.IndexOf(args, "-o");
+            int i = Array.IndexOf(args, "--output");
             if(i>=0)
             {
                 output = args[i + 1];
             }
 
-            i = Array.IndexOf(args, "-d");
+            i = Array.IndexOf(args, "--data");
             if (i >= 0)
             {
                 data = args[i + 1];
             }
 
+            i = Array.IndexOf(args, "--delete");
+            if (i >= 0)
+            {
+                delete = bool.Parse(args[i + 1]);
+            }
+
+
             GeneratorService.Data = data;
             GeneratorService.Output = output;
+            GeneratorService.Delete = delete;
 
             Console.WriteLine("Data directory: {0}", data);
             Console.WriteLine("Output directory: {0}", output);
@@ -966,7 +975,7 @@ namespace DownSite
                 line = Console.ReadLine();
                 if (line.Length == 0)
                 {
-                    Static.Generate(output, data);
+                    Static.Generate(output, data, delete);
                 }
             }
             while (line.Length == 0);
