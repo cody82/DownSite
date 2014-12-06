@@ -387,6 +387,7 @@ namespace DownSite
                 {
                     string youtube_id = match.Groups[1].Value;
                     text += string.Format(@"<img src=""{0}""/>", "https://img.youtube.com/vi/" + youtube_id + "/1.jpg");
+                    match = match.NextMatch();
                 }
                 while (match.Success);
             }

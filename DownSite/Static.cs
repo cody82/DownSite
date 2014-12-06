@@ -126,11 +126,11 @@ namespace DownSite
 
             foreach (FileInfo fi in new DirectoryInfo(Path.Combine(data.FullName, "files")).GetFiles())
             {
-                File.Copy(fi.FullName, Path.Combine(image_dir.FullName, fi.Name.Replace("-","")));
+                File.Copy(fi.FullName, Path.Combine(image_dir.FullName, fi.Name.Replace("-","")), true);
             }
             foreach (FileInfo fi in new DirectoryInfo(Path.Combine(data.FullName, "cache")).GetFiles())
             {
-                File.Copy(fi.FullName, Path.Combine(image_dir.FullName, fi.Name.Replace("-","")));
+                File.Copy(fi.FullName, Path.Combine(image_dir.FullName, fi.Name.Replace("-","")), true);
             }
 
             /*var images = db.Select<Image>();
@@ -163,7 +163,7 @@ namespace DownSite
 
 
             html = FixLinks(html);
-            using (StreamWriter sw = new StreamWriter(Path.Combine(output.FullName, "index.html")))
+            using (StreamWriter sw = new StreamWriter(Path.Combine(output.FullName, "index.html"), false))
             {
                 sw.Write(html);
             }
@@ -221,7 +221,7 @@ namespace DownSite
                     }
                     filename += ".html";
 
-                    using (StreamWriter sw = new StreamWriter(Path.Combine(output.FullName, filename)))
+                    using (StreamWriter sw = new StreamWriter(Path.Combine(output.FullName, filename), false))
                     {
                         sw.Write(content);
                     }
