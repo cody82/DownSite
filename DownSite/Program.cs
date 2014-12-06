@@ -89,6 +89,10 @@ namespace DownSite
 
         public bool ShowLogin { get; set; }
         public int ArticlesPerPage { get; set; }
+
+        public string DisqusShortName { get; set; }
+        public bool Disqus { get; set; }
+
         public static Settings Load()
         {
             return Database.Db.SingleById<Settings>(Guid.Empty);

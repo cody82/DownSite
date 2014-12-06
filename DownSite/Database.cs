@@ -28,7 +28,7 @@ namespace DownSite
     }
     public class Database
     {
-        public const int Version = 5;
+        public const int Version = 6;
 
         public static void Migrate(int from, int to)
         {
@@ -62,7 +62,11 @@ namespace DownSite
                         Migrate004();
                         break;
                     case 5:
-                        throw new Exception("Not supported");
+                        throw new Exception("Not supported.");
+                        // Databases version <5 must be recreated.
+                    case 6:
+                        Migrate006();
+                        break;
                     default:
                         throw new Exception("BUG");
                 }
@@ -87,6 +91,12 @@ namespace DownSite
             Db.ExecuteNonQuery("ALTER TABLE \"Configuration\" ADD COLUMN \"ArticlesPerPage\" INTEGER NOT NULL DEFAULT 10;");
             Db.ExecuteNonQuery("ALTER TABLE \"Configuration\" ADD COLUMN \"ShowLogin\" BOOLEAN NOT NULL DEFAULT FALSE;");
             //Db.ExecuteNonQuery("UPDATE \"Configuration\" SET \"ShowLogin\" = FALSE, \"ArticlesPerPage\" = 10;");
+        }
+
+        static void Migrate006()
+        {
+            Db.ExecuteNonQuery("ALTER TABLE \"Settings\" ADD COLUMN \"DisqusShortName\" TEXT NOT NULL DEFAULT '';");
+            Db.ExecuteNonQuery("ALTER TABLE \"Settings\" ADD COLUMN \"Disqus\" BOOLEAN NOT NULL DEFAULT FALSE;");
         }
 
         public static string[] GetColumns(string table)
@@ -174,7 +184,7 @@ namespace DownSite
                 Db.CreateTable<Menu>(true);
 
                 Db.Insert<Configuration>(new Configuration() { Id = Guid.Empty, Version = Version });
-                Db.Insert<Settings>(new Settings() { Id = Guid.Empty, SiteName = "DownSite", ShowComments = true, AllowWriteComments = true, ShowLogin = false, ArticlesPerPage = 10, SiteDescription = "Test", SiteUrl = "" });
+                Db.Insert<Settings>(new Settings() { Id = Guid.Empty, DisqusShortName = "", SiteName = "DownSite", ShowComments = true, AllowWriteComments = true, ShowLogin = false, ArticlesPerPage = 10, SiteDescription = "Test", SiteUrl = "" });
 
                 Db.ExecuteSql(@"CREATE UNIQUE INDEX tag_unique on Tag(ArticleId, Name);");
 
