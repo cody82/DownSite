@@ -22,7 +22,7 @@ namespace DownSite
         public static string LoadAtom()
         {
             var config = Settings.Load();
-            string site = "http://test.de/";// config.SiteUrl;
+            string site = config.SiteUrl;
             string id = "DownSiteID";
             SyndicationFeed feed = new SyndicationFeed(config.SiteName ?? "Test", config.SiteDescription ?? "Test", new Uri(site), id, DateTime.Now);
             List<SyndicationItem> items = new List<SyndicationItem>();
