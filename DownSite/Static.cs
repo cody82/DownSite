@@ -168,6 +168,14 @@ namespace DownSite
             {
                 sw.Write(html);
             }
+
+            if (!Directory.Exists(Path.Combine(output.FullName, "feed")))
+                output.CreateSubdirectory("feed");
+            using (StreamWriter sw = new StreamWriter(Path.Combine(output.FullName, "feed", "atom.xml"), false))
+            {
+                string feed = Feed.LoadAtom();
+                sw.Write(feed);
+            }
         }
         static string FixLinks(string html, string root = "./")
         {
