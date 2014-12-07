@@ -21,6 +21,7 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using ServiceStack.Razor;
 using ServiceStack.Logging;
+using System.Text.RegularExpressions;
 
 
 namespace DownSite
@@ -175,7 +176,11 @@ namespace DownSite
             html = html.Replace("\"/article/Id/", "\"/article/");
             html = html.Replace(" /image/", "../image/");
 
-            html = html.Replace("\"/", "\"" + root);
+            // replace "/X with "<root>X
+            System.Text.RegularExpressions.Regex regex = new System.Text.RegularExpressions.Regex(@"""" + System.Text.RegularExpressions.Regex.Escape("/") + @"([A-Za-z0-9\-])");
+            html = regex.Replace(html, "\"" + root + "$1");
+
+            html = html.Replace("\"/\"", "\"" + root + "\"");
             html = html.Replace("\"" + root + "\"", "\"" + root + "index.html\"");
 
             return html;
