@@ -18,7 +18,17 @@
     <a href="page@((Model.Page-1)+tag).html">prev</a>
 }
 
-@Model.Page / @Model.PageCount
+@for (int i = 1; i <= Model.PageCount;++i )
+{
+    if(Model.Page == i)
+    {
+        <span>@i</span>
+    }
+    else
+    {
+        <a href="page@((i)+tag).html">@i</a>
+    }
+}
 
 
 @if(Model.Page<Model.PageCount)
