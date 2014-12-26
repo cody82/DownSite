@@ -26,7 +26,12 @@
         <h1>
             <a href="/article/@(Model.Id.ToString().Replace("-","")+".html")">@Model.Title</a>
         </h1>
-		<p>@Model.AuthorName, @Model.Created, [@Model.CategoryString()]</p>
+		<p>@Model.AuthorName, @Model.Created, [@Model.CategoryString()]
+        @if(Model.Modified != Model.Created)
+        {
+            <i>updated: @Model.Modified</i>
+        }
+        </p>
     <p>
       @Html.Raw(Model.ContentHtml())
     </p>
