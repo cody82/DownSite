@@ -264,17 +264,20 @@ rejgn
                     throw new Exception(string.Format("Database version too high. ({0} vs. {1})", version, Version));
                 }
             }
-            foreach (var f in new DirectoryInfo(Path.Combine("data", "cache")).GetFiles("*.tmp"))
+
+            if (FileCache.CacheDirExists())
             {
-                try
+                foreach (var f in FileCache.GetCacheDir().GetFiles("*.tmp"))
                 {
-                    f.Delete();
-                }
-                catch
-                {
+                    try
+                    {
+                        f.Delete();
+                    }
+                    catch
+                    {
+                    }
                 }
             }
-
         }
 
     }

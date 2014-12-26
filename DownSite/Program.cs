@@ -287,6 +287,52 @@ namespace DownSite
             return new Bitmap(imgToResize, size);
         }
 
+        static void Convert(Image img)
+        {
+            if(img.MimeType.StartsWith("image"))
+            {
+                ConvertImage(img);
+            }
+            else if(img.MimeType.StartsWith("video"))
+            {
+                ConvertVideo(img);
+            }
+        }
+
+        static void Thumb(Image img)
+        {
+            var file = UploadService.GetFileInfo(img.Id);
+            string filename_without_extension = Path.GetFileNameWithoutExtension(file.Name);
+            string thumb = filename_without_extension + DownSite.Constants.Seperator + "thumb.jpg";
+            var thumb_file = FileCache.GetFile(thumb);
+            if (thumb_file != null)
+            {
+                return;
+            }
+
+            thumb_file = new FileInfo(Path.Combine(FileCache.GetCacheDir().FullName, thumb));
+
+            var mimetypes = new string[] { MimeTypes.ImageJpg, MimeTypes.ImagePng, MimeTypes.ImageGif };
+
+            if (!mimetypes.Contains(img.MimeType))
+            {
+                VideoThumbnailer.MakeThumbnail(file.FullName, thumb_file.FullName);
+            }
+            else
+            {
+                using (var fs = file.OpenRead())
+                {
+                    using (Bitmap bmp = new Bitmap(fs))
+                    {
+                        using (var thumb2 = bmp.GetThumbnailImage(80, 80, null, IntPtr.Zero))
+                        {
+                            ImageService.SaveJpeg(thumb2, thumb_file.FullName);
+                        }
+                    }
+                }
+            }
+        }
+
         static void ConvertImage(Image img)
         {
             foreach (int w in ImageService.ResizeWidths)
@@ -402,6 +448,16 @@ namespace DownSite
                 }
             }
             db.Insert<Image>(img);
+        }
+
+        public static void GenerateCache()
+        {
+            var list = Database.Db.Select<Image>();
+            foreach(var img in list)
+            {
+                Convert(img);
+                Thumb(img);
+            }
         }
 
         public static Tuple<Image, FileInfo> Load(Guid id)
@@ -535,6 +591,12 @@ namespace DownSite
 
     public class FileCache
     {
+        public static bool CacheDirExists()
+        {
+            DirectoryInfo di = new DirectoryInfo(Path.Combine("data", "cache"));
+            return di.Exists;
+        }
+
         public static DirectoryInfo GetCacheDir()
         {
             DirectoryInfo di = new DirectoryInfo(Path.Combine("data", "cache"));
@@ -965,6 +1027,7 @@ namespace DownSite
 
         static void Main(string[] args)
         {
+
             Database.Init();
 
             var appHost = new AppHost();
@@ -998,8 +1061,17 @@ namespace DownSite
             GeneratorService.Output = output;
             GeneratorService.Delete = delete;
 
+            bool gen_cache = !FileCache.CacheDirExists();
+
             Console.WriteLine("Data directory: {0}", data);
             Console.WriteLine("Output directory: {0}", output);
+
+            if(gen_cache)
+            {
+                Console.WriteLine("Generating image cache...");
+                Image.GenerateCache();
+                Console.WriteLine("done.");
+            }
 
             string line;
             do
