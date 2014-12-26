@@ -22,6 +22,7 @@ using System.Security.Cryptography;
 using ServiceStack.Razor;
 using ServiceStack.Logging;
 using System.ServiceModel.Syndication;
+using System.Drawing.Imaging;
 
 
 namespace DownSite
@@ -314,7 +315,7 @@ namespace DownSite
                     {
                         using(var resized = resizeImage(bmp, new Size(w2,h2)))
                         {
-                            resized.Save(output);
+                            ImageService.SaveJpeg(resized, output);
                         }
                     }
                 }
@@ -737,6 +738,38 @@ namespace DownSite
             return new HttpResult(System.Net.HttpStatusCode.OK, "File deleted.");
         }
 
+        private static ImageCodecInfo GetEncoder(ImageFormat format)
+        {
+            ImageCodecInfo[] codecs = ImageCodecInfo.GetImageDecoders();
+            foreach (ImageCodecInfo codec in codecs)
+            {
+                if (codec.FormatID == format.Guid)
+                {
+                    return codec;
+                }
+            }
+            return null;
+        }
+
+        public const int JpegQuality = 85;
+
+        public static void SaveJpeg(System.Drawing.Image img, string filename, int quality = JpegQuality)
+        {
+            ImageCodecInfo jgpEncoder = GetEncoder(ImageFormat.Jpeg);
+
+            // Create an Encoder object based on the GUID
+            // for the Quality parameter category.
+            System.Drawing.Imaging.Encoder myEncoder = System.Drawing.Imaging.Encoder.Quality;
+
+            EncoderParameters myEncoderParameters = new EncoderParameters(1);
+
+            EncoderParameter myEncoderParameter = new EncoderParameter(myEncoder, quality);
+
+            myEncoderParameters.Param[0] = myEncoderParameter;
+
+            img.Save(filename, jgpEncoder, myEncoderParameters);
+        }
+
         public object Get(ImageRequest request)
         {
             var img = Image.Load(request.Id);
@@ -785,7 +818,7 @@ namespace DownSite
                             {
                                 using (var thumb2 = bmp.GetThumbnailImage(80, 80, null, IntPtr.Zero))
                                 {
-                                    thumb2.Save(thumb_file.FullName, System.Drawing.Imaging.ImageFormat.Jpeg);
+                                    SaveJpeg(thumb2, thumb_file.FullName);
                                     return new HttpResult(thumb_file, MimeTypes.ImageJpg) { };
                                 }
                             }
