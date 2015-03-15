@@ -434,7 +434,7 @@ namespace DownSite
 
         public static Article[] Get()
         {
-            var list = Database.Db.LoadSelect<Article>();
+            var list = Database.Db.LoadSelect<Article>().OrderByDescending(x => x.Created);
             return list.ToArray();
         }
 
