@@ -28,7 +28,7 @@ namespace DownSite
     }
     public class Database
     {
-        public const int Version = 6;
+        public const int Version = 7;
 
         public static void Migrate(int from, int to)
         {
@@ -67,6 +67,9 @@ namespace DownSite
                     case 6:
                         Migrate006();
                         break;
+                    case 7:
+                        Migrate007();
+                        break;
                     default:
                         throw new Exception("BUG");
                 }
@@ -76,6 +79,7 @@ namespace DownSite
             }
         }
 
+        
         static void Migrate002()
         {
             DropColumn("User", "Age");
@@ -98,64 +102,239 @@ namespace DownSite
             Db.ExecuteNonQuery("ALTER TABLE \"Settings\" ADD COLUMN \"DisqusShortName\" TEXT NOT NULL DEFAULT '';");
             Db.ExecuteNonQuery("ALTER TABLE \"Settings\" ADD COLUMN \"Disqus\" BOOLEAN NOT NULL DEFAULT FALSE;");
         }
+        
+        static void Migrate007()
+        {
+            //Drop all foreign keys
+            var tables = GetTableNames();
+            foreach (string table in tables)
+            {
+                Database.DropColumn(table, null);
+            }
+        }
 
-        public static string[] GetColumns(string table)
+        public static string[] GetColumnNames(string table)
+        {
+            return GetColumns(table).Select(x => x.Name).ToArray();
+        }
+
+        public static string[] GetTableNames()
         {
             var cmd = Db.CreateCommand();
-            cmd.CommandText = "PRAGMA table_info('"+table+"')";
-            var reader = cmd.ExecuteReader();
-            List<string> list = new List<string>();
-            while(reader.Read())
+            cmd.CommandText = "SELECT name FROM sqlite_master WHERE type = 'table' AND name != 'sqlite_sequence'";
+            using (var reader = cmd.ExecuteReader())
             {
-                string column = reader.GetString(1);
-                list.Add(column);
+                var list = new List<string>();
+                while (reader.Read())
+                {
+                    list.Add(reader.GetString(0));
+                }
+                return list.ToArray();
             }
+        }
+        
+        public static Column[] GetColumns(string table)
+        {
+            var cmd = Db.CreateCommand();
+            cmd.CommandText = "PRAGMA table_info('" + table + "')";
+            using (var reader = cmd.ExecuteReader())
+            {
+                var list = new List<Column>();
+                while (reader.Read())
+                {
+                    object def = reader.GetValue(4);
+                    var c = new Column()
+                    {
+                        Name = reader.GetString(1),
+                        Type = reader.GetString(2),
+                        NotNull = reader.GetInt32(3),
+                        Default = def is DBNull ? null : (string)def,
+                        PrimaryKey = reader.GetInt32(5)
+                    };
+                    list.Add(c);
+                }
+                return list.ToArray();
+            }
+        }
+
+        public class ForeignKey
+        {
+            public string OwnerTable { get; set; }
+            public string TargetTable { get; set; }
+            public string From { get; set; }
+            public string To { get; set; }
+            public string OnUpdate { get; set; }
+            public string OnDelete { get; set; }
+            public string Match { get; set; }
+        }
+
+        public class Index
+        {
+            public string Name { get; set; }
+            public string Sql { get; set; }
+            public string Column { get; set; }
+            public int Unique { get; set; }
+        }
+
+        public class Column
+        {
+            public string Sql
+            {
+                get
+                {
+                    return string.Format("{0} {1}{2}{3}{4}", Name, Type, NotNull > 0 ? " NOT NULL" : "", (Default != "NULL" && Default != null) ? " DEFAULT " + Default : "", PrimaryKey > 0 ? " PRIMARY KEY" : "");
+                }
+            }
+            public string Name { get; set; }
+            public string Type { get; set; }
+            public int NotNull { get; set; }
+            public string Default { get; set; }
+            public int PrimaryKey { get; set; }
+        }
+
+        public static Index[] GetIndexes(string table)
+        {
+            var cmd = Db.CreateCommand();
+            cmd.CommandText = "SELECT name, sql FROM sqlite_master WHERE type = 'index' AND tbl_name = '" + table + "' AND sql != ''";
+            var list = new List<Index>();
+            using (var reader = cmd.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    var c = new Index()
+                    {
+                        Name = reader.GetString(0),
+                        Sql = reader.GetString(1),
+                    };
+                    list.Add(c);
+                }
+            }
+
+            foreach(var index in list)
+            {
+                using (cmd = Db.CreateCommand())
+                {
+                    cmd.CommandText = "PRAGMA index_info('" + index.Name + "')";
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        reader.Read();
+                        index.Name = reader.GetString(2);
+                    }
+                }
+            }
+
+            using (cmd = Db.CreateCommand())
+            {
+                cmd.CommandText = "PRAGMA index_list('" + table + "')";
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        string name = reader.GetString(1);
+                        int unique = reader.GetInt32(2);
+
+                        var index = list.SingleOrDefault(x => x.Name == name);
+                        if (index != null)
+                        {
+                            index.Unique = unique;
+                        }
+                    }
+                }
+            }
+
             return list.ToArray();
+        }
+        
+        public static ForeignKey[] GetAllForeignKeys()
+        {
+            var tables = GetTableNames();
+            var fk = new List<ForeignKey>();
+            foreach(string table in tables)
+            {
+                fk.AddRange(GetForeignKeys(table));
+            }
+            return fk.ToArray();
+        }
+
+        public static ForeignKey[] GetForeignKeys(string table)
+        {
+            var cmd = Db.CreateCommand();
+            cmd.CommandText = "PRAGMA foreign_key_list('" + table + "')";
+            using (var reader = cmd.ExecuteReader())
+            {
+                var list = new List<ForeignKey>();
+                while (reader.Read())
+                {
+                    var c = new ForeignKey()
+                    {
+                        OwnerTable = table,
+                        TargetTable = reader.GetString(2),
+                        From = reader.GetString(3),
+                        To = reader.GetString(4),
+                        OnUpdate = reader.GetString(5),
+                        OnDelete = reader.GetString(6),
+                        Match = reader.GetString(7)
+                    };
+                    list.Add(c);
+                }
+                return list.ToArray();
+            }
         }
 
         public static void DropColumn(string table, string column)
         {
-            var cmd = Db.CreateCommand();
-            cmd.CommandText = "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = '"+table+"'";
-            var reader = cmd.ExecuteReader();
-            reader.Read();
-            string sql = reader.GetString(0);
-            reader.Dispose();
-            sql = sql.Replace("\n", "");
-            string[] lines = sql.Split(',');
+            var columns = GetColumns(table);
+            var indexes = GetIndexes(table);
+            string tmp_table = table + "_tmp";
+            var newcolumns = columns.Where(x => x.Name != column).ToArray();
+            //var newindexes = indexes.Where(x => x.Column != column).ToArray();
 
-            lines = lines.Where(x => !x.Contains("\"" + column + "\"") && !x.Contains("`" + column + "`")).ToArray();
+            Db.ExecuteNonQuery("ALTER TABLE '" + table + "' RENAME to '" + tmp_table +"'");
 
-            Db.ExecuteNonQuery("ALTER TABLE '" + table + "' RENAME to '" + table + "_tmp'");
-            sql = lines.Join(",\n");
-            Db.ExecuteNonQuery(sql);
+            CreateTable(table, newcolumns);
 
-            sql = string.Format("INSERT INTO '{0}' SELECT {1} FROM '{2}';", table, GetColumns(table).Join(","), table + "_tmp");
-            Db.ExecuteNonQuery(sql);
+            CopyTableData(tmp_table, table, newcolumns);
 
-            Db.ExecuteNonQuery("DROP TABLE \"" + table +"_tmp\";");
-        }
-        /*public static TableInfo[] GetTableInfo(string table)
-        {
+            Db.ExecuteNonQuery("DROP TABLE '" + tmp_table + "'");
 
-            var cmd = Db.CreateCommand();
-            cmd.CommandText = "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'User'";
-            var reader = cmd.ExecuteReader();
-            List<TableInfo> list = new List<TableInfo>();
-            while(reader.Read())
+            foreach(var index in indexes)
             {
-                string column = reader.GetString(1);
-                var obj = reader.GetDto<TableInfo>();
+                CreateIndex(index);
             }
+        }
 
-            return null;
-        }*/
+        public static void CopyTableData(string from, string to, Column[] columns)
+        {
+            string tmp = string.Format("INSERT INTO {0} SELECT {1} FROM {2}", to, columns.Select(x => x.Name).Aggregate((a, b) => a + ", " + b), from);
+            
+            Db.ExecuteNonQuery(tmp);
+        }
+
+        public static void CreateTable(string name, Column[] columns)
+        {
+            string tmp = "CREATE TABLE " + name + "(";
+
+            tmp += columns.Select(x => x.Sql).Aggregate((a, b) => a + ", " + b);
+
+            tmp += ")";
+
+            Db.ExecuteNonQuery(tmp);
+        }
+
+
+        public static void CreateIndex(Index index)
+        {
+            Db.ExecuteNonQuery(index.Sql);
+        }
+
 
 
         public static IDbConnection OpenDbConnection(string connString)
         {
             OrmLiteConfig.DialectProvider = SqliteOrmLiteDialectProvider.Instance;
-            return connString.OpenDbConnection();
+            var connection = connString.OpenDbConnection();
+            connection.ExecuteNonQuery("PRAGMA foreign_keys = OFF");
+            return connection;
         }
 
 
