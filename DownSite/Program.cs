@@ -23,6 +23,10 @@ using ServiceStack.Razor;
 using ServiceStack.Logging;
 using System.ServiceModel.Syndication;
 using System.Drawing.Imaging;
+using System.Web.Hosting;
+using ServiceStack.VirtualPath;
+using ServiceStack.IO;
+using System.Reflection;
 
 
 namespace DownSite
@@ -1019,6 +1023,22 @@ namespace DownSite
         }
     }
 
+    class DownSiteAppHost : AppHost
+    {
+        string _root;
+        public DownSiteAppHost(string root)
+        {
+            _root = root;
+        }
+
+        public override void OnConfigLoad()
+        {
+            base.OnConfigLoad();
+
+            Config.WebHostPhysicalPath = _root;
+        }
+    }
+
     class Program
     {
         //const string BaseUri = "http://*:1337/";
@@ -1027,15 +1047,12 @@ namespace DownSite
 
         static void Main(string[] args)
         {
-
             Database.Init();
-
-            var appHost = new AppHost();
-            appHost.Init();
-            appHost.Start(BaseUri);
 
             string output = "output";
             string data = "data";
+            //string web = new FileInfo(Assembly.GetEntryAssembly().Location).Directory.FullName;
+            string web = ".";
             bool delete = false;
 
             int i = Array.IndexOf(args, "--output");
@@ -1050,12 +1067,21 @@ namespace DownSite
                 data = args[i + 1];
             }
 
+            i = Array.IndexOf(args, "--web");
+            if (i >= 0)
+            {
+                web = args[i + 1];
+            }
+
             i = Array.IndexOf(args, "--delete");
             if (i >= 0)
             {
                 delete = bool.Parse(args[i + 1]);
             }
 
+            data = new DirectoryInfo(data).FullName;
+            web = new DirectoryInfo(web).FullName;
+            output = new DirectoryInfo(output).FullName;
 
             GeneratorService.Data = data;
             GeneratorService.Output = output;
@@ -1064,7 +1090,30 @@ namespace DownSite
             bool gen_cache = !FileCache.CacheDirExists();
 
             Console.WriteLine("Data directory: {0}", data);
+            Console.WriteLine("Web directory: {0}", web);
             Console.WriteLine("Output directory: {0}", output);
+
+            
+            var appHost = new DownSiteAppHost(web);
+
+
+            /*
+            var pathProviders = new List<IVirtualPathProvider> {
+                new FileSystemVirtualPathProvider(appHost, appHost.Config.WebHostPhysicalPath),
+                new FileSystemVirtualPathProvider(appHost, appHost.Config.WebHostPhysicalPath)
+            };
+
+            appHost.VirtualPathProvider = pathProviders.Count > 1
+                ? new MultiVirtualPathProvider(appHost, pathProviders.ToArray())
+                : pathProviders.First();*/
+
+
+            
+            appHost.Init();
+            //appHost.Config.WebHostPhysicalPath = web;
+            //appHost.SetConfig(appHost.Config);
+            appHost.Start(BaseUri);
+            Console.WriteLine("Listening on " + BaseUri);
 
             if(gen_cache)
             {
