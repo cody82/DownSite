@@ -35,13 +35,11 @@ namespace DownSite
     [Authenticate]
     public class GeneratorService : Service
     {
-        public static string Output;
-        public static string Data;
         public static bool Delete;
 
         public object Get(GeneratorRequest request)
         {
-            Static.Generate(Output, Data, Delete);
+            Static.Generate(Paths.Output, Paths.Data, Delete);
             return new HttpResult(HttpStatusCode.OK, "Page was generated");
         }
     }
@@ -116,9 +114,7 @@ namespace DownSite
             else
                 output.Create();
 
-            DirectoryCopy("js", Path.Combine(output.FullName, "js"), true);
-            DirectoryCopy("css", Path.Combine(output.FullName, "css"), true);
-            DirectoryCopy("fonts", Path.Combine(output.FullName, "fonts"), true);
+            DirectoryCopy(Paths.Web, output.FullName, true);
 
             db = Database.OpenDbConnection(Path.Combine(data.FullName, "db.sqlite3"));
 

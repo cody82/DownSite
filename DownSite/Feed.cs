@@ -23,6 +23,9 @@ namespace DownSite
         {
             var config = Settings.Load();
             string site = config.SiteUrl;
+            if (string.IsNullOrEmpty(site))
+                return string.Empty;
+
             string id = "DownSiteID";
             SyndicationFeed feed = new SyndicationFeed(config.SiteName ?? "Test", config.SiteDescription ?? "Test", new Uri(site), id, DateTime.Now);
             List<SyndicationItem> items = new List<SyndicationItem>();

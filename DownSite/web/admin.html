@@ -1,0 +1,113 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <script src="/js/jquery-2.1.1.min.js"></script>
+    <script type="text/javascript" src="js/ejs.js"></script>
+    <!--<link href="/css/bootstrap.min.css" rel="stylesheet">-->
+    <style type="text/css">
+html { height:100%; }
+body { margin: 0; position:absolute; top:0; bottom:0; right:0; left:0; }
+#images{ overflow:auto }
+
+.row, .col { overflow: hidden; position: absolute; }
+.row { left: 0; right: 0; }
+.col { top: 0; bottom: 0; }
+.scroll-x { overflow-x: auto; }
+.scroll-y { overflow-y: auto; }
+
+.header.row { height: 100px; top: 0;}
+.body.row { top: 100px; bottom: 0px;}
+
+</style>
+    <title></title>
+</head>
+<body>
+	<script type="text/javascript">
+	    function load_editor() {
+	        $('#content').html('<iframe style="width:100%;height:99%" src="editor.html"></iframe>');
+	    }
+	    function load_menu() {
+	        $('#content').html('<iframe style="width:100%;height:99%" src="editor-menu.html"></iframe>');
+	    }
+	    function load_users() {
+	        $('#content').html('<iframe style="width:100%;height:99%" src="editor-user.html"></iframe>');
+	    }
+	    function load_settings() {
+	        $('#content').html('<iframe style="width:100%;height:99%" src="editor-settings.html"></iframe>');
+	    }
+
+	    function auth() {
+	        var data = { "UserName": $('#username').val(), "Password": $('#password').val(), "RememberMe": true };
+	        $.ajax({
+	            type: "POST",
+	            url: "/auth/credentials?format=json",
+	            processData: false,
+	            contentType: 'application/json',
+	            data: JSON.stringify(data),
+	            success: function (r, s, xhr) {
+	                $('.login').addClass('hidden');
+	                $('.logout').removeClass('hidden');
+	                $('#user_auth').html(r.UserName);
+	                location.reload();
+	            },
+	            error: function (xhr, status, error) {
+	                $('.login').removeClass('hidden');
+	                $('.logout').addClass('hidden');
+	                $('#user_auth').html("");
+	                location.reload();
+	            },
+	        });
+	    }
+
+	    function check_auth() {
+	        $.ajax({
+	            type: "GET",
+	            url: "/auth/?format=json",
+	            processData: false,
+	            success: function (r) {
+	                $('.login').addClass('hidden');
+	                $('.logout').removeClass('hidden');
+	                $('#user_auth').html(r.UserName);
+	            }
+	        });
+	    }
+
+	    function ejs_update(ejs_url, id, source_url) {
+	        $.ajax({
+	            type: "GET",
+	            url: source_url,
+	            //processData: false,
+	            success: function (r) {
+	                //callback(r);
+	                new EJS({ url: ejs_url }).update(id, r);
+	            }
+	        });
+	    }
+
+	    $(document).ready(function () {
+	    });
+    </script>
+    
+    <div id="header" class="header row">
+        <div class="login form-group">
+            <input id="username" type="text" placeholder="Email" class="form-control">
+            <input id="password" type="password" placeholder="Password" class="form-control">
+            <button type="button" onclick="auth()" class="login btn btn-success">Sign in</button>
+        </div>
+        <a href="/auth/logout" class="logout btn btn-danger">Sign out <span id="user_auth"></span></a>
+
+        <a href="javascript:;" onclick="load_editor()">Editor</a>
+        <a href="javascript:;" onclick="load_menu()">Menu</a>
+        <a href="javascript:;" onclick="load_users()">Users</a>
+        <a href="javascript:;" onclick="load_settings()">Settings</a>
+
+    </div>
+    <div id="content" class="body row scroll-y">
+
+    </div>
+
+    <!--<script src="/js/bootstrap.min.js"></script>-->
+</body>
+</html>

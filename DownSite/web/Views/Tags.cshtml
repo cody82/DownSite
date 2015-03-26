@@ -1,0 +1,12 @@
+﻿@inherits ServiceStack.Razor.ViewPage<string[]>
+
+@{
+    Layout = "Default";
+}
+
+<ul>
+    @foreach(var cat in Model)
+    {
+        <li><a href="/blog/?tag=@cat">@cat</a></li>
+    }
+</ul>

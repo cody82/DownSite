@@ -1,0 +1,51 @@
+﻿@inherits ServiceStack.Razor.ViewPage<DownSite.BlogInfo>
+
+@{
+    Layout = "Default";
+}
+
+@{
+    string tag = "";
+
+    if(!string.IsNullOrEmpty(Model.Tag))
+    {
+        tag = "!tag_" + Model.Tag;
+    }
+}
+
+@if(Model.Page>1)
+{
+    <a href="page@((Model.Page-1)+tag).html">prev</a>
+}
+
+@for (int i = 1; i <= Model.PageCount;++i )
+{
+    if(Model.Page == i)
+    {
+        <span>@i</span>
+    }
+    else
+    {
+        <a href="page@((i)+tag).html">@i</a>
+    }
+}
+
+
+@if(Model.Page<Model.PageCount)
+{
+    <a href="page@((Model.Page+1)+tag).html">next</a>
+}
+
+@foreach (var a in Model.Articles)
+{
+    <div>
+        <h1>
+            <a href="/article/@(a.Id.ToString().Replace("-","")+".html")">@a.Title</a>
+        </h1>
+		<p>@a.AuthorName, @a.Created, [@a.CategoryString()]</p>
+    <p>
+      @Html.Raw(a.Content)
+    </p>
+	</div>
+    <hr/>
+}

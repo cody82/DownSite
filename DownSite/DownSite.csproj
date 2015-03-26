@@ -81,89 +81,89 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
-    <None Include="menu.ejs">
+    <None Include="web\menu.ejs">
       <SubType>Designer</SubType>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="comments.ejs">
+    <None Include="web\comments.ejs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <SubType>Designer</SubType>
     </None>
-    <None Include="css\bootstrap-theme.css.map">
+    <None Include="web\css\bootstrap-theme.css.map">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="css\bootstrap.css.map">
+    <None Include="web\css\bootstrap.css.map">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="d552c86d2ebd373c.webm">
+    <None Include="web\d552c86d2ebd373c.webm">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="fonts\glyphicons-halflings-regular.eot">
+    <None Include="web\fonts\glyphicons-halflings-regular.eot">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="fonts\glyphicons-halflings-regular.ttf">
+    <None Include="web\fonts\glyphicons-halflings-regular.ttf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="fonts\glyphicons-halflings-regular.woff">
+    <None Include="web\fonts\glyphicons-halflings-regular.woff">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="articles.ejs">
+    <None Include="web\articles.ejs">
       <SubType>Designer</SubType>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="blog.ejs">
+    <None Include="web\blog.ejs">
       <SubType>Designer</SubType>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="packages.config">
       <SubType>Designer</SubType>
     </None>
-    <None Include="default.cshtml">
+    <None Include="web\default.cshtml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="upload\.gitignore">
+    <None Include="web\upload\.gitignore">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="upload\.jshintrc">
+    <None Include="web\upload\.jshintrc">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="upload\blueimp-file-upload.jquery.json">
+    <None Include="web\upload\blueimp-file-upload.jquery.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="upload\bower.json">
+    <None Include="web\upload\bower.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="upload\CONTRIBUTING.md">
+    <None Include="web\upload\CONTRIBUTING.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="upload\package.json">
+    <None Include="web\upload\package.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="upload\README.md">
+    <None Include="web\upload\README.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="upload\server\gae-go\app.yaml" />
-    <None Include="upload\server\gae-go\app\main.go" />
-    <None Include="upload\server\gae-python\app.yaml" />
-    <None Include="upload\server\node\.gitignore" />
-    <None Include="upload\server\node\package.json" />
-    <None Include="upload\server\node\public\files\.gitignore" />
-    <None Include="upload\server\node\public\files\thumbnail\.gitignore" />
-    <None Include="upload\server\node\tmp\.gitignore" />
-    <None Include="upload\server\php\files\.gitignore" />
-    <None Include="upload\server\php\files\.htaccess" />
-    <None Include="upload\server\php\index.php" />
-    <None Include="upload\server\php\UploadHandler.php" />
-    <None Include="login.ejs">
+    <None Include="web\upload\server\gae-go\app.yaml" />
+    <None Include="web\upload\server\gae-go\app\main.go" />
+    <None Include="web\upload\server\gae-python\app.yaml" />
+    <None Include="web\upload\server\node\.gitignore" />
+    <None Include="web\upload\server\node\package.json" />
+    <None Include="web\upload\server\node\public\files\.gitignore" />
+    <None Include="web\upload\server\node\public\files\thumbnail\.gitignore" />
+    <None Include="web\upload\server\node\tmp\.gitignore" />
+    <None Include="web\upload\server\php\files\.gitignore" />
+    <None Include="web\upload\server\php\files\.htaccess" />
+    <None Include="web\upload\server\php\index.php" />
+    <None Include="web\upload\server\php\UploadHandler.php" />
+    <None Include="web\login.ejs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="Views\Blog.cshtml">
+    <None Include="web\Views\Blog.cshtml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="Views\Article.cshtml">
+    <None Include="web\Views\Article.cshtml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="Views\Tags.cshtml">
+    <None Include="web\Views\Tags.cshtml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
@@ -198,249 +198,249 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="acf7eede5be5aa69.jpg">
+    <Content Include="web\acf7eede5be5aa69.jpg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="admin.html">
+    <Content Include="web\admin.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="e3939e928899550f.jpg">
+    <Content Include="web\e3939e928899550f.jpg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="editor-settings.html">
+    <Content Include="web\editor-settings.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="editor-user.html">
+    <Content Include="web\editor-user.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="editor-menu.html">
+    <Content Include="web\editor-menu.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="editor.html">
+    <Content Include="web\editor.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="index.html">
+    <Content Include="web\index.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="css\bootstrap-theme.css">
+    <Content Include="web\css\bootstrap-theme.css">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="css\bootstrap-theme.min.css">
+    <Content Include="web\css\bootstrap-theme.min.css">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="css\bootstrap.css">
+    <Content Include="web\css\bootstrap.css">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="css\bootstrap.min.css">
+    <Content Include="web\css\bootstrap.min.css">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="css\jumbotron.css">
+    <Content Include="web\css\jumbotron.css">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="fonts\glyphicons-halflings-regular.svg">
+    <Content Include="web\fonts\glyphicons-halflings-regular.svg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\bootstrap.js">
+    <Content Include="web\js\bootstrap.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\bootstrap.min.js">
+    <Content Include="web\js\bootstrap.min.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\crypto-js\aes.js">
+    <Content Include="web\js\crypto-js\aes.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\crypto-js\hmac-md5.js">
+    <Content Include="web\js\crypto-js\hmac-md5.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\crypto-js\hmac-ripemd160.js">
+    <Content Include="web\js\crypto-js\hmac-ripemd160.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\crypto-js\hmac-sha1.js">
+    <Content Include="web\js\crypto-js\hmac-sha1.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\crypto-js\hmac-sha224.js">
+    <Content Include="web\js\crypto-js\hmac-sha224.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\crypto-js\hmac-sha256.js">
+    <Content Include="web\js\crypto-js\hmac-sha256.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\crypto-js\hmac-sha3.js">
+    <Content Include="web\js\crypto-js\hmac-sha3.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\crypto-js\hmac-sha384.js">
+    <Content Include="web\js\crypto-js\hmac-sha384.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\crypto-js\hmac-sha512.js">
+    <Content Include="web\js\crypto-js\hmac-sha512.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\crypto-js\md5.js">
+    <Content Include="web\js\crypto-js\md5.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\crypto-js\pbkdf2.js">
+    <Content Include="web\js\crypto-js\pbkdf2.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\crypto-js\rabbit-legacy.js">
+    <Content Include="web\js\crypto-js\rabbit-legacy.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\crypto-js\rabbit.js">
+    <Content Include="web\js\crypto-js\rabbit.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\crypto-js\rc4.js">
+    <Content Include="web\js\crypto-js\rc4.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\crypto-js\ripemd160.js">
+    <Content Include="web\js\crypto-js\ripemd160.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\crypto-js\sha1.js">
+    <Content Include="web\js\crypto-js\sha1.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\crypto-js\sha224.js">
+    <Content Include="web\js\crypto-js\sha224.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\crypto-js\sha256.js">
+    <Content Include="web\js\crypto-js\sha256.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\crypto-js\sha3.js">
+    <Content Include="web\js\crypto-js\sha3.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\crypto-js\sha384.js">
+    <Content Include="web\js\crypto-js\sha384.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\crypto-js\sha512.js">
+    <Content Include="web\js\crypto-js\sha512.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\crypto-js\tripledes.js">
+    <Content Include="web\js\crypto-js\tripledes.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\ie-emulation-modes-warning.js">
+    <Content Include="web\js\ie-emulation-modes-warning.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\ie10-viewport-bug-workaround.js">
+    <Content Include="web\js\ie10-viewport-bug-workaround.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\knockout-3.2.0.js">
+    <Content Include="web\js\knockout-3.2.0.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\stuff.js" />
-    <Content Include="loading-icon.gif">
+    <Content Include="web\js\stuff.js" />
+    <Content Include="web\loading-icon.gif">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="TODO.txt" />
-    <Content Include="upload\angularjs.html">
+    <Content Include="web\upload\angularjs.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\basic-plus.html">
+    <Content Include="web\upload\basic-plus.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\basic.html">
+    <Content Include="web\upload\basic.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\cors\postmessage.html">
+    <Content Include="web\upload\cors\postmessage.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\cors\result.html">
+    <Content Include="web\upload\cors\result.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\css\demo-ie8.css">
+    <Content Include="web\upload\css\demo-ie8.css">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\css\demo.css">
+    <Content Include="web\upload\css\demo.css">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\css\jquery.fileupload-noscript.css">
+    <Content Include="web\upload\css\jquery.fileupload-noscript.css">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\css\jquery.fileupload-ui-noscript.css">
+    <Content Include="web\upload\css\jquery.fileupload-ui-noscript.css">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\css\jquery.fileupload-ui.css">
+    <Content Include="web\upload\css\jquery.fileupload-ui.css">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\css\jquery.fileupload.css">
+    <Content Include="web\upload\css\jquery.fileupload.css">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\css\style.css">
+    <Content Include="web\upload\css\style.css">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\Gruntfile.js">
+    <Content Include="web\upload\Gruntfile.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\img\loading.gif">
+    <Content Include="web\upload\img\loading.gif">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\img\progressbar.gif">
+    <Content Include="web\upload\img\progressbar.gif">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\index.html">
+    <Content Include="web\upload\index.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\jquery-ui.html">
+    <Content Include="web\upload\jquery-ui.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\js\app.js">
+    <Content Include="web\upload\js\app.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\js\cors\jquery.postmessage-transport.js">
+    <Content Include="web\upload\js\cors\jquery.postmessage-transport.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\js\cors\jquery.xdr-transport.js">
+    <Content Include="web\upload\js\cors\jquery.xdr-transport.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\js\jquery.fileupload-angular.js">
+    <Content Include="web\upload\js\jquery.fileupload-angular.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\js\jquery.fileupload-audio.js">
+    <Content Include="web\upload\js\jquery.fileupload-audio.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\js\jquery.fileupload-image.js">
+    <Content Include="web\upload\js\jquery.fileupload-image.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\js\jquery.fileupload-jquery-ui.js">
+    <Content Include="web\upload\js\jquery.fileupload-jquery-ui.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\js\jquery.fileupload-process.js">
+    <Content Include="web\upload\js\jquery.fileupload-process.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\js\jquery.fileupload-ui.js">
+    <Content Include="web\upload\js\jquery.fileupload-ui.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\js\jquery.fileupload-validate.js">
+    <Content Include="web\upload\js\jquery.fileupload-validate.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\js\jquery.fileupload-video.js">
+    <Content Include="web\upload\js\jquery.fileupload-video.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\js\jquery.fileupload.js">
+    <Content Include="web\upload\js\jquery.fileupload.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\js\jquery.iframe-transport.js">
+    <Content Include="web\upload\js\jquery.iframe-transport.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\js\main.js">
+    <Content Include="web\upload\js\main.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\js\vendor\jquery.ui.widget.js">
+    <Content Include="web\upload\js\vendor\jquery.ui.widget.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\server\gae-go\static\favicon.ico" />
-    <Content Include="upload\server\gae-go\static\robots.txt" />
-    <Content Include="upload\server\gae-python\main.py" />
-    <Content Include="upload\server\gae-python\static\favicon.ico" />
-    <Content Include="upload\server\gae-python\static\robots.txt" />
-    <Content Include="upload\server\node\server.js" />
-    <Content Include="upload\test\index.html">
+    <Content Include="web\upload\server\gae-go\static\favicon.ico" />
+    <Content Include="web\upload\server\gae-go\static\robots.txt" />
+    <Content Include="web\upload\server\gae-python\main.py" />
+    <Content Include="web\upload\server\gae-python\static\favicon.ico" />
+    <Content Include="web\upload\server\gae-python\static\robots.txt" />
+    <Content Include="web\upload\server\node\server.js" />
+    <Content Include="web\upload\test\index.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="upload\test\test.js">
+    <Content Include="web\upload\test\test.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\ejs.js">
+    <Content Include="web\js\ejs.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="js\jquery-2.1.1.min.js">
+    <Content Include="web\js\jquery-2.1.1.min.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <None Include="Views\Standard.cshtml">
+    <None Include="web\Views\Standard.cshtml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

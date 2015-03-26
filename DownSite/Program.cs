@@ -597,13 +597,13 @@ namespace DownSite
     {
         public static bool CacheDirExists()
         {
-            DirectoryInfo di = new DirectoryInfo(Path.Combine("data", "cache"));
+            DirectoryInfo di = new DirectoryInfo(Path.Combine(Paths.Data, "cache"));
             return di.Exists;
         }
 
         public static DirectoryInfo GetCacheDir()
         {
-            DirectoryInfo di = new DirectoryInfo(Path.Combine("data", "cache"));
+            DirectoryInfo di = new DirectoryInfo(Path.Combine(Paths.Data, "cache"));
             if (!di.Exists)
                 di.Create();
             return di;
@@ -627,7 +627,7 @@ namespace DownSite
     {
         public static DirectoryInfo GetFileDir()
         {
-            DirectoryInfo di = new DirectoryInfo(Path.Combine("data", "files"));
+            DirectoryInfo di = new DirectoryInfo(Path.Combine(Paths.Data, "files"));
             if (!di.Exists)
                 di.Create();
             return di;
@@ -635,10 +635,10 @@ namespace DownSite
 
         public static FileStream GetFile(Guid id)
         {
-            FileInfo fi = new FileInfo(Path.Combine("data", "files", id.ToString().Replace("-", "")));
+            FileInfo fi = new FileInfo(Path.Combine(Paths.Data, "files", id.ToString().Replace("-", "")));
             if (!fi.Exists)
             {
-                fi = new FileInfo(Path.Combine("data", "files", id.ToString().Replace("-","")));
+                fi = new FileInfo(Path.Combine(Paths.Data, "files", id.ToString().Replace("-", "")));
                 if (!fi.Exists)
                 {
                     return null;
@@ -663,7 +663,7 @@ namespace DownSite
             if (files.Any())
                 return files.First();
 
-            FileInfo fi = new FileInfo(Path.Combine("data", "files", filename));
+            FileInfo fi = new FileInfo(Path.Combine(Paths.Data, "files", filename));
             if (!fi.Exists)
                 return null;
             return fi;
@@ -1039,6 +1039,13 @@ namespace DownSite
         }
     }
 
+    public static class Paths
+    {
+        public static string Data;
+        public static string Output;
+        public static string Web;
+    }
+
     class Program
     {
         //const string BaseUri = "http://*:1337/";
@@ -1047,12 +1054,10 @@ namespace DownSite
 
         static void Main(string[] args)
         {
-            Database.Init();
-
             string output = "output";
             string data = "data";
             //string web = new FileInfo(Assembly.GetEntryAssembly().Location).Directory.FullName;
-            string web = ".";
+            string web = "web";
             bool delete = false;
 
             int i = Array.IndexOf(args, "--output");
@@ -1083,9 +1088,12 @@ namespace DownSite
             web = new DirectoryInfo(web).FullName;
             output = new DirectoryInfo(output).FullName;
 
-            GeneratorService.Data = data;
-            GeneratorService.Output = output;
+            Paths.Web = web;
+            Paths.Data = data;
+            Paths.Output = output;
             GeneratorService.Delete = delete;
+
+            Database.Init();
 
             bool gen_cache = !FileCache.CacheDirExists();
 
@@ -1110,8 +1118,6 @@ namespace DownSite
 
             
             appHost.Init();
-            //appHost.Config.WebHostPhysicalPath = web;
-            //appHost.SetConfig(appHost.Config);
             appHost.Start(BaseUri);
             Console.WriteLine("Listening on " + BaseUri);
 
