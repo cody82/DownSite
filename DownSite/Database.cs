@@ -369,9 +369,15 @@ namespace DownSite
 
 
                 Guid pic1 = Guid.NewGuid(), pic2 = Guid.NewGuid(), pic3 = Guid.NewGuid();
-                Image.Save(pic1, Db, MimeTypes.ImageJpg, "acf7eede5be5aa69.jpg", new FileInfo(Path.Combine(Paths.Web,"acf7eede5be5aa69.jpg")).OpenRead());
-                Image.Save(pic2, Db, MimeTypes.ImageJpg, "e3939e928899550f.jpg", new FileInfo(Path.Combine(Paths.Web, "e3939e928899550f.jpg")).OpenRead());
-                Image.Save(pic3, Db, "video/webm", "d552c86d2ebd373c.webm", new FileInfo(Path.Combine(Paths.Web, "d552c86d2ebd373c.webm")).OpenRead());
+                FileInfo tmp = new FileInfo(Path.Combine(Paths.Web,"acf7eede5be5aa69.jpg"));
+                if(tmp.Exists)
+                    Image.Save(pic1, Db, MimeTypes.ImageJpg, tmp.Name, tmp.OpenRead());
+                tmp = new FileInfo(Path.Combine(Paths.Web, "e3939e928899550f.jpg"));
+                if(tmp.Exists)
+                    Image.Save(pic2, Db, MimeTypes.ImageJpg, tmp.Name, tmp.OpenRead());
+                tmp = new FileInfo(Path.Combine(Paths.Web, "d552c86d2ebd373c.webm"));
+                if (tmp.Exists)
+                Image.Save(pic3, Db, "video/webm", tmp.Name, tmp.OpenRead());
 
                 Guid person1;
                 Db.Insert<User>(new User() { Id = person1 = Guid.NewGuid(), UserName = "admin", Password = Util.SHA1("downsite"), FirstName = "Firstname", LastName = "Lastname" });
