@@ -1044,13 +1044,81 @@ namespace DownSite
         public static string Data;
         public static string Output;
         public static string Web;
+        public static string Watch;
+    }
+
+    static class Watcher
+    {
+        static FileSystemWatcher watcher;
+
+        public static void Init(string path)
+        {
+            watcher = new FileSystemWatcher(path)
+            {
+                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.DirectoryName,
+                IncludeSubdirectories = false,
+                Filter = "*"
+            };
+            watcher.IncludeSubdirectories = false;
+            watcher.Changed += watcher_Changed;
+            watcher.Created += watcher_Created;
+            watcher.Deleted += watcher_Deleted;
+            watcher.EnableRaisingEvents = true;
+        }
+
+        static void watcher_Deleted(object sender, FileSystemEventArgs e)
+        {
+            Console.WriteLine(e.ChangeType + " " + e.FullPath);
+        }
+
+        static void watcher_Created(object sender, FileSystemEventArgs e)
+        {
+            Console.WriteLine(e.ChangeType + " " + e.FullPath);
+            AddDirectory(e.FullPath);
+            Directory.Delete(e.FullPath, true);
+        }
+
+        static string MarkdownEscape(string text)
+        {
+            return text.Replace("_", "\\_");
+        }
+
+        private static void AddDirectory(string p)
+        {
+            var dir = new DirectoryInfo(p);
+            var pics = dir.GetFiles("*.jpg").Select(x =>
+            {
+                Guid guid = Guid.NewGuid();
+                using(var s = x.OpenRead())
+                {
+                    Image.Save(guid, Database.Db, MimeTypes.ImageJpg, x.Name, s);
+                }
+                return new {Guid = guid, Name = x.Name};
+            });
+            if (!pics.Any())
+                return;
+
+            string text = pics.Select(x => string.Format("{0}\r\n![responsive](/image/{1}.jpg)", MarkdownEscape(x.Name), x.Guid)).Aggregate((a, b) => a + "\r\n\r\n" + b);
+
+            var article = new Article()
+            {
+                Id = Guid.NewGuid(),
+                Title = dir.Name,
+                Content = text,
+            };
+            Database.Db.Insert<Article>(article);
+        }
+
+        static void watcher_Changed(object sender, FileSystemEventArgs e)
+        {
+            Console.WriteLine(e.ChangeType + " " + e.FullPath);
+        }
     }
 
     class Program
     {
         //const string BaseUri = "http://*:1337/";
         const string BaseUri = "http://localhost:1337/";
-        //const string BaseUri = "http://service.spacewar-arena.com:1337/";
 
         static void Main(string[] args)
         {
@@ -1058,6 +1126,7 @@ namespace DownSite
             string data = "data";
             //string web = new FileInfo(Assembly.GetEntryAssembly().Location).Directory.FullName;
             string web = "web";
+            string watch = "watch";
             bool delete = false;
 
             int i = Array.IndexOf(args, "--output");
@@ -1084,13 +1153,21 @@ namespace DownSite
                 delete = bool.Parse(args[i + 1]);
             }
 
+            i = Array.IndexOf(args, "--watch");
+            if (i >= 0)
+            {
+                watch = args[i + 1];
+            }
+
             data = new DirectoryInfo(data).FullName;
             web = new DirectoryInfo(web).FullName;
             output = new DirectoryInfo(output).FullName;
+            watch = new DirectoryInfo(watch).FullName;
 
             Paths.Web = web;
             Paths.Data = data;
             Paths.Output = output;
+            Paths.Watch = watch;
             GeneratorService.Delete = delete;
 
             Database.Init();
@@ -1101,6 +1178,11 @@ namespace DownSite
             Console.WriteLine("Web directory: {0}", web);
             Console.WriteLine("Output directory: {0}", output);
 
+            if (Directory.Exists(watch))
+            {
+                Console.WriteLine("Watch directory: {0}", watch);
+                Watcher.Init(watch);
+            }
             
             var appHost = new DownSiteAppHost(web);
 
@@ -1120,6 +1202,7 @@ namespace DownSite
             appHost.Init();
             appHost.Start(BaseUri);
             Console.WriteLine("Listening on " + BaseUri);
+
 
             if(gen_cache)
             {
