@@ -34,7 +34,7 @@ namespace ServiceStack
                 }
                 set
                 {
-                    JsWriter.WriteDynamic(() => 
+                    JsWriter.WriteDynamic(() =>
                         cacheClient.Set(this.prefixNs + key, value));
                 }
             }
@@ -48,6 +48,16 @@ namespace ServiceStack
             {
                 return cacheClient.Get<T>(this.prefixNs + key);
             }
+
+            public bool Remove(string key)
+            {
+                return cacheClient.Remove(this.prefixNs + key);
+            }
+
+            public void RemoveAll()
+            {
+                cacheClient.RemoveByPattern(this.prefixNs + "*");
+            }
         }
 
         public ISession GetOrCreateSession(IRequest httpReq, IResponse httpRes)
@@ -60,13 +70,13 @@ namespace ServiceStack
 
         public ISession GetOrCreateSession()
         {
-            if (HttpContext.Current != null)
-            {
-                var request = HttpContext.Current.ToRequest();
-                return GetOrCreateSession(request, request.Response);
-            }
-            
-            throw new NotImplementedException("Only ASP.NET Requests can be accessed via Singletons");
+            var request = HostContext.GetCurrentRequest();
+            return GetOrCreateSession(request, request.Response);
+        }
+
+        public ISession CreateSession(string sessionId)
+        {
+            return new SessionCacheClient(cacheClient, sessionId);
         }
     }
 }

@@ -1,13 +1,11 @@
+#if !LITE
 using System;
 using System.IO;
-using System.Text;
 using System.Runtime.Serialization;
-using System.Xml;
 using ServiceStack.Text;
 
 namespace ServiceStack.Serialization
 {
-
     public partial class DataContractSerializer
     {
         public object DeserializeFromString(string xml, Type type)
@@ -33,8 +31,6 @@ namespace ServiceStack.Serialization
             var serializer = new System.Runtime.Serialization.DataContractSerializer(typeof(T));
             return (T)serializer.ReadObject(stream);
         }
-
     }
-
-
 }
+#endif

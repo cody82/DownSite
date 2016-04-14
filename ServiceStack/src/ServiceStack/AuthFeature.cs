@@ -1,9 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Linq;
+using System.Text.RegularExpressions;
 using ServiceStack.Auth;
-using ServiceStack.Web;
 
 namespace ServiceStack
 {
@@ -12,6 +11,11 @@ namespace ServiceStack
     /// </summary>
     public class AuthFeature : IPlugin, IPostInitPlugin
     {
+        //http://stackoverflow.com/questions/3588623/c-sharp-regex-for-a-username-with-a-few-restrictions
+        public Regex ValidUserNameRegEx = AuthFeatureExtensions.ValidUserNameRegEx;
+
+        public Func<string, bool> IsValidUsernameFn { get; set; }
+
         public static bool AddUserIdHttpHeader = true;
 
         private readonly Func<IAuthSession> sessionFactory;
@@ -24,7 +28,22 @@ namespace ServiceStack
 
         public string HtmlRedirect { get; set; }
 
+        public string HtmlLogoutRedirect { get; set; }
+
         public bool IncludeAuthMetadataProvider { get; set; }
+
+        public bool ValidateUniqueEmails { get; set; }
+
+        public bool ValidateUniqueUserNames { get; set; }
+
+        public bool DeleteSessionCookiesOnLogout { get; set; }
+
+        public bool GenerateNewSessionCookiesOnAuthentication { get; set; }
+
+        public TimeSpan? SessionExpiry { get; set; }
+        public TimeSpan? PermanentSessionExpiry { get; set; }
+
+        public int? MaxLoginAttempts { get; set; }
 
         public bool IncludeAssignRoleServices
         {
@@ -60,14 +79,14 @@ namespace ServiceStack
             this.sessionFactory = sessionFactory;
             this.authProviders = authProviders;
 
-            Func<string,string> localize = s => HostContext.AppHost.ResolveLocalizedString(s, null);
+            Func<string, string> localize = s => HostContext.AppHost.ResolveLocalizedString(s, null);
 
             ServiceRoutes = new Dictionary<Type, string[]> {
                 { typeof(AuthenticateService), new[]
                     {
-                        "/" + localize(LocalizedStrings.Auth), 
-                        "/" + localize(LocalizedStrings.Auth) + "/{provider}", 
-                        "/" + localize(LocalizedStrings.Authenticate), 
+                        "/" + localize(LocalizedStrings.Auth),
+                        "/" + localize(LocalizedStrings.Auth) + "/{provider}",
+                        "/" + localize(LocalizedStrings.Authenticate),
                         "/" + localize(LocalizedStrings.Authenticate) + "/{provider}",
                     } },
                 { typeof(AssignRolesService), new[]{ "/" + localize(LocalizedStrings.AssignRoles) } },
@@ -75,13 +94,16 @@ namespace ServiceStack
             };
 
             RegisterPlugins = new List<IPlugin> {
-                new SessionFeature()                          
+                new SessionFeature()
             };
 
             AuthEvents = new List<IAuthEvents>();
 
             this.HtmlRedirect = htmlRedirect ?? "~/" + localize(LocalizedStrings.Login);
             this.IncludeAuthMetadataProvider = true;
+            this.ValidateUniqueEmails = true;
+            this.DeleteSessionCookiesOnLogout = true;
+            this.GenerateNewSessionCookiesOnAuthentication = true;
         }
 
         public void Register(IAppHost appHost)
@@ -97,18 +119,14 @@ namespace ServiceStack
                 appHost.RegisterService(registerService.Key, registerService.Value);
             }
 
-            RegisterPlugins.ForEach(x => appHost.LoadPlugin(x));
+            var sessionFeature = RegisterPlugins.OfType<SessionFeature>().First();
+            sessionFeature.SessionExpiry = SessionExpiry;
+            sessionFeature.PermanentSessionExpiry = PermanentSessionExpiry;
+
+            appHost.LoadPlugin(RegisterPlugins.ToArray());
 
             if (IncludeAuthMetadataProvider && appHost.TryResolve<IAuthMetadataProvider>() == null)
                 appHost.Register<IAuthMetadataProvider>(new AuthMetadataProvider());
-        }
-
-        public TimeSpan GetDefaultSessionExpiry()
-        {
-            var authProvider = authProviders.FirstOrDefault() as AuthProvider;
-            return authProvider != null 
-                ? authProvider.SessionExpiry
-                : SessionFeature.DefaultSessionExpiry;
         }
 
         public void AfterPluginsLoaded(IAppHost appHost)
@@ -139,6 +157,19 @@ namespace ServiceStack
                 return feature.HtmlRedirect;
 
             return "~/" + HostContext.ResolveLocalizedString(LocalizedStrings.Login);
+        }
+
+        //http://stackoverflow.com/questions/3588623/c-sharp-regex-for-a-username-with-a-few-restrictions
+        public static Regex ValidUserNameRegEx = new Regex(@"^(?=.{3,20}$)([A-Za-z0-9][._-]?)*$", RegexOptions.Compiled);
+
+        public static bool IsValidUsername(this AuthFeature feature, string userName)
+        {
+            if (feature == null)
+                return ValidUserNameRegEx.IsMatch(userName);
+
+            return feature.IsValidUsernameFn != null
+                ? feature.IsValidUsernameFn(userName)
+                : feature.ValidUserNameRegEx.IsMatch(userName);
         }
     }
 }

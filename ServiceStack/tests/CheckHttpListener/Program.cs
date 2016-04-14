@@ -1,110 +1,69 @@
 ﻿using System;
 using System.Diagnostics;
-using System.Net;
-using Check.ServiceInterface;
+using Check.ServiceModel;
 using Funq;
 using ServiceStack;
-using ServiceStack.Text;
+using ServiceStack.Admin;
+using ServiceStack.Data;
+using ServiceStack.OrmLite;
 
 namespace CheckHttpListener
 {
-    public class AppHost : AppHostHttpListenerBase
+    public class AppSelfHost : AppSelfHostBase
     {
-        public AppHost() : base("Check HttpListener Tests", 
-            typeof(ErrorsService).Assembly,
-            typeof(UserService).Assembly) { }
+        public static Rockstar[] SeedRockstars = new[] {
+            new Rockstar { Id = 1, FirstName = "Jimi", LastName = "Hendrix", Age = 27 },
+            new Rockstar { Id = 2, FirstName = "Jim", LastName = "Morrison", Age = 27 },
+            new Rockstar { Id = 3, FirstName = "Kurt", LastName = "Cobain", Age = 27 },
+            new Rockstar { Id = 4, FirstName = "Elvis", LastName = "Presley", Age = 42 },
+            new Rockstar { Id = 5, FirstName = "David", LastName = "Grohl", Age = 44 },
+            new Rockstar { Id = 6, FirstName = "Eddie", LastName = "Vedder", Age = 48 },
+            new Rockstar { Id = 7, FirstName = "Michael", LastName = "Jackson", Age = 50 },
+        };
+
+        public AppSelfHost()
+            : base("DocuRec Services", typeof(TestService).Assembly)
+        { }
 
         public override void Configure(Container container)
         {
-            this.CustomErrorHttpHandlers[HttpStatusCode.NotFound] = null;
+            container.Register<IDbConnectionFactory>(
+                new OrmLiteConnectionFactory(":memory:", SqliteDialect.Provider));
 
-            SetConfig(new HostConfig {
-                DebugMode = true
-            });
+            using (var db = container.Resolve<IDbConnectionFactory>().Open())
+            {
+                db.DropAndCreateTable<Rockstar>();
+                db.InsertAll(SeedRockstars);
+            }
 
-            Plugins.Add(new NativeTypesFeature());
+            Plugins.Add(new AutoQueryFeature { MaxLimit = 100 });
+            Plugins.Add(new AdminFeature());
         }
     }
 
-    class Program
+    [Route("/query/rockstars")]
+    public class QueryRockstars : QueryBase<Rockstar> { }
+
+    //public class Hello { }
+
+    public class TestService : Service
     {
-        static void Main(string[] args)
+        //public object Any(Hello request)
+        //{
+        //    return request;
+        //}
+    }
+
+    internal class Program
+    {
+        private static void Main(string[] args)
         {
-            //Licensing.RegisterLicenseFromFileIfExists(@"c:\src\appsettings.license.txt");
-
-            new AppHost()
+            var appHost = new AppSelfHost()
                 .Init()
-                .Start("http://localhost:2020/");
+                .Start("http://127.0.0.1:2222/");
 
-            //TestService();
-
-            Process.Start("http://localhost:2020/types/csharp");
+            Process.Start("http://127.0.0.1:2222/");
             Console.ReadLine();
         }
-
-        private async static void TestService()
-        {
-            var client = new JsonServiceClient("http://localhost:2020/");
-
-            try
-            {
-                var request = new UpdateAddressVoid();
-                request.ToGetUrl().Print();
-                request.ToPostUrl().Print();
-                var response = await client.PostAsync(request);
-                //var response = client.Post(request);
-            }
-            catch (WebServiceException ex)
-            {
-                ex.StatusCode.ToString().Print();
-                ex.StatusDescription.Print();
-                ex.ResponseBody.Print();
-                ex.ResponseStatus.PrintDump();
-            }
-        }
-    }
-
-    [Route("/user/{UserId}/Address")]
-    public class UpdateAddress : IReturn<AddressResponse>
-    {
-        public int UserId { get; set; }
-
-        public string Address { get; set; }
-    }
-
-    [Route("/user/{UserId}/AddressVoid")]
-    public class UpdateAddressVoid : IReturnVoid
-    {
-        public int UserId { get; set; }
-
-        public string Address { get; set; }
-    }
-
-    public class AddressResponse
-    {
-        public string Address { get; set; }
-    }
-
-    public class UserService : Service
-    {
-        public object Post(UpdateAddress request)
-        {
-            if (request.UserId > 0)
-            {
-                return new HttpResult(request.Address, HttpStatusCode.OK);
-            }
-
-            //throw new UnauthorizedAccessException("Unauthorized UserId");
-            //throw HttpError.Unauthorized(request.Address ?? "Unauthorized UserId");
-            return HttpError.Unauthorized(request.Address ?? "Unauthorized UserId");
-        }
-
-        public void Post(UpdateAddressVoid request)
-        {
-            //throw new UnauthorizedAccessException("Unauthorized UserId");
-            throw HttpError.Unauthorized(request.Address ?? "Unauthorized UserId");
-            //return HttpError.Unauthorized(request.Address ?? "Unauthorized UserId");
-        }
-
     }
 }

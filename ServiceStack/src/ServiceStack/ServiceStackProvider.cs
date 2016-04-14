@@ -37,6 +37,7 @@ namespace ServiceStack
         T TryResolve<T>();
         T ResolveService<T>();
         object Execute(object requestDto);
+        TResponse Execute<TResponse>(IReturn<TResponse> requestDto);
         object Execute(IRequest request);
         IAuthSession GetSession(bool reload = false);
         TUserSession SessionAs<TUserSession>();
@@ -97,7 +98,7 @@ namespace ServiceStack
         public ServiceStackProvider(IHttpRequest request, IResolver resolver = null)
         {
             this.request = request;
-            this.resolver = resolver ?? Service.GlobalResolver ??  HostContext.AppHost;
+            this.resolver = resolver ?? Service.GlobalResolver ?? HostContext.AppHost;
         }
 
         private IResolver resolver;
@@ -137,63 +138,69 @@ namespace ServiceStack
         public virtual T ResolveService<T>()
         {
             var service = TryResolve<T>();
-            var requiresContext = service as IRequiresRequest;
-            if (requiresContext != null)
-            {
-                requiresContext.Request = Request;
-            }
-            return service;
+            return HostContext.ResolveService(Request, service);
         }
 
         public object Execute(object requestDto)
         {
-            return HostContext.ServiceController.Execute(requestDto, Request);
+            var response = HostContext.ServiceController.Execute(requestDto, Request);
+            var ex = response as Exception;
+            if (ex != null)
+                throw ex;
+
+            return response;
+        }
+
+        public TResponse Execute<TResponse>(IReturn<TResponse> requestDto)
+        {
+            return (TResponse)Execute((object)requestDto);
         }
 
         public object Execute(IRequest request)
         {
-            return HostContext.ServiceController.Execute(Request);
+            var response = HostContext.ServiceController.Execute(request);
+            var ex = response as Exception;
+            if (ex != null)
+                throw ex;
+
+            return response;
         }
 
         public object ForwardRequest()
         {
-            return HostContext.ServiceController.Execute(Request);
+            return Execute(Request);
         }
 
         private ICacheClient cache;
         public virtual ICacheClient Cache
         {
-            get
-            {
-                return cache ??
-                    (cache = TryResolve<ICacheClient>()) ??
-                    (cache = (TryResolve<IRedisClientsManager>() != null ? TryResolve<IRedisClientsManager>().GetCacheClient() : null));
-            }
+            get { return cache ?? (cache = HostContext.AppHost.GetCacheClient(Request)); }
         }
 
         private IDbConnection db;
         public virtual IDbConnection Db
         {
-            get { return db ?? (db = TryResolve<IDbConnectionFactory>().OpenDbConnection()); }
+            get { return db ?? (db = HostContext.AppHost.GetDbConnection(Request)); }
         }
 
         private IRedisClient redis;
         public virtual IRedisClient Redis
         {
-            get { return redis ?? (redis = TryResolve<IRedisClientsManager>().GetClient()); }
-        }
-
-        private IMessageFactory messageFactory;
-        public virtual IMessageFactory MessageFactory
-        {
-            get { return messageFactory ?? (messageFactory = TryResolve<IMessageFactory>()); }
-            set { messageFactory = value; }
+            get { return redis ?? (redis = HostContext.AppHost.GetRedisClient(Request)); }
         }
 
         private IMessageProducer messageProducer;
         public virtual IMessageProducer MessageProducer
         {
-            get { return messageProducer ?? (messageProducer = MessageFactory.CreateMessageProducer()); }
+            get { return messageProducer ?? (messageProducer = HostContext.AppHost.GetMessageProducer(Request)); }
+        }
+
+        private IMessageFactory messageFactory;
+        [Obsolete("Will remove in future, resolve directly from HostContext.TryResolve<IMessageFactory>()")]
+        public virtual IMessageFactory MessageFactory
+        {
+            get { return messageFactory ?? (messageFactory = TryResolve<IMessageFactory>()); }
+            set { messageFactory = value; }
         }
 
         private ISessionFactory sessionFactory;
@@ -211,7 +218,7 @@ namespace ServiceStack
             var ret = TryResolve<TUserSession>();
             return !Equals(ret, default(TUserSession))
                 ? ret
-                : Cache.SessionAs<TUserSession>(Request, Response);
+                : SessionFeature.GetOrCreateSession<TUserSession>(Cache, Request, Response);
         }
 
         public virtual void ClearSession()

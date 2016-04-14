@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using ServiceStack.Data;
+using ServiceStack.Text;
 
 namespace ServiceStack.OrmLite
 {
@@ -9,7 +10,7 @@ namespace ServiceStack.OrmLite
     /// Allow for mocking and unit testing by providing non-disposing 
     /// connection factory with injectable IDbCommand and IDbTransaction proxies
     /// </summary>
-    public class OrmLiteConnectionFactory : IDbConnectionFactory
+    public class OrmLiteConnectionFactory : IDbConnectionFactoryExtended
     {
         public OrmLiteConnectionFactory()
             : this(null, null, true) { }
@@ -32,6 +33,8 @@ namespace ServiceStack.OrmLite
             }
 
             this.ConnectionFilter = x => x;
+
+            JsConfig.InitStatics();
         }
 
         public IOrmLiteDialectProvider DialectProvider { get; set; }
@@ -67,7 +70,7 @@ namespace ServiceStack.OrmLite
             }
         }
 
-        public IDbConnection OpenDbConnection()
+        public virtual IDbConnection OpenDbConnection()
         {
             var connection = CreateDbConnection();
             connection.Open();
@@ -75,7 +78,7 @@ namespace ServiceStack.OrmLite
             return connection;
         }
 
-        public IDbConnection CreateDbConnection()
+        public virtual IDbConnection CreateDbConnection()
         {
             if (this.ConnectionString == null)
                 throw new ArgumentNullException("ConnectionString", "ConnectionString must be set");
@@ -84,16 +87,45 @@ namespace ServiceStack.OrmLite
                 ? new OrmLiteConnection(this)
                 : OrmLiteConnection;
 
-            //moved setting up the ConnectionFilter to OrmLiteConnection.Open
-            //return ConnectionFilter(connection);
             return connection;
         }
 
-        public IDbConnection OpenDbConnection(string connectionKey)
+        public virtual IDbConnection OpenDbConnectionString(string connectionString)
+        {
+            if (connectionString == null)
+                throw new ArgumentNullException("connectionString");
+
+            var connection = new OrmLiteConnection(this)
+            {
+                ConnectionString = connectionString
+            };
+
+            connection.Open();
+
+            return connection;
+        }
+
+        public virtual IDbConnection OpenDbConnectionString(string connectionString, string providerName)
+        {
+            if (connectionString == null)
+                throw new ArgumentNullException("connectionString");
+            if (providerName == null)
+                throw new ArgumentNullException("providerName");
+
+            IOrmLiteDialectProvider dialectProvider;
+            if (!DialectProviders.TryGetValue(providerName, out dialectProvider))
+                throw new ArgumentException("{0} is not a registered DialectProvider".Fmt(providerName));
+
+            var dbFactory = new OrmLiteConnectionFactory(connectionString, dialectProvider, setGlobalDialectProvider:false);
+
+            return dbFactory.OpenDbConnection();
+        }
+
+        public virtual IDbConnection OpenDbConnection(string namedConnection)
         {
             OrmLiteConnectionFactory factory;
-            if (!NamedConnections.TryGetValue(connectionKey, out factory))
-                throw new KeyNotFoundException("No factory registered is named " + connectionKey);
+            if (!NamedConnections.TryGetValue(namedConnection, out factory))
+                throw new KeyNotFoundException("No factory registered is named " + namedConnection);
 
             IDbConnection connection = factory.AutoDisposeConnection
                 ? new OrmLiteConnection(factory)
@@ -106,24 +138,37 @@ namespace ServiceStack.OrmLite
             return connection;
         }
 
+        private static Dictionary<string, IOrmLiteDialectProvider> dialectProviders;
+        public static Dictionary<string, IOrmLiteDialectProvider> DialectProviders
+        {
+            get
+            {
+                return dialectProviders ?? (dialectProviders = new Dictionary<string, IOrmLiteDialectProvider>());
+            }
+        }
+
+        public virtual void RegisterDialectProvider(string providerName, IOrmLiteDialectProvider dialectProvider)
+        {
+            DialectProviders[providerName] = dialectProvider;
+        }
+
         private static Dictionary<string, OrmLiteConnectionFactory> namedConnections;
         public static Dictionary<string, OrmLiteConnectionFactory> NamedConnections
         {
             get
             {
-                return namedConnections = namedConnections
-                    ?? (namedConnections = new Dictionary<string, OrmLiteConnectionFactory>());
+                return namedConnections ?? (namedConnections = new Dictionary<string, OrmLiteConnectionFactory>());
             }
         }
 
-        public void RegisterConnection(string connectionKey, string connectionString, IOrmLiteDialectProvider dialectProvider)
+        public virtual void RegisterConnection(string namedConnection, string connectionString, IOrmLiteDialectProvider dialectProvider)
         {
-            RegisterConnection(connectionKey, new OrmLiteConnectionFactory(connectionString, dialectProvider, setGlobalDialectProvider: false));
+            RegisterConnection(namedConnection, new OrmLiteConnectionFactory(connectionString, dialectProvider, setGlobalDialectProvider: false));
         }
 
-        public void RegisterConnection(string connectionKey, OrmLiteConnectionFactory connectionFactory)
+        public virtual void RegisterConnection(string namedConnection, OrmLiteConnectionFactory connectionFactory)
         {
-            NamedConnections[connectionKey] = connectionFactory;
+            NamedConnections[namedConnection] = connectionFactory;
         }
     }
 
@@ -148,6 +193,35 @@ namespace ServiceStack.OrmLite
         public static IDbConnection OpenDbConnection(this IDbConnectionFactory connectionFactory, string namedConnection)
         {
             return ((OrmLiteConnectionFactory)connectionFactory).OpenDbConnection(namedConnection);
+        }
+
+        public static IDbConnection OpenDbConnectionString(this IDbConnectionFactory connectionFactory, string connectionString)
+        {
+            return ((OrmLiteConnectionFactory)connectionFactory).OpenDbConnectionString(connectionString);
+        }
+
+        public static IDbConnection ToDbConnection(this IDbConnection db)
+        {
+            var hasDb = db as IHasDbConnection;
+            return hasDb != null
+                ? hasDb.DbConnection.ToDbConnection()
+                : db;
+        }
+
+        public static IDbCommand ToDbCommand(this IDbCommand dbCmd)
+        {
+            var hasDbCmd = dbCmd as IHasDbCommand;
+            return hasDbCmd != null
+                ? hasDbCmd.DbCommand.ToDbCommand()
+                : dbCmd;
+        }
+
+        public static IDbTransaction ToDbTransaction(this IDbTransaction dbTrans)
+        {
+            var hasDbTrans = dbTrans as IHasDbTransaction;
+            return hasDbTrans != null
+                ? hasDbTrans.Transaction
+                : dbTrans;
         }
     }
 }

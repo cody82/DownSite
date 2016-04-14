@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using ServiceStack.DataAnnotations;
 using ServiceStack.Host;
 using ServiceStack.Text;
 using ServiceStack.Web;
@@ -51,6 +52,7 @@ namespace ServiceStack
         }
     }
 
+    [Exclude(Feature.Soap)]
     public class Postman
     {
         public List<string> Label { get; set; }
@@ -70,6 +72,11 @@ namespace ServiceStack
 
     public class PostmanRequest
     {
+        public PostmanRequest()
+        {
+            responses = new List<string>();
+        }
+        
         public string collectionId { get; set; }
         public string id { get; set; }
         public string name { get; set; }
@@ -93,6 +100,7 @@ namespace ServiceStack
     }
 
     [DefaultRequest(typeof(Postman))]
+    [Restrict(VisibilityTo = RequestAttributes.None)]
     public class PostmanService : Service
     {
         [AddHeader(ContentType = MimeTypes.Json)]
@@ -311,7 +319,7 @@ namespace ServiceStack
             }
             else if (type.IsGenericType())
             {
-                var args = type.GetGenericArguments().Map(x => 
+                var args = type.GetGenericArguments().Map(x =>
                     x.AsFriendlyName(feature));
                 suffix = "<{0}>".Fmt(string.Join(",", args.ToArray()));
             }

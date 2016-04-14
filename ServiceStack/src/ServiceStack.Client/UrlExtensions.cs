@@ -111,9 +111,38 @@ namespace ServiceStack
             return type.IsGenericParameter ? "'" + typeName : typeName;
         }
 
+        public static string ExpandTypeName(this Type type)
+        {
+            var typeName = type.IsGenericType()
+                ?  ExpandGenericTypeName(type) 
+                : type.Name;
+
+            typeName = typeName.Replace('+', '.');
+
+            return type.IsGenericParameter ? "'" + typeName : typeName;
+        }
+
+        public static string ExpandGenericTypeName(Type type)
+        {
+            var nameOnly = type.Name.SplitOnFirst('`')[0];
+
+            var sb = new StringBuilder();
+            foreach (var arg in type.GetGenericArguments())
+            {
+                if (sb.Length > 0)
+                    sb.Append(",");
+
+                sb.Append(arg.ExpandTypeName());
+            }
+
+            var fullName = "{0}<{1}>".Fmt(nameOnly, sb);
+            return fullName;
+        }
+
         public static string ToUrl(this object requestDto, string httpMethod = "GET", string formatFallbackToPredefinedRoute = null)
         {
             httpMethod = httpMethod.ToUpper();
+            var urlFilter = requestDto as IUrlFilter;
 
             var requestType = requestDto.GetType();
             var requestRoutes = routesCache.GetOrAdd(requestType, GetRoutesForType);
@@ -128,10 +157,11 @@ namespace ServiceStack
                 if (httpMethod == "GET" || httpMethod == "DELETE" || httpMethod == "OPTIONS" || httpMethod == "HEAD")
                 {
                     var queryProperties = RestRoute.GetQueryProperties(requestDto.GetType());
-                    predefinedRoute += "?" + RestRoute.GetQueryString(requestDto, queryProperties);
+                    if (queryProperties.Count > 0)
+                        predefinedRoute += "?" + RestRoute.GetQueryString(requestDto, queryProperties);
                 }
 
-                return predefinedRoute;
+                return urlFilter == null ? predefinedRoute : urlFilter.ToUrl(predefinedRoute);
             }
 
             var routesApplied = requestRoutes.Select(route => route.Apply(requestDto, httpMethod)).ToList();
@@ -171,7 +201,7 @@ namespace ServiceStack
                 }
             }
 
-            return url;
+            return urlFilter == null ? url : urlFilter.ToUrl(url);
         }
 
         public static bool HasRequestBody(this string httpMethod)
@@ -268,21 +298,14 @@ namespace ServiceStack
     public class RestRoute
     {
         private static readonly char[] ArrayBrackets = new[] { '[', ']' };
-
-        private static string FormatValue(object value)
-        {
-            if (value == null) return null;
-
-            var jsv = value.ToJsv().Trim(ArrayBrackets);
-            return jsv;
-        }
+        public const string EmptyArray = "[]";
 
         public static Func<object, string> FormatVariable = value =>
         {
             if (value == null) return null;
 
             var valueString = value as string;
-            valueString = valueString ?? FormatValue(value);
+            valueString = valueString ?? value.ToJsv().Trim(ArrayBrackets);
             return Uri.EscapeDataString(valueString);
         };
 
@@ -292,11 +315,18 @@ namespace ServiceStack
 
             // Perhaps custom formatting needed for DateTimes, lists, etc.
             var valueString = value as string;
-            valueString = valueString ?? FormatValue(value);
+            if (valueString == null)
+            {
+                valueString = value.ToJsv();
+
+                if (valueString != EmptyArray)
+                    valueString = valueString.Trim(ArrayBrackets);
+            }
+
             return Uri.EscapeDataString(valueString);
         };
 
-        private const char PathSeparatorChar = '/';
+        private static readonly char[] PathSeparatorChars = new[] { '/', '.' };
         private const string VariablePrefix = "{";
         private const char VariablePrefixChar = '{';
         private const string VariablePostfix = "}";
@@ -412,7 +442,7 @@ namespace ServiceStack
                 if (value == null)
                     continue;
 
-                var qsName = ServiceStack.Text.JsConfig.EmitLowercaseUnderscoreNames
+                var qsName = Text.JsConfig.EmitLowercaseUnderscoreNames
                     ? queryProperty.Key.ToLowercaseUnderscore()
                     : queryProperty.Key;
 
@@ -472,7 +502,7 @@ namespace ServiceStack
 
         private IEnumerable<string> GetUrlVariables(string path)
         {
-            var components = path.Split(PathSeparatorChar);
+            var components = path.Split(PathSeparatorChars);
             foreach (var component in components)
             {
                 if (string.IsNullOrEmpty(component))

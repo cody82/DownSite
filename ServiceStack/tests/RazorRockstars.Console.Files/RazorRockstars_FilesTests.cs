@@ -16,11 +16,8 @@ namespace RazorRockstars.Console.Files
     [TestFixture]
     public class RazorRockstars_FilesTests
     {
-        public const string ListeningOn = "http://*:1337/";
-        public const string Host = "http://localhost:1337";
-
-        //private const string ListeningOn = "http://*:1337/subdir/subdir2/";
-        //private const string Host = "http://localhost:1337/subdir/subdir2";
+        public const string ListeningOn = "http://*:2337/";
+        public const string Host = "http://localhost:2337";
 
         private const string BaseUri = Host + "/";
 
@@ -67,7 +64,7 @@ namespace RazorRockstars.Console.Files
         {
             var razorFormat = RazorFormat.Instance;
             var mockReq = new MockHttpRequest { OperationName = "RazorInstance" };
-            var mockRes = new MockHttpResponse();
+            var mockRes = new MockHttpResponse(mockReq);
             var dto = new RockstarsResponse { Results = Rockstar.SeedData.ToList() };
             razorFormat.ProcessRequest(mockReq, mockRes, dto);
             var html = mockRes.ReadAsString();
@@ -161,6 +158,8 @@ namespace RazorRockstars.Console.Files
         static string ViewMarkdownPartial = "<!--view:MarkdownPartial.md-->";
         static string ViewRazorPartialModel = "<!--view:RazorPartialModel.cshtml-->";
         static string ViewPartialChildModel = "<!--view:PartialChildModel.cshtml-->";
+        static string ViewContentPartialModel = "<!--view:ContentPartialModel.cshtml-->";
+        static string ViewPagesPartialModel = "<!--view:PagesPartialModel.cshtml-->";
 
         static string SectionPartialHeaderSection = "<!--section:PartialHeaderSection-->";
 
@@ -170,6 +169,7 @@ namespace RazorRockstars.Console.Files
         static string ViewM_Pages_Dir2_Default = "<!--view:Pages/Dir2/default.md-->";
         static string View_RequestFilters = "<!--view:RequestFilters.cshtml-->";
         static string View_RequestFiltersPage = "<!--view:RequestFiltersPage.cshtml-->";
+        static string View_Content_ContentPage = "<!--view:Content/content-page.cshtml-->";
 
         static string Template_Layout = "<!--template:_Layout.cshtml-->";
         static string Template_Pages_Layout = "<!--template:Pages/_Layout.cshtml-->";
@@ -281,11 +281,28 @@ namespace RazorRockstars.Console.Files
         public void Can_get_default_razor_pages()
         {
             Assert200(Host + "/",
-                View_Default, Template_SimpleLayout, ViewRazorPartial, ViewMarkdownPartial, ViewRazorPartialModel);
+                View_Default, Template_SimpleLayout, ViewRazorPartial, ViewMarkdownPartial, ViewRazorPartialModel, ViewContentPartialModel, ViewPagesPartialModel);
             Assert200(Host + "/Pages/",
-                View_Pages_Default, Template_Pages_Layout, ViewRazorPartial, ViewMarkdownPartial, ViewRazorPartialModel);
+                View_Pages_Default, Template_Pages_Layout, ViewRazorPartial, ViewMarkdownPartial, ViewRazorPartialModel, ViewPagesPartialModel);
             Assert200(Host + "/Pages/Dir/",
                 View_Pages_Dir_Default, Template_SimpleLayout, ViewRazorPartial, ViewMarkdownPartial, ViewRazorPartialModel);
+        }
+
+        [Test]
+        public void Can_get_ContentPages_via_HttpResult_View()
+        {
+            Assert200(Host + "/contentpages/NoModelNoController.cshtml",
+                ViewNoModelNoController, Template_SimpleLayout, ViewRazorPartial, ViewMarkdownPartial);
+
+            Assert200(Host + "/contentpages/Content/content-page.cshtml",
+                View_Content_ContentPage, Template_SimpleLayout);
+        }
+
+        [Test]
+        public void Can_get_default_file()
+        {
+            Assert200(Host + "/default_file",
+                View_Default, Template_SimpleLayout, ViewRazorPartial, ViewMarkdownPartial, ViewRazorPartialModel, ViewContentPartialModel, ViewPagesPartialModel);
         }
 
         [Test]

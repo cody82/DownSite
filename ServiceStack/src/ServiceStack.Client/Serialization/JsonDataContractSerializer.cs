@@ -33,7 +33,7 @@ namespace ServiceStack.Serialization
             var type = obj.GetType();
             try
             {
-                using (var ms = new MemoryStream())
+                using (var ms = MemoryStreamFactory.GetStream())
                 {
                     var serializer = new System.Runtime.Serialization.Json.DataContractJsonSerializer(type);
                     serializer.WriteObject(ms, obj);
@@ -55,6 +55,8 @@ namespace ServiceStack.Serialization
 
         public void SerializeToStream<T>(T obj, Stream stream)
         {
+            if (obj == null) return;
+
             if (TextSerializer != null)
             {
                 var streamSerializer = TextSerializer as IStringStreamSerializer;

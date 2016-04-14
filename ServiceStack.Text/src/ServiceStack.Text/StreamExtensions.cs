@@ -4,26 +4,14 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text;
+using ServiceStack.Text;
 
 namespace ServiceStack
 {
     public static class StreamExtensions
     {
-        public static int GetGoodBufferSize(Stream s)
-        {
-            try
-            {
-                var l = (int)Math.Min(1024 * 1024, s.Length);
-                if (l <= 0)
-                    return 1024 * 8;
-                return l;
-            }
-            catch
-            {
-                return DefaultBufferSize;
-            }
-        }
-
         public static long WriteTo(this Stream inStream, Stream outStream)
         {
             var memoryStream = inStream as MemoryStream;
@@ -33,10 +21,7 @@ namespace ServiceStack
                 return memoryStream.Position;
             }
 
-            // 4096 limits download speed!
-            //var data = new byte[4096];
-            var data = new byte[GetGoodBufferSize(inStream)];
-            
+            var data = new byte[4096];
             long total = 0;
             int bytesRead;
 
@@ -68,8 +53,7 @@ namespace ServiceStack
         /// @jonskeet: Collection of utility methods which operate on streams.
         /// r285, February 26th 2009: http://www.yoda.arachsys.com/csharp/miscutil/
         /// </summary>
-        //const int DefaultBufferSize = 8 * 1024;
-        const int DefaultBufferSize = 32 * 1024;
+        const int DefaultBufferSize = 8 * 1024;
 
         /// <summary>
         /// Reads the given stream up to the end, returning the data as a byte
@@ -77,7 +61,7 @@ namespace ServiceStack
         /// </summary>
         public static byte[] ReadFully(this Stream input)
         {
-            return ReadFully(input, GetGoodBufferSize(input));
+            return ReadFully(input, DefaultBufferSize);
         }
 
         /// <summary>
@@ -115,7 +99,7 @@ namespace ServiceStack
             }
             // We could do all our own work here, but using MemoryStream is easier
             // and likely to be just as efficient.
-            using (var tempStream = new MemoryStream())
+            using (var tempStream = MemoryStreamFactory.GetStream())
             {
                 CopyTo(input, tempStream, buffer);
                 // No need to copy the buffer if it's the right size
@@ -135,7 +119,7 @@ namespace ServiceStack
         /// </summary>
         public static long CopyTo(this Stream input, Stream output)
         {
-            return CopyTo(input, output, GetGoodBufferSize(input));
+            return CopyTo(input, output, DefaultBufferSize);
         }
 
         /// <summary>
@@ -259,6 +243,47 @@ namespace ServiceStack
                 index += read;
             }
             return intoBuffer;
+        }
+
+        public static string CollapseWhitespace(this string str)
+        {
+            if (str == null)
+                return null;
+
+            var sb = new StringBuilder();
+
+            var lastChar = (char)0;
+            for (var i = 0; i < str.Length; i++)
+            {
+                var c = str[i];
+                if (c < 32) continue; // Skip all these
+                if (c == 32)
+                {
+                    if (lastChar == 32)
+                        continue; // Only write one space character
+                }
+                sb.Append(c);
+                lastChar = c;
+            }
+
+            return sb.ToString();
+        }
+
+        public static byte[] Combine(this byte[] bytes, params byte[][] withBytes)
+        {
+            var combinedLength = bytes.Length + withBytes.Sum(b => b.Length);
+            var to = new byte[combinedLength];
+
+            Buffer.BlockCopy(bytes, 0, to, 0, bytes.Length);
+            var pos = bytes.Length;
+
+            foreach (var b in withBytes)
+            {
+                Buffer.BlockCopy(b, 0, to, pos, b.Length);
+                pos += b.Length;
+            }
+
+            return to;
         }
     }
 }

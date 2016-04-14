@@ -86,6 +86,7 @@ namespace ServiceStack.WebHost.IntegrationTests.Tests
             AssertResponse<FileUploadResponse>((HttpWebResponse)webResponse, r =>
             {
                 var expectedContents = new StreamReader(uploadForm.OpenRead()).ReadToEnd();
+                Assert.That(r.Name, Is.EqualTo("upload"));
                 Assert.That(r.FileName, Is.EqualTo(uploadForm.Name));
                 Assert.That(r.ContentLength, Is.EqualTo(uploadForm.Length));
                 Assert.That(r.ContentType, Is.EqualTo(MimeTypes.GetMimeType(uploadForm.Name)));
@@ -107,6 +108,45 @@ namespace ServiceStack.WebHost.IntegrationTests.Tests
             Assert.That(actualContents.NormalizeNewLines(), Is.EqualTo(expectedContents.NormalizeNewLines()));
         }
 
+        [Test]
+        public void Can_POST_upload_file_using_ServiceClient_with_request()
+        {
+            IServiceClient client = new JsonServiceClient(Config.ServiceStackBaseUri);
+
+            var uploadFile = new FileInfo("~/TestExistingDir/upload.html".MapHostAbsolutePath());
+
+            var request = new FileUpload { CustomerId = 123, CustomerName = "Foo,Bar" };
+            var response = client.PostFileWithRequest<FileUploadResponse>(Config.ServiceStackBaseUri + "/fileuploads", uploadFile, request);
+
+            var expectedContents = new StreamReader(uploadFile.OpenRead()).ReadToEnd();
+            Assert.That(response.Name, Is.EqualTo("upload"));
+            Assert.That(response.FileName, Is.EqualTo(uploadFile.Name));
+            Assert.That(response.ContentLength, Is.EqualTo(uploadFile.Length));
+            Assert.That(response.Contents, Is.EqualTo(expectedContents));
+            Assert.That(response.CustomerName, Is.EqualTo("Foo,Bar"));
+            Assert.That(response.CustomerId, Is.EqualTo(123));
+        }
+
+        [Test]
+        public void Can_POST_upload_file_using_ServiceClient_with_request_and_QueryString()
+        {
+            IServiceClient client = new JsonServiceClient(Config.ServiceStackBaseUri);
+
+            var uploadFile = new FileInfo("~/TestExistingDir/upload.html".MapHostAbsolutePath());
+
+            var request = new FileUpload();
+            var response = client.PostFileWithRequest<FileUploadResponse>(
+                Config.ServiceStackBaseUri + "/fileuploads?CustomerId=123&CustomerName=Foo,Bar", 
+                uploadFile, request);
+
+            var expectedContents = new StreamReader(uploadFile.OpenRead()).ReadToEnd();
+            Assert.That(response.Name, Is.EqualTo("upload"));
+            Assert.That(response.FileName, Is.EqualTo(uploadFile.Name));
+            Assert.That(response.ContentLength, Is.EqualTo(uploadFile.Length));
+            Assert.That(response.Contents, Is.EqualTo(expectedContents));
+            Assert.That(response.CustomerName, Is.EqualTo("Foo,Bar"));
+            Assert.That(response.CustomerId, Is.EqualTo(123));
+        }
     }
 
 

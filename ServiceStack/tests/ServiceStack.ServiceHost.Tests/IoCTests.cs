@@ -6,6 +6,7 @@ using NUnit.Framework;
 using ServiceStack.Commands;
 using ServiceStack.ServiceHost.Tests.Support;
 using Funq;
+using ServiceStack.Configuration;
 
 namespace ServiceStack.ServiceHost.Tests
 {
@@ -222,6 +223,41 @@ namespace ServiceStack.ServiceHost.Tests
             Assert.That(fooCmd.Execute(), Is.EqualTo(container.Resolve<Foo>()));
             var barCmd = container.Resolve<BarCommand>();
             Assert.That(barCmd.Execute(), Is.EqualTo(container.Resolve<Bar>()));
+        }
+
+        [Test]
+        public void Can_resolve_using_untyped_Container_Api()
+        {
+            var container = new Container();
+            container.Register(c => new Foo());
+
+            var instance = container.TryResolve(typeof(Foo));
+            Assert.That(instance, Is.Not.Null);
+        }
+
+        class CustomAdapter : IContainerAdapter
+        {
+            public T TryResolve<T>()
+            {
+                if (typeof(T) == typeof(IFoo))
+                    return (T)(object)new Foo();
+                return default(T);
+            }
+
+            public T Resolve<T>()
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        [Test]
+        public void Does_fallback_to_Funq_when_missing_in_Adapter()
+        {
+            var container = new Container { Adapter = new CustomAdapter() };
+            container.Register<IBar>(c => new Bar());
+
+            Assert.That(container.TryResolve<IFoo>(), Is.Not.Null);
+            Assert.That(container.TryResolve<IBar>(), Is.Not.Null);
         }
     }
 }

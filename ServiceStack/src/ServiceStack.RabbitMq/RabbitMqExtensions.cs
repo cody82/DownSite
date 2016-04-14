@@ -61,7 +61,7 @@ namespace ServiceStack.RabbitMq
                 {"x-dead-letter-routing-key", queueName.Replace(".inq",".dlq").Replace(".priorityq",".dlq") },
             };
 
-            if (!queueName.StartsWithIgnoreCase("mq:tmp:")) //Already declared in GetTempQueueName()
+            if (!QueueNames.IsTempQueue(queueName)) //Already declared in GetTempQueueName()
             {
                 channel.QueueDeclare(queueName, durable: true, exclusive: false, autoDelete: false, arguments: args);
             }
@@ -155,7 +155,9 @@ namespace ServiceStack.RabbitMq
                 throw new ArgumentNullException("queueName");
             }
 
-            return queueName.ToLower().StartsWith("amq.");
+            var lowerCaseQueue = queueName.ToLower();
+            return lowerCaseQueue.StartsWith("amq.")
+                || lowerCaseQueue.StartsWith(QueueNames.TempMqPrefix);
         }	
 
         public static void PopulateFromMessage(this IBasicProperties props, IMessage message)
@@ -164,6 +166,11 @@ namespace ServiceStack.RabbitMq
             props.Timestamp = new AmqpTimestamp(message.CreatedDate.ToUnixTime());
             props.Priority = (byte)message.Priority;
             props.ContentType = MimeTypes.Json;
+            
+            if (message.Body != null)
+            {
+                props.Type = message.Body.GetType().Name;
+            }
 
             if (message.ReplyTo != null)
             {

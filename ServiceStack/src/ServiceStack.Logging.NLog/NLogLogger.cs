@@ -36,7 +36,12 @@ namespace ServiceStack.Logging.NLogger
         public bool IsErrorEnabled { get { return log.IsErrorEnabled; } }
 
         public bool IsFatalEnabled { get { return log.IsFatalEnabled; } }
-    
+
+        private static string AsString(object message)
+        {
+            return message != null ? message.ToString() : null;
+        }
+
         /// <summary>
         /// Logs a Debug message.
         /// </summary>
@@ -44,7 +49,7 @@ namespace ServiceStack.Logging.NLogger
         public void Debug(object message)
         {
             if (IsDebugEnabled)
-                Write(LogLevel.Debug, message.ToString());
+                Log(LogLevel.Debug, AsString(message));
         }
 
         /// <summary>
@@ -54,8 +59,8 @@ namespace ServiceStack.Logging.NLogger
         /// <param name="exception">The exception.</param>
         public void Debug(object message, Exception exception)
         {
-            if(IsDebugEnabled)
-                Write(LogLevel.Debug,exception,message.ToString());
+            if (IsDebugEnabled)
+                Log(LogLevel.Debug, AsString(message), exception);
         }
 
         /// <summary>
@@ -66,7 +71,7 @@ namespace ServiceStack.Logging.NLogger
         public void DebugFormat(string format, params object[] args)
         {
             if (IsDebugEnabled)
-                Write(LogLevel.Debug, format, args);
+                Log(LogLevel.Debug, format, args);
         }
 
         /// <summary>
@@ -76,7 +81,7 @@ namespace ServiceStack.Logging.NLogger
         public void Error(object message)
         {
             if (IsErrorEnabled)
-                Write(LogLevel.Error,message.ToString());
+                Log(LogLevel.Error, AsString(message));
         }
 
         /// <summary>
@@ -87,7 +92,7 @@ namespace ServiceStack.Logging.NLogger
         public void Error(object message, Exception exception)
         {
             if (IsErrorEnabled)
-                Write(LogLevel.Error, exception, message.ToString());
+                Log(LogLevel.Error, AsString(message), exception);
         }
 
         /// <summary>
@@ -98,7 +103,7 @@ namespace ServiceStack.Logging.NLogger
         public void ErrorFormat(string format, params object[] args)
         {
             if (IsErrorEnabled)
-                Write(LogLevel.Error,format,args);
+                Log(LogLevel.Error, format, args);
         }
 
         /// <summary>
@@ -108,7 +113,7 @@ namespace ServiceStack.Logging.NLogger
         public void Fatal(object message)
         {
             if (IsFatalEnabled)
-                Write(LogLevel.Fatal,message.ToString());
+                Log(LogLevel.Fatal, AsString(message));
         }
 
         /// <summary>
@@ -119,7 +124,7 @@ namespace ServiceStack.Logging.NLogger
         public void Fatal(object message, Exception exception)
         {
             if (IsFatalEnabled)
-                Write(LogLevel.Fatal, exception, message.ToString());
+                Log(LogLevel.Fatal, AsString(message), exception);
         }
 
         /// <summary>
@@ -130,17 +135,17 @@ namespace ServiceStack.Logging.NLogger
         public void FatalFormat(string format, params object[] args)
         {
             if (IsFatalEnabled)
-                Write(LogLevel.Fatal, format, args);
+                Log(LogLevel.Fatal, format, args);
         }
 
         /// <summary>
-        /// Logs an Info message and exception.
+        /// Logs an Info message 
         /// </summary>
         /// <param name="message">The message.</param>
         public void Info(object message)
         {
             if (IsInfoEnabled)
-                Write(LogLevel.Info,message.ToString());
+                Log(LogLevel.Info, AsString(message));
         }
 
         /// <summary>
@@ -151,7 +156,7 @@ namespace ServiceStack.Logging.NLogger
         public void Info(object message, Exception exception)
         {
             if (IsInfoEnabled)
-                Write(LogLevel.Info,exception,message.ToString());
+                Log(LogLevel.Info, AsString(message), exception);
         }
 
         /// <summary>
@@ -162,7 +167,7 @@ namespace ServiceStack.Logging.NLogger
         public void InfoFormat(string format, params object[] args)
         {
             if (IsInfoEnabled)
-                Write(LogLevel.Info, format, args);
+                Log(LogLevel.Info, format, args);
         }
 
         /// <summary>
@@ -172,7 +177,7 @@ namespace ServiceStack.Logging.NLogger
         public void Warn(object message)
         {
             if (IsWarnEnabled)
-                Write(LogLevel.Warn,message.ToString());
+                Log(LogLevel.Warn, AsString(message));
         }
 
         /// <summary>
@@ -183,7 +188,7 @@ namespace ServiceStack.Logging.NLogger
         public void Warn(object message, Exception exception)
         {
             if (IsWarnEnabled)
-                Write(LogLevel.Warn,exception,message.ToString());
+                Log(LogLevel.Warn, AsString(message), exception);
         }
 
         /// <summary>
@@ -194,20 +199,22 @@ namespace ServiceStack.Logging.NLogger
         public void WarnFormat(string format, params object[] args)
         {
             if (IsWarnEnabled)
-                Write(LogLevel.Warn, format, args);
+                Log(LogLevel.Warn, format, args);
         }
 
-        private void Write(LogLevel level, string format, params object[] args)
+        public void Log(NLog.LogLevel logLevel, string message, Exception ex)
         {
-            //preserve call site info - see here: http://stackoverflow.com/questions/3947136/problem-matching-specific-nlog-logger-name
-            var logEventInfo = new LogEventInfo(level, log.Name, null, format, args);
-            log.Log(typeof(NLogLogger), logEventInfo);
+            log.Log(typeof(NLogLogger), new LogEventInfo(logLevel, log.Name, null, message, null, ex));
         }
 
-        private void Write(LogLevel level, Exception exception, string format, params object[] args)
+        public void Log(NLog.LogLevel logLevel, string format, params object[] args)
         {
-            var exceptionEventInfo = new LogEventInfo(level, log.Name, null, format, args, exception);
-            log.Log(typeof(NLogLogger), exceptionEventInfo);
+            log.Log(typeof(NLogLogger), new LogEventInfo(logLevel, log.Name, null, format, args));
+        }
+
+        public void Log(NLog.LogLevel logLevel, string format, object[] args, Exception ex)
+        {
+            log.Log(typeof(NLogLogger), new LogEventInfo(logLevel, log.Name, null, format, args, ex));
         }
     }
 }

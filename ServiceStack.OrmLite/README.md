@@ -1,9 +1,13 @@
 [Join the ServiceStack Google+ group](https://plus.google.com/u/0/communities/112445368900682590445) or
 follow [@servicestack](http://twitter.com/servicestack) for updates.
 
-# A Fast, Simple, Typed ORM for .NET
+# Fast, Simple, Typed ORM for .NET
 
-OrmLite's goal is to provide a convenient, DRY, config-free, RDBMS-agnostic typed wrapper that retains a high affinity with SQL, exposing intuitive APIs that generate predictable SQL and maps cleanly to (DTO-friendly) disconnected POCO's. This approach makes easier to reason-about your data access making it obvious what SQL is getting executed at what time, whilst mitigating unexpected behavior, implicit N+1 queries and leaky data access prevalent in Heavy ORMs.
+OrmLite's goal is to provide a convenient, DRY, config-free, RDBMS-agnostic typed wrapper that retains 
+a high affinity with SQL, exposing intuitive APIs that generate predictable SQL and maps cleanly to 
+(DTO-friendly) disconnected POCO's. This approach makes easier to reason-about your data access making 
+it obvious what SQL is getting executed at what time, whilst mitigating unexpected behavior, 
+implicit N+1 queries and leaky data access prevalent in Heavy ORMs.
 
 OrmLite was designed with a focus on the core objectives:
 
@@ -16,8 +20,17 @@ OrmLite was designed with a focus on the core objectives:
   * Expressive power and flexibility - with access to IDbCommand and raw SQL
   * Cross platform - supports multiple dbs (currently: Sql Server, Sqlite, MySql, PostgreSQL, Firebird) running on both .NET and Mono platforms.
 
-In OrmLite: **1 Class = 1 Table**. There should be no surprising or hidden behaviour.
-Any non-scalar properties (i.e. complex types) are by default text blobbed in a schema-less text field using any of the [avilable pluggable text serializers](#pluggable-complex-type-serializers). Support for [POCO-friendly references](#reference-support-poco-style) is also available to provide a convenient API to persist related models. Effectively this allows you to create a table from any POCO type and it should persist as expected in a DB Table with columns for each of the classes 1st level public properties.
+In OrmLite: **1 Class = 1 Table**. There should be no surprising or hidden behaviour, the Typed API
+that produces the Query doesn't impact how results get intuitvely mapped to the returned POCO's which
+could be different to the POCO used to create the query, e.g. containing only a subset of the fields 
+you want populated.
+
+Any non-scalar properties (i.e. complex types) are text blobbed by default in a schema-less text field 
+using any of the [avilable pluggable text serializers](#pluggable-complex-type-serializers). 
+Support for [POCO-friendly references](#reference-support-poco-style) is also available to provide 
+a convenient API to persist related models. Effectively this allows you to create a table from any 
+POCO type and it should persist as expected in a DB Table with columns for each of the classes 1st 
+level public properties.
 
 # Download 
 
@@ -25,30 +38,207 @@ Any non-scalar properties (i.e. complex types) are by default text blobbed in a 
 
 ### 8 flavours of OrmLite is on NuGet: 
 
-  - [ServiceStack.OrmLite.Sql Server](http://nuget.org/List/Packages/ServiceStack.OrmLite.SqlServer)
-  - [ServiceStack.OrmLite.MySql](http://nuget.org/List/Packages/ServiceStack.OrmLite.MySql)
+  - [ServiceStack.OrmLite.SqlServer](http://nuget.org/List/Packages/ServiceStack.OrmLite.SqlServer)
   - [ServiceStack.OrmLite.PostgreSQL](http://nuget.org/List/Packages/ServiceStack.OrmLite.PostgreSQL)
+  - [ServiceStack.OrmLite.MySql](http://nuget.org/List/Packages/ServiceStack.OrmLite.MySql)
   - [ServiceStack.OrmLite.Sqlite.Mono](http://nuget.org/packages/ServiceStack.OrmLite.Sqlite.Mono) - Compatible with Mono / Windows (x86) 
-  - [ServiceStack.OrmLite.Sqlite.Windows](http://nuget.org/List/Packages/ServiceStack.OrmLite.Sqlite.Windows) - 32/64bit Mixed mode .NET for WIndows only 
+  - [ServiceStack.OrmLite.Sqlite.Windows](http://nuget.org/List/Packages/ServiceStack.OrmLite.Sqlite.Windows) - 32/64bit Mixed mode .NET for Windows only 
   - [ServiceStack.OrmLite.Oracle](http://nuget.org/packages/ServiceStack.OrmLite.Oracle) (unofficial)
   - [ServiceStack.OrmLite.Firebird](http://nuget.org/List/Packages/ServiceStack.OrmLite.Firebird)  (unofficial)
   - [ServiceStack.OrmLite.VistaDb](http://nuget.org/List/Packages/ServiceStack.OrmLite.VistaDb)  (unofficial)
    
-_Latest v4+ on NuGet is a commercial release with [free quotas](https://servicestack.net/download#free-quotas)._
+_Latest v4+ on NuGet is a [commercial release](https://servicestack.net/ormlite) with [free quotas](https://servicestack.net/download#free-quotas)._
+
+### [Getting Started with OrmLite and AWS RDS](https://github.com/ServiceStackApps/AwsGettingStarted)
+
+OrmLite has great support AWS's managed RDS Databases, follow these getting started guides to help getting up and running quickly:
+
+- [PostgreSQL](https://github.com/ServiceStackApps/AwsGettingStarted#getting-started-with-aws-rds-postgresql-and-ormlite)
+- [Aurora](https://github.com/ServiceStackApps/AwsGettingStarted#getting-started-with-aws-rds-aurora-and-ormlite)
+- [MySQL](https://github.com/ServiceStackApps/AwsGettingStarted#getting-started-with-aws-rds-mysql-and-ormlite)
+- [MariaDB](https://github.com/ServiceStackApps/AwsGettingStarted#getting-started-with-aws-rds-mariadb-and-ormlite)
+- [SQL Server](https://github.com/ServiceStackApps/AwsGettingStarted#getting-started-with-aws-rds-sql-server-and-ormlite)
 
 #### [Docs and Downloads for older v3 BSD releases](https://github.com/ServiceStackV3/ServiceStackV3)
 
 ### Copying
 
-Since September 2013, ServiceStack source code is available under GNU Affero General Public License/FOSS License Exception, see license.txt in the source. Alternative [commercial licensing](https://servicestack.net/ormlite) is also available.
+Since September 2013, ServiceStack source code is available under GNU Affero General Public 
+License/FOSS License Exception, see license.txt in the source. 
+Alternative [commercial licensing](https://servicestack.net/ormlite) is also available.
 
 ### Contributing
 
-Contributors need to approve the [Contributor License Agreement](https://docs.google.com/forms/d/16Op0fmKaqYtxGL4sg7w_g-cXXyCoWjzppgkuqzOeKyk/viewform) before submitting pull-requests, see the [Contributing wiki](https://github.com/ServiceStack/ServiceStack/wiki/Contributing) for more details. 
+Contributors need to approve the [Contributor License Agreement](https://docs.google.com/forms/d/16Op0fmKaqYtxGL4sg7w_g-cXXyCoWjzppgkuqzOeKyk/viewform) 
+before submitting pull-requests, see the [Contributing wiki](https://github.com/ServiceStack/ServiceStack/wiki/Contributing) for more details. 
 
 ***
 
-# Examples
+## Usage
+
+First Install the NuGet package of the RDBMS you want to use, e.g:
+
+    PM> Install-Package ServiceStack.OrmLite.SqlServer
+
+Each RDBMS includes a specialized dialect provider that encapsulated the differences in each RDBMS 
+to support OrmLite features. The available Dialect Providers for each RDBMS is listed below:
+
+    SqlServerDialect.Provider      // Any SQL Server Version
+    SqlServer2012Dialect.Provider  // SQL Server 2012+
+    SqliteDialect.Provider         // Sqlite
+    PostgreSqlDialect.Provider     // PostgreSQL 
+    MySqlDialect.Provider          // MySql
+    OracleDialect.Provider         // Oracle
+    FirebirdDialect.Provider       // Firebird
+    VistaDbDialect.Provider        // Vista DB
+
+To configure OrmLite you need the DB Connection string along the Dialect Provider of the RDBMS you're
+connecting to, e.g: 
+
+```csharp
+var dbFactory = new OrmLiteConnectionFactory(
+    connectionString,  
+    SqlServerDialect.Provider);
+```
+
+If you're using an IOC you can register `OrmLiteConnectionFactory` as a **singleton**, e.g:
+
+```csharp
+container.Register<IDbConnectionFactory>(c => 
+    OrmLiteConnectionFactory(":memory:", SqliteDialect.Provider)); //InMemory Sqlite DB
+```
+
+You can then use the `dbFactory` to open ADO.NET DB Connections to your database. 
+If connecting to an empty database you can use OrmLite's Create Table API's to create any tables
+you need based solely on the Schema definition of your POCO and populate it with any initial 
+seed data you need, e.g:
+
+```csharp
+using (var db = dbFactory.Open())
+{
+    if (db.CreateTableIfNotExists<Poco>())
+    {
+        db.Insert(new Poco { Id = 1, Name = "Seed Data"});
+    }
+
+    var result = db.SingleById<Poco>(1);
+    result.PrintDump(); //= {Id: 1, Name:Seed Data}
+}
+```
+
+## [Type Converters](https://github.com/ServiceStack/ServiceStack.OrmLite/wiki/OrmLite-Type-Converters)
+
+You can customize, enhance or replace how OrmLite handles specific .NET Types with the new 
+[OrmLite Type Converters](https://github.com/ServiceStack/ServiceStack.OrmLite/wiki/OrmLite-Type-Converters).
+
+There's also support for SQL Server-specific `SqlGeography`, `SqlGeometry` and `SqlHierarchyId` Types,
+See [docs on SQL Server Types](https://github.com/ServiceStack/ServiceStack.OrmLite/wiki/SQL-Server-Types) 
+for instructions on how to enable them.
+
+# Async API Overview
+
+A quick overview of Async API's can be seen in the class diagram below:
+
+![OrmLite Async APIs](https://raw.githubusercontent.com/ServiceStack/Assets/master/img/ormlite/OrmLiteApiAsync.png) 
+
+Essentially most of OrmLite public API's now have async equivalents of the same name and an additional conventional `*Async` suffix. 
+The Async API's also take an optional `CancellationToken` making converting sync code trivial, where you just need to
+add the `Async` suffix and **await** keyword, as can be seen in the 
+[Customer Orders UseCase upgrade to Async diff](https://github.com/ServiceStack/ServiceStack.OrmLite/commit/c1ce6f0eac99133fc232b263c26c42379d4c5f48)
+, e.g:
+
+Sync:
+
+```csharp
+db.Insert(new Employee { Id = 1, Name = "Employee 1" });
+db.Save(product1, product2);
+var customer = db.Single<Customer>(new { customer.Email }); 
+```
+
+Async:
+
+```csharp
+await db.InsertAsync(new Employee { Id = 1, Name = "Employee 1" });
+await db.SaveAsync(product1, product2);
+var customer = await db.SingleAsync<Customer>(new { customer.Email });
+```
+
+> Effectively the only Data Access API's that doesn't have async equivalents are `*Lazy` APIs yielding a lazy 
+> sequence (incompatible with async) as well as **Schema** DDL API's which are typically not used at runtime.
+
+For a quick preview of many of the new Async API's in action, checkout 
+[ApiSqlServerTestsAsync.cs](https://github.com/ServiceStack/ServiceStack.OrmLite/blob/master/tests/ServiceStack.OrmLiteV45.Tests/ApiSqlServerTestsAsync.cs).
+
+### Async RDBMS Providers
+
+Currently only a limited number of RDBMS providers offer async API's which are only available in their **.NET 4.5** builds, which at this time are only:
+
+  - [SQL Server .NET 4.5+](https://www.nuget.org/packages/ServiceStack.OrmLite.SqlServer)
+  - [PostgreSQL .NET 4.5+](https://www.nuget.org/packages/ServiceStack.OrmLite.PostgreSQL)
+  - [MySQL .NET 4.5+](https://www.nuget.org/packages/ServiceStack.OrmLite.MySql)
+
+We've also added a 
+[.NET 4.5 build for Sqlite](https://www.nuget.org/packages/ServiceStack.OrmLite.Sqlite.Mono) 
+as it's a common use-case to swapout to use Sqlite's in-memory provider for faster tests. 
+But as Sqlite doesn't provide async API's under-the-hood we fallback to *pseudo async* support where we just wrap its synchronous responses in `Task` results. 
+
+## Dynamic Result Sets
+
+There's new support for returning unstructured resultsets letting you Select `List<object>` instead of having results mapped to a concrete Poco class, e.g:
+
+```csharp
+db.Select<List<object>>(db.From<Poco>()
+  .Select("COUNT(*), MIN(Id), MAX(Id)"))[0].PrintDump();
+```
+
+Output of objects in the returned `List<object>`:
+
+    [
+        10,
+        1,
+        10
+    ]
+
+You can also Select `Dictionary<string,object>` to return a dictionary of column names mapped with their values, e.g:
+
+```csharp
+db.Select<Dictionary<string,object>>(db.From<Poco>()
+  .Select("COUNT(*) Total, MIN(Id) MinId, MAX(Id) MaxId"))[0].PrintDump();
+```
+
+Output of objects in the returned `Dictionary<string,object>`:
+
+    {
+        Total: 10,
+        MinId: 1,
+        MaxId: 10
+    }
+
+and can be used for API's returning a **Single** row result:
+
+```csharp
+db.Single<List<object>>(db.From<Poco>()
+  .Select("COUNT(*) Total, MIN(Id) MinId, MAX(Id) MaxId")).PrintDump();
+```
+
+or use `object` to fetch an unknown **Scalar** value:
+
+```csharp
+object result = db.Scalar<object>(db.From<Poco>().Select(x => x.Id));
+```
+
+## Nested Typed Sub SqlExpressions
+
+The `Sql.In()` API supports nesting and combining of multiple Typed SQL Expressions together 
+in a single SQL Query, e.g:
+  
+```csharp
+var usaCustomerIds = db.From<Customer>(c => c.Country == "USA").Select(c => c.Id);
+var usaCustomerOrders = db.Select(db.From<Order>()
+    .Where(q => Sql.In(q.CustomerId, usaCustomerIds)));
+``` 
+
+# API Examples
 
 OrmLite's SQL Expression support lets you use LINQ-liked querying in all our providers. 
 To give you a flavour here are some examples with their partial SQL output (using SqlServer dialect): 
@@ -252,7 +442,7 @@ db.UpdateOnly(new Person { FirstName = "JJ", LastName = "Hendo" },
 
 ```csharp
 db.UpdateOnly(new Person { FirstName = "JJ" }, 
-  onlyFields: q => 1.Update(p => p.FirstName).Where(x => x.FirstName == "Jimi"));
+  onlyFields: q => q.Update(p => p.FirstName).Where(x => x.FirstName == "Jimi"));
 ```
 **UPDATE "Person" SET "FirstName" = 'JJ' WHERE ("LastName" = 'Hendrix')**
 
@@ -316,7 +506,7 @@ db.Delete(table: "Person", where: "Age = {0}".Params(27));
 
 The API is minimal, providing basic shortcuts for the primitive SQL statements:
 
-[![OrmLite API](http://mono.servicestack.net/files/ormlite-api.png)](http://www.servicestack.net/files/ormlite-api.png)
+[![OrmLite API](https://raw.githubusercontent.com/ServiceStack/Assets/master/img/ormlite/OrmLiteApi.png)](https://raw.githubusercontent.com/ServiceStack/Assets/master/img/ormlite/OrmLiteApi.png)
 
 ### Notes
 
@@ -407,6 +597,26 @@ var track = db.SingleById<Track>(1);
 var tracks = db.SelectByIds<Track>(new[]{ 1,2,3 });
 ```
 
+### Lazy Queries
+
+API's ending with `Lazy` yield an IEnumerable sequence letting you stream the results without having to map the entire resultset into a disconnected List of POCO's first, e.g:
+
+```csharp
+var lazyQuery = db.SelectLazy<Person>("Age > @age", new { age = 40 });
+// Iterate over a lazy sequence 
+foreach (var person in lazyQuery) {
+   //...  
+}
+```
+
+#### Other examples
+
+```csharp
+var topVIPs = db.WhereLazy<Person>(new { Age = 27 }).Where(p => IsVip(p)).Take(5)
+
+var topVIPs = db.SelectLazyFmt<Person>("Age > {0}", 40).Where(p => IsVip(p)).Take(5)
+```
+
 ### Other Notes
 
  - All **Insert**, **Update**, and **Delete** methods take multiple params, while `InsertAll`, `UpdateAll` and `DeleteAll` take IEnumerables.
@@ -452,12 +662,12 @@ The above query implicitly joins together the `Customer` and `CustomerAddress` P
 
 ```csharp
 class Customer {
-    public Id { get; set; }
+    public int Id { get; set; }
     ...
 }
 class CustomerAddress {
-    public Id { get; set; }
-    public CustomerId { get; set; }  // Reference based on Property name convention
+    public int Id { get; set; }
+    public int CustomerId { get; set; }  // Reference based on Property name convention
 }
 ```
 
@@ -466,14 +676,14 @@ References based on matching alias names is also supported, e.g:
 ```csharp
 [Alias("LegacyCustomer")]
 class Customer {
-    public Id { get; set; }
+    public int Id { get; set; }
     ...
 }
 class CustomerAddress {
-    public Id { get; set; }
+    public int Id { get; set; }
 
     [Alias("LegacyCustomerId")]             // Matches `LegacyCustomer` Alias
-    public RenamedCustomerId { get; set; }  // Reference based on Alias Convention
+    public int RenamedCustomerId { get; set; }  // Reference based on Alias Convention
 }
 ```
 
@@ -509,6 +719,57 @@ public class Customer
 ```
 
 > Reference Attributes take precedence over naming conventions
+
+### Multiple Self References
+
+The example below shows a customer with multiple `CustomerAddress` references which are able to be matched with 
+the `{PropertyReference}Id` naming convention, e.g:
+
+```csharp
+public class Customer
+{
+    [AutoIncrement]
+    public int Id { get; set; }
+    public string Name { get; set; }
+
+    [References(typeof(CustomerAddress))]
+    public int? HomeAddressId { get; set; }
+
+    [References(typeof(CustomerAddress))]
+    public int? WorkAddressId { get; set; }
+
+    [Reference]
+    public CustomerAddress HomeAddress { get; set; }
+
+    [Reference]
+    public CustomerAddress WorkAddress { get; set; }
+}
+```
+
+Once defined, it can be saved and loaded via OrmLite's normal Reference and Select API's, e.g:
+
+```csharp
+var customer = new Customer
+{
+    Name = "The Customer",
+    HomeAddress = new CustomerAddress {
+        Address = "1 Home Street",
+        Country = "US"
+    },
+    WorkAddress = new CustomerAddress {
+        Address = "2 Work Road",
+        Country = "UK"
+    },
+};
+
+db.Save(customer, references:true);
+
+var c = db.LoadSelect<Customer>(q => q.Name == "The Customer");
+c.WorkAddress.Address.Print(); // 2 Work Road
+
+var ukAddress = db.Single<CustomerAddress>(q => q.Country == "UK");
+ukAddress.Address.Print();     // 2 Work Road
+```
 
 ### Implicit Reference Conventions are applied by default
 
@@ -658,6 +919,38 @@ Unlike normal complex properties, references:
  
 Basically they provides a better story when dealing with referential data that doesn't impact the POCO's ability to be used as DTO's. 
 
+### Merge Disconnected POCO Result Sets
+
+The `Merge` extension method can stitch disconnected POCO collections together as per their relationships defined in OrmLite's POCO References.
+
+For example you can select a collection of Customers who've made an order with quantities of 10 or more and in a separate query select their filtered Orders and then merge the results of these 2 distinct queries together with:
+
+```csharp
+//Select Customers who've had orders with Quantities of 10 or more
+List<Customer> customers = db.Select<Customer>(q =>
+    q.Join<Order>()
+     .Where<Order>(o => o.Qty >= 10)
+     .SelectDistinct());
+
+//Select Orders with Quantities of 10 or more
+List<Order> orders = db.Select<Order>(o => o.Qty >= 10);
+
+customers.Merge(orders); // Merge disconnected Orders with their related Customers
+
+customers.PrintDump();   // Print merged customers and orders datasets
+```
+
+### Custom Load References
+
+You can selectively specifying which references you want to load using the `include` parameter, e.g:
+
+```csharp
+var customerWithAddress = db.LoadSingleById<Customer>(customer.Id, include: new[] { "PrimaryAddress" });
+
+//Alternative
+var customerWithAddress = db.LoadSingleById<Customer>(customer.Id, include: x => new { x.PrimaryAddress });
+```
+
 ## Optimistic Concurrency
 
 Optimistic concurrency can be added to any table by adding the `ulong RowVersion { get; set; }` property, e.g:
@@ -706,6 +999,45 @@ Optimistic concurrency is only verified on API's that update or delete an entire
 db.DeleteById<Poco>(id:updatedRow.Id, rowversion:updatedRow.RowVersion)
 ```
 
+### New DB Parameters API's
+
+To enable even finer-grained control of parameterized queries we've added new overloads that take a collection of IDbDataParameter's:
+
+```csharp
+List<T> Select<T>(string sql, IEnumerable<IDbDataParameter> sqlParams)
+T Single<T>(string sql, IEnumerable<IDbDataParameter> sqlParams)
+T Scalar<T>(string sql, IEnumerable<IDbDataParameter> sqlParams)
+List<T> Column<T>(string sql, IEnumerable<IDbDataParameter> sqlParams)
+IEnumerable<T> ColumnLazy<T>(string sql, IEnumerable<IDbDataParameter> sqlParams)
+HashSet<T> ColumnDistinct<T>(string sql, IEnumerable<IDbDataParameter> sqlParams)
+Dictionary<K, List<V>> Lookup<K, V>(string sql, IEnumerable<IDbDataParameter> sqlParams)
+List<T> SqlList<T>(string sql, IEnumerable<IDbDataParameter> sqlParams)
+List<T> SqlColumn<T>(string sql, IEnumerable<IDbDataParameter> sqlParams)
+T SqlScalar<T>(string sql, IEnumerable<IDbDataParameter> sqlParams)
+```
+
+> Including Async equivalents for each of the above Sync API's.
+
+The new API's let you execute parameterized SQL with finer-grained control over the `IDbDataParameter` used, e.g:
+
+```csharp
+IDbDataParameter pAge = db.CreateParam("age", 40, dbType:DbType.Int16);
+db.Select<Person>("SELECT * FROM Person WHERE Age > @pAge", new[] { pAge });
+```
+
+The new `CreateParam()` extension method above is a useful helper for creating custom IDbDataParameter's.
+
+### Customize null values
+
+The new `OrmLiteConfig.OnDbNullFilter` lets you to replace DBNull values with a custom value, so you could convert all `null` strings to be populated with `"NULL"` using:
+
+```csharp
+OrmLiteConfig.OnDbNullFilter = fieldDef => 
+    fieldDef.FieldType == typeof(string)
+        ? "NULL"
+        : null;
+```
+
 ### Exec, Result and String Filters
 
 OrmLite's core Exec filters makes it possible to inject your own behavior, tracing, profiling, etc.
@@ -743,39 +1075,29 @@ using (var db = OpenDbConnection())
 
 Results filters makes it trivial to implement the `CaptureSqlFilter` which allows you to capture SQL Statements without running them, e.g:
 
-```csharp
-public class CaptureSqlFilter : OrmLiteResultsFilter
-{
-    public CaptureSqlFilter()
-    {
-        SqlFilter = CaptureSql;
-        SqlStatements = new List<string>();
-    }
+### CaptureSqlFilter
 
-    private void CaptureSql(string sql)
-    {
-        SqlStatements.Add(sql);
-    }
-
-    public List<string> SqlStatements { get; set; }
-}
-```
-
-Which can be used to wrap around existing database calls to capture, defer or print generated SQL, e.g:
+[CaptureSqlFilter](https://github.com/ServiceStack/ServiceStack.OrmLite/blob/4c56bde197d07cfc78a80be06dd557732ecf68fa/src/ServiceStack.OrmLite/OrmLiteResultsFilter.cs#L321) is an simple Results Filter which can be used to quickly found out what SQL your DB calls generate by surrounding DB access in a using scope like:
 
 ```csharp
 using (var captured = new CaptureSqlFilter())
 using (var db = OpenDbConnection())
 {
-    db.CreateTable<Person>();
-    db.Count<Person>(x => x.Age < 50);
-    db.Insert(new Person { Id = 1, FirstName = "Jimi", LastName = "Hendrix" });
-    db.Delete<Person>(new { FirstName = "Jimi", Age = 27 });
+    db.Where<Person>(new { Age = 27 });
 
-    var sql = string.Join(";\n", captured.SqlStatements.ToArray());
-    sql.Print();
+    captured.SqlStatements[0].PrintDump();
 }
 ```
+
+Emits the Executed SQL along with any DB Parameters: 
+
+    {
+        Sql: "SELECT ""Id"", ""FirstName"", ""LastName"", ""Age"" FROM ""Person"" WHERE ""Age"" = @Age",
+        Parameters: 
+        {
+            Age: 27
+        }
+    }
 
 ### Replay Exec Filter
 
@@ -1058,6 +1380,16 @@ int result = db.SqlScalar<int>(
 int result = db.SqlScalar<int>("SELCT COUNT(*) FROM Person WHERE Age < 50");
 ```
 
+### Custom Insert and Updates
+
+```csharp
+Db.ExecuteSql("INSERT INTO page_stats (ref_id, fav_count) VALUES (@refId, @favCount)",
+              new { refId, favCount })
+
+//Async:
+Db.ExecuteSqlAsync("UPDATE page_stats SET view_count = view_count + 1 WHERE id = @id", new { id })
+```
+
 ## Stored Procedures using Custom Raw SQL API's
 
 The Raw SQL API's provide a convenient way for mapping results of any Custom SQL like
@@ -1091,11 +1423,13 @@ string spSql = @"DROP PROCEDURE IF EXISTS spSearchLetters;
 
 db.ExecuteSql(spSql);
 
-var cmd = db.SqlProc("spSearchLetters", new { pLetter = "C" });
-var pTotal = cmd.AddParam("pTotal", direction: ParameterDirection.Output);
+using (var cmd = db.SqlProc("spSearchLetters", new { pLetter = "C" }))
+{
+    var pTotal = cmd.AddParam("pTotal", direction: ParameterDirection.Output);
 
-var results = cmd.ConvertToList<LetterFrequency>();
-var total = pTotal.Value;
+    var results = cmd.ConvertToList<LetterFrequency>();
+    var total = pTotal.Value;
+}
 ```
 
 An alternative approach is to use `SqlList` which lets you use a filter to customize a 
@@ -1145,6 +1479,23 @@ public class TableWithAllCascadeOptions
 	public int? SetToNullOnDelete { get; set; }
 }
 ```
+
+### System Variables and Default Values
+
+To provide richer support for non-standard default values, each RDBMS Dialect Provider contains a 
+`OrmLiteDialectProvider.Variables` placeholder dictionary for storing common, but non-standard RDBMS functionality. 
+We can use this to declaratively define non-standard default values that works across all supported RDBMS's 
+like automatically populating a column with the RDBMS UTC Date when Inserted with a `default(T)` Value: 
+
+```csharp
+public class Poco
+{
+    [Default(OrmLiteVariables.SystemUtc)]  //= {SYSTEM_UTC}
+    public DateTime CreatedTimeUtc { get; set; }
+}
+```
+
+OrmLite variables need to be surrounded with `{}` braces to identify that it's a placeholder variable, e.g `{SYSTEM_UTC}`.
 
 The [ForeignKeyTests](https://github.com/ServiceStack/ServiceStack.OrmLite/blob/master/tests/ServiceStack.OrmLite.Tests/ForeignKeyAttributeTests.cs)
 show the resulting behaviour with each of these configurations in more detail.

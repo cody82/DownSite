@@ -16,6 +16,8 @@
 // The latest version of this file can be found at http://www.codeplex.com/FluentValidation
 #endregion
 
+using ServiceStack.Web;
+
 namespace ServiceStack.FluentValidation
 {
     using System;
@@ -30,7 +32,10 @@ namespace ServiceStack.FluentValidation
     /// Base class for entity validator classes.
     /// </summary>
     /// <typeparam name="T">The type of the object being validated</typeparam>
-    public abstract class AbstractValidator<T> : IValidator<T>, IEnumerable<IValidationRule> {
+    public abstract class AbstractValidator<T> : IValidator<T>, IEnumerable<IValidationRule>, IRequiresRequest 
+    {
+        public virtual IRequest Request { get; set; }
+
         readonly TrackingCollection<IValidationRule> nestedValidators = new TrackingCollection<IValidationRule>();
 
         private static Func<CascadeMode> s_cascadeMode = () => ValidatorOptions.CascadeMode;
@@ -114,6 +119,15 @@ namespace ServiceStack.FluentValidation
         public IRuleBuilderInitial<T, TProperty> RuleFor<TProperty>(Expression<Func<T, TProperty>> expression) {
             expression.Guard("Cannot pass null to RuleFor");
             var rule = PropertyRule.Create(expression, () => CascadeMode);
+            AddRule(rule);
+            var ruleBuilder = new RuleBuilder<T, TProperty>(rule);
+            return ruleBuilder;
+        }
+
+        public IRuleBuilderInitial<T, TProperty> RuleForEach<TProperty>(Expression<Func<T, IEnumerable<TProperty>>> expression)
+        {
+            expression.Guard("Cannot pass null to RuleForEach");
+            var rule = CollectionPropertyRule<TProperty>.Create(expression, () => CascadeMode);
             AddRule(rule);
             var ruleBuilder = new RuleBuilder<T, TProperty>(rule);
             return ruleBuilder;

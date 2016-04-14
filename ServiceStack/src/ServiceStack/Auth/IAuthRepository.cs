@@ -7,7 +7,7 @@ namespace ServiceStack.Auth
         void LoadUserAuth(IAuthSession session, IAuthTokens tokens);
         void SaveUserAuth(IAuthSession authSession);
         List<IUserAuthDetails> GetUserAuthDetails(string userAuthId);
-        string CreateOrMergeAuthSession(IAuthSession authSession, IAuthTokens tokens);
+        IUserAuthDetails CreateOrMergeAuthSession(IAuthSession authSession, IAuthTokens tokens);
 
         IUserAuth GetUserAuth(IAuthSession authSession, IAuthTokens tokens);
         IUserAuth GetUserAuthByUserName(string userNameOrEmail);
@@ -19,8 +19,10 @@ namespace ServiceStack.Auth
     public interface IUserAuthRepository : IAuthRepository
     {
         IUserAuth CreateUserAuth(IUserAuth newUser, string password);
+        IUserAuth UpdateUserAuth(IUserAuth existingUser, IUserAuth newUser);
         IUserAuth UpdateUserAuth(IUserAuth existingUser, IUserAuth newUser, string password);
         IUserAuth GetUserAuth(string userAuthId);
+        void DeleteUserAuth(string userAuthId);
     }
 
     public interface IManageRoles
@@ -36,13 +38,5 @@ namespace ServiceStack.Auth
 
         void UnAssignRoles(string userAuthId,
             ICollection<string> roles = null, ICollection<string> permissions = null);
-    }
-
-    public interface IRequiresSchema
-    {
-        /// <summary>
-        /// Creates the required missing tables or DB schema 
-        /// </summary>
-        void InitSchema();
     }
 }

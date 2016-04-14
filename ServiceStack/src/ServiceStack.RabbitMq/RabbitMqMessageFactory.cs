@@ -7,6 +7,8 @@ namespace ServiceStack.RabbitMq
     public class RabbitMqMessageFactory : IMessageFactory
     {
         public ConnectionFactory ConnectionFactory { get; private set; }
+        public Action<string, IBasicProperties, IMessage> PublishMessageFilter { get; set; }
+        public Action<string, BasicGetResult> GetMessageFilter { get; set; }
 
         private int retryCount;
         public int RetryCount
@@ -22,7 +24,7 @@ namespace ServiceStack.RabbitMq
             }
         }
 
-        public bool UsePolling { get; set; }
+        public bool UsePolling { get; set; } 
 
         public RabbitMqMessageFactory(string connectionString = "localhost",
             string username = null, string password = null)
@@ -61,21 +63,25 @@ namespace ServiceStack.RabbitMq
             ConnectionFactory = connectionFactory;
         }
 
-        public IMessageQueueClient CreateMessageQueueClient()
+        public virtual IMessageQueueClient CreateMessageQueueClient()
         {
             return new RabbitMqQueueClient(this) {
                 RetryCount = RetryCount,
+                PublishMessageFilter = PublishMessageFilter,
+                GetMessageFilter = GetMessageFilter,
             };
         }
 
-        public IMessageProducer CreateMessageProducer()
+        public virtual IMessageProducer CreateMessageProducer()
         {
             return new RabbitMqProducer(this) {
                 RetryCount = RetryCount,
+                PublishMessageFilter = PublishMessageFilter,
+                GetMessageFilter = GetMessageFilter,
             };
         }
 
-        public void Dispose()
+        public virtual void Dispose()
         {
         }
     }

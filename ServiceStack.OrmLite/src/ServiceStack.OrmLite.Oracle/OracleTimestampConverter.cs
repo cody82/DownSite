@@ -1,99 +1,77 @@
 ﻿using System;
 using System.Data;
-using System.Data.Common;
-using System.Globalization;
 using System.Reflection;
 
 namespace ServiceStack.OrmLite.Oracle
 {
     public class OracleTimestampConverter
     {
-        private string DateTimeOffsetOutputFormat { get; set; }
-        private string DateTimeOffsetInputFormat { get; set; }
-        private string TimestampTzFormat { get; set; }
+        private readonly Lazy<ConstructorInfo> _oracleTimeStampTzConstructor;
 
-        private const BindingFlags InvokeStaticPublic = BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod;
-        private Assembly OracleAssembly { get; set; }
-        private object[] SetThreadInfoArgs { get; set; }
-        private MethodInfo SetThreadInfo { get; set; }
-        private MethodInfo SetOracleDbType { get; set; }
-        private object[] SetOracleDbTypeArgs { get; set; }
-        private MethodInfo GetOracleValue { get; set; }
+        private readonly Type _factoryType;
+        private readonly string _clientProviderName;
+        private MethodInfo _oracleTypeParameterSetMethod;
+        private object _oracleDbTypeTimeStampTzValue;
 
-        public OracleTimestampConverter(DbProviderFactory factory)
+        public OracleTimestampConverter(Type factoryType, string clientProviderName)
         {
-            OracleAssembly = factory.GetType().Assembly;
-            var globalizationType = OracleAssembly.GetType("Oracle.DataAccess.Client.OracleGlobalization");
-            if (globalizationType != null)
+            _factoryType = factoryType;
+            _clientProviderName = clientProviderName;
+            _oracleTimeStampTzConstructor = new Lazy<ConstructorInfo>(() => InitConstructor(_factoryType));
+            InitSetDbType(_factoryType);
+        }
+
+        private ConstructorInfo InitConstructor(Type factoryType)
+        {
+            var oracleAssembly = factoryType.Assembly;
+
+            var clientProviderNamePrefix = _clientProviderName.Substring(0, _clientProviderName.LastIndexOf('.'));
+            var oracleTimeStampTzType = oracleAssembly.GetType(clientProviderNamePrefix + ".Types.OracleTimeStampTZ");
+            if (oracleTimeStampTzType == null) return null;
+
+            return oracleTimeStampTzType.GetConstructor(new[] { typeof(DateTime), typeof(string) });
+        }
+
+        private ConstructorInfo OracleTimeStampTzConstructor
+        {
+            get
             {
-                DateTimeOffsetInputFormat = DateTimeOffsetOutputFormat = "yyyy-MM-dd HH:mm:ss.ffffff zzz";
-                TimestampTzFormat = "YYYY-MM-DD HH24:MI:SS.FF6 TZH:TZM";
-
-                SetThreadInfoArgs = new [] {globalizationType.InvokeMember("GetClientInfo", InvokeStaticPublic, null, null, null)};
-                const BindingFlags setProperty = BindingFlags.Public | BindingFlags.SetProperty | BindingFlags.Instance;
-                globalizationType.InvokeMember("TimeStampTZFormat", setProperty, null, SetThreadInfoArgs[0], new object[] { TimestampTzFormat });
-                SetThreadInfo = globalizationType.GetMethod("SetThreadInfo", BindingFlags.Public | BindingFlags.Static);
-
-                var parameterType = OracleAssembly.GetType("Oracle.DataAccess.Client.OracleParameter");
-                var oracleDbTypeProperty = parameterType.GetProperty("OracleDbType", BindingFlags.Public | BindingFlags.Instance);
-                SetOracleDbType = oracleDbTypeProperty.GetSetMethod();
-
-                var oracleDbType = OracleAssembly.GetType("Oracle.DataAccess.Client.OracleDbType");
-                SetOracleDbTypeArgs = new [] {Enum.Parse(oracleDbType, "TimeStampTZ")};
-
-                var readerType = OracleAssembly.GetType("Oracle.DataAccess.Client.OracleDataReader");
-                GetOracleValue = readerType.GetMethod("GetOracleValue", BindingFlags.Public | BindingFlags.Instance);
-            }
-            else
-            {
-                //TODO This is Microsoft provider support and it does not handle the offsets correctly,
-                // but I don't know how to make it work.
-
-                DateTimeOffsetOutputFormat = "dd-MMM-yy hh:mm:ss.fff tt";
-                DateTimeOffsetInputFormat = "dd-MMM-yy hh:mm:ss tt";
-                TimestampTzFormat = "DD-MON-RR HH.MI.SSXFF AM";
-
-//                var parameterType = OracleAssembly.GetType("System.Data.OracleClient.OracleParameter");
-//                var oracleTypeProperty = parameterType.GetProperty("OracleType", BindingFlags.Public | BindingFlags.Instance);
-//                SetOracleDbType = oracleTypeProperty.GetSetMethod();
-
-                var oracleDbType = OracleAssembly.GetType("System.Data.OracleClient.OracleType");
-                SetOracleDbTypeArgs = new [] {Enum.Parse(oracleDbType, "TimestampWithTZ")};
-
-//                var readerType = OracleAssembly.GetType("System.Data.OracleClient.OracleDataReader");
-//                GetOracleValue = readerType.GetMethod("GetOracleValue", BindingFlags.Public | BindingFlags.Instance);
+                return _oracleTimeStampTzConstructor != null 
+                    ? _oracleTimeStampTzConstructor.Value 
+                    : null;
             }
         }
 
-        public void SetOracleTimestampTzFormat()
+        public object ConvertToOracleTimeStampTz(DateTimeOffset timestamp)
         {
-            if (SetThreadInfoArgs != null)
-                SetThreadInfo.Invoke(null, SetThreadInfoArgs);
-        }
-
-        public void SetOracleParameterTypeTimestampTz(IDataParameter p)
-        {
-            if (SetOracleDbType != null)
-                SetOracleDbType.Invoke(p, SetOracleDbTypeArgs);
-        }
-
-        public DateTimeOffset ConvertTimestampTzToDateTimeOffset(IDataReader dataReader, int colIndex)
-        {
-            if (GetOracleValue != null)
+            if (OracleTimeStampTzConstructor != null)
             {
-                var value = GetOracleValue.Invoke(dataReader, new object[] { colIndex }).ToString();
-                return DateTimeOffset.ParseExact(value, DateTimeOffsetInputFormat, CultureInfo.InvariantCulture);
+                return OracleTimeStampTzConstructor
+                    .Invoke(new object[] { timestamp.DateTime, timestamp.Offset.ToString()});
             }
-            else
-            {
-                var value = dataReader.GetValue(colIndex);
-                return new DateTimeOffset((DateTime)value);
-            }
+
+            return timestamp;
         }
 
-        public string ConvertDateTimeOffsetToString(DateTimeOffset timestamp)
+        private void InitSetDbType(Type factoryType)
         {
-            return timestamp.ToString(DateTimeOffsetOutputFormat, CultureInfo.InvariantCulture);
+            var oracleAssembly = factoryType.Assembly;
+
+            var oracleParameterType = oracleAssembly.GetType(_clientProviderName + ".OracleParameter");
+            if (oracleParameterType == null) return;
+            var oracleTypeParameter = oracleParameterType.GetProperty("OracleDbType");
+            if (oracleTypeParameter == null) return;
+            _oracleTypeParameterSetMethod = oracleTypeParameter.GetSetMethod();
+            if (_oracleTypeParameterSetMethod == null) return;
+
+            var oracleDbType = oracleAssembly.GetType(_clientProviderName + ".OracleDbType");
+            if (oracleDbType == null) return;
+            _oracleDbTypeTimeStampTzValue = Enum.Parse(oracleDbType, "TimeStampTZ");
+        }
+
+        public void SetParameterTimeStampTzType(IDbDataParameter p)
+        {
+            _oracleTypeParameterSetMethod.Invoke(p, new [] {_oracleDbTypeTimeStampTzValue});
         }
     }
 }

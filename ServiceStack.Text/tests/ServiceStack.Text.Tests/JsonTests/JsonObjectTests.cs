@@ -26,6 +26,33 @@ namespace ServiceStack.Text.Tests.JsonTests
             Assert.That(JsonObject.Parse("{ \n\t  \n\r}"), Is.Empty);
         }
 
+        [Test]
+        public void Can_Serialize_numbers()
+        {
+            string notNumber = "{\"field\":\"00001\"}";
+            Assert.That(JsonObject.Parse(notNumber).ToJson(), Is.EqualTo(notNumber));
+
+            string num1 = "{\"field\":0}";
+            Assert.That(JsonObject.Parse(num1).ToJson(), Is.EqualTo(num1));
+
+            string num2 = "{\"field\":0.5}";
+            Assert.That(JsonObject.Parse(num2).ToJson(), Is.EqualTo(num2));
+
+            string num3 = "{\"field\":.5}";
+            Assert.That(JsonObject.Parse(num3).ToJson(), Is.EqualTo(num3));
+
+            string num4 = "{\"field\":12312}";
+            Assert.That(JsonObject.Parse(num4).ToJson(), Is.EqualTo(num4));
+
+            string num5 = "{\"field\":12312.1231}";
+            Assert.That(JsonObject.Parse(num5).ToJson(), Is.EqualTo(num5));
+
+            string num6 = "{\"field\":1435252569117}";
+            Assert.That(JsonObject.Parse(num6).ToJson(), Is.EqualTo(num6));
+
+            string num7 = "{\"field\":1435052569117}";
+            Assert.That(JsonObject.Parse(num7).ToJson(), Is.EqualTo(num7));
+        }
 
         public class Jackalope
         {
@@ -149,6 +176,58 @@ namespace ServiceStack.Text.Tests.JsonTests
             Assert.That(dst.Action, Is.EqualTo(fromDst.Action));
         }
 
+        [Test]
+        public void Can_handle_null_in_Collection_with_ShouldSerialize()
+        {
+            var dto = new Parent {
+                ChildDtosWithShouldSerialize = new List<ChildWithShouldSerialize> {
+                    new ChildWithShouldSerialize { Data = "xx" }, null,
+                }
+            };
+
+            var json = JsonSerializer.SerializeToString(dto);
+            Assert.That(json, Is.EqualTo("{\"ChildDtosWithShouldSerialize\":[{\"Data\":\"xx\"},{}]}"));
+        }
+
+        [Test]
+        public void Can_handle_null_in_Collection_with_ShouldSerialize_PropertyName()
+        {
+            var dto = new Parent {
+                ChildDtosWithShouldSerializeProperty = new List<ChildDtoWithShouldSerializeForProperty> {
+                    new ChildDtoWithShouldSerializeForProperty {Data = "xx"},
+                    null,
+                }
+            };
+
+            var json = JsonSerializer.SerializeToString(dto);
+            Assert.AreEqual(json, "{\"ChildDtosWithShouldSerializeProperty\":[{\"Data\":\"xx\"},{}]}");
+        }
+
+        public class Parent
+        {
+            public IList<ChildWithShouldSerialize> ChildDtosWithShouldSerialize { get; set; }
+            public IList<ChildDtoWithShouldSerializeForProperty> ChildDtosWithShouldSerializeProperty { get; set; }
+        }
+
+        public class ChildWithShouldSerialize
+        {
+            protected virtual bool? ShouldSerialize(string fieldName)
+            {
+                return true;
+            }
+
+            public string Data { get; set; }
+        }
+
+        public class ChildDtoWithShouldSerializeForProperty
+        {
+            public virtual bool ShouldSerializeData()
+            {
+                return true;
+            }
+
+            public string Data { get; set; }
+        }  
 
         readonly SimpleObj simple = new SimpleObj
         {
@@ -206,6 +285,7 @@ namespace ServiceStack.Text.Tests.JsonTests
             Assert.That(fromJson.value1, Is.EqualTo(simple.value1));
             Assert.That(fromJson.value2, Is.EqualTo(simple.value2));
         }
+
         [Test]
         public void Can_Serialize_NestedJsonValueDto()
         {

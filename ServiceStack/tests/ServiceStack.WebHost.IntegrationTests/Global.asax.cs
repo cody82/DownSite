@@ -1,10 +1,13 @@
 ﻿using System;
+using System.Linq;
 using Funq;
+using NUnit.Framework;
 using ServiceStack.Auth;
 using ServiceStack.Authentication.OpenId;
 using ServiceStack.Caching;
 using ServiceStack.Configuration;
 using ServiceStack.Data;
+using ServiceStack.Host;
 using ServiceStack.Messaging;
 using ServiceStack.Messaging.Redis;
 using ServiceStack.MiniProfiler;
@@ -94,20 +97,39 @@ namespace ServiceStack.WebHost.IntegrationTests
                 var resetMovies = this.Container.Resolve<ResetMoviesService>();
                 resetMovies.Post(null);
 
+                container.Register<IRedisClientsManager>(c => new RedisManagerPool());
+
                 Plugins.Add(new ValidationFeature());
                 Plugins.Add(new SessionFeature());
                 Plugins.Add(new ProtoBufFormat());
-                Plugins.Add(new RequestLogsFeature());
-                Plugins.Add(new SwaggerFeature { UseBootstrapTheme = true });
+                Plugins.Add(new RequestLogsFeature {
+                    RequestLogger = new RedisRequestLogger(container.Resolve<IRedisClientsManager>())
+                });
+                Plugins.Add(new SwaggerFeature {
+                    //UseBootstrapTheme = true
+                    OperationFilter = x => x.Consumes = x.Produces = new[] { MimeTypes.Json, MimeTypes.Xml }.ToList(),
+                    RouteSummary =
+                    {
+                        { "/swaggerexamples", "Swagger Examples Summary" }
+                    }
+                });
                 Plugins.Add(new PostmanFeature());
                 Plugins.Add(new CorsFeature());
+                Plugins.Add(new AutoQueryFeature());
 
                 container.RegisterValidators(typeof(CustomersValidator).Assembly);
 
+                typeof(ResponseStatus)
+                    .AddAttributes(new ServiceStack.DataAnnotations.DescriptionAttribute("This is the Response Status!"));
+
+                typeof(ResponseStatus)
+                   .GetProperty("Message")
+                   .AddAttributes(new ServiceStack.DataAnnotations.DescriptionAttribute("A human friendly error message"));
 
                 //var onlyEnableFeatures = Feature.All.Remove(Feature.Jsv | Feature.Soap);
                 SetConfig(new HostConfig {
                     AdminAuthSecret = AuthTestsBase.AuthSecret,
+                    ApiVersion = "0.2.0",
                     //EnableFeatures = onlyEnableFeatures,
                     DebugMode = true, //Show StackTraces for easier debugging
                 });
@@ -174,6 +196,5 @@ namespace ServiceStack.WebHost.IntegrationTests
             if (mqHost != null)
                 mqHost.Start();
         }
-
     }
 }

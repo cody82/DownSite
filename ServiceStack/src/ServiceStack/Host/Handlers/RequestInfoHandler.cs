@@ -1,17 +1,22 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Net;
 using System.Runtime.Serialization;
 using System.Web;
 using System.Web.Hosting;
+using ServiceStack.DataAnnotations;
 using ServiceStack.Text;
 using ServiceStack.Web;
 
 namespace ServiceStack.Host.Handlers
 {
+    [Exclude(Feature.Soap)]
     [DataContract]
     public class RequestInfo { }
 
+    [Exclude(Feature.Soap)]
     [DataContract]
     public class RequestInfoResponse
     {
@@ -22,7 +27,10 @@ namespace ServiceStack.Host.Handlers
         public string Host { get; set; }
 
         [DataMember]
-        public DateTime Date { get; set; }
+        public string HostType { get; set; }
+
+        [DataMember]
+        public string Date { get; set; }
 
         [DataMember]
         public string ServiceName { get; set; }
@@ -58,6 +66,9 @@ namespace ServiceStack.Host.Handlers
         public string AbsoluteUri { get; set; }
 
         [DataMember]
+        public string WebHostUrl { get; set; }
+
+        [DataMember]
         public string ApplicationBaseUrl { get; set; }
 
         [DataMember]
@@ -74,6 +85,12 @@ namespace ServiceStack.Host.Handlers
 
         [DataMember]
         public string VirtualAppRelativePathRoot { get; set; }
+
+        [DataMember]
+        public string RootDirectoryPath { get; set; }
+
+        [DataMember]
+        public string CurrentDirectory { get; set; }
 
         [DataMember]
         public string HandlerFactoryArgs { get; set; }
@@ -112,6 +129,15 @@ namespace ServiceStack.Host.Handlers
         public string ResponseContentType { get; set; }
 
         [DataMember]
+        public string RequestAttributes { get; set; }
+
+        [DataMember]
+        public string Ipv4Addresses { get; set; }
+
+        [DataMember]
+        public string Ipv6Addresses { get; set; }
+
+        [DataMember]
         public string ErrorCode { get; set; }
 
         [DataMember]
@@ -148,6 +174,7 @@ namespace ServiceStack.Host.Handlers
         public List<string> VirtualPathProviderFiles { get; set; }
     }
 
+    [Exclude(Feature.Soap)]
     public class RequestHandlerInfo
     {
         public string HandlerType { get; set; }
@@ -157,16 +184,14 @@ namespace ServiceStack.Host.Handlers
 
     public class RequestInfoHandler : HttpAsyncTaskHandler
     {
-        public const string RestPath = "requestinfo";
-
-        public RequestInfoResponse RequestInfo { get; set; }
-
-        public static RequestHandlerInfo LastRequestInfo;
-
         public RequestInfoHandler()
         {
             this.RequestName = GetType().Name;
         }
+
+        public RequestInfoResponse RequestInfo { get; set; }
+
+        public static RequestHandlerInfo LastRequestInfo;
 
         public override void ProcessRequest(IRequest httpReq, IResponse httpRes, string operationName)
         {
@@ -188,26 +213,30 @@ namespace ServiceStack.Host.Handlers
                 response.ApplicationVirtualPath = HostingEnvironment.ApplicationVirtualPath;
                 response.VirtualAbsolutePathRoot = VirtualPathUtility.ToAbsolute("/");
                 response.VirtualAppRelativePathRoot = VirtualPathUtility.ToAppRelative("/");
-                var userIdentity = aspReq.LogonUserIdentity;
-                if (userIdentity != null)
+
+                if (!Env.IsMono)
                 {
-                    response.LogonUserInfo = new Dictionary<string, string> {
-                        { "Name", userIdentity.Name },
-                        { "AuthenticationType", userIdentity.AuthenticationType },
-                        { "IsAuthenticated", userIdentity.IsAuthenticated.ToString() },
-                        { "IsAnonymous", userIdentity.IsAnonymous.ToString() },
-                        { "IsGuest", userIdentity.IsGuest.ToString() },
-                        { "IsSystem", userIdentity.IsSystem.ToString() },
-                        { "Groups", userIdentity.Groups.Map(x => x.Value).Join(", ") },
-                    };
-                    var winUser = userIdentity.User;
-                    if (winUser != null)
+                    var userIdentity = aspReq.LogonUserIdentity;
+                    if (userIdentity != null)
                     {
-                        response.LogonUserInfo["User"] = winUser.Value;
-                        response.LogonUserInfo["User.AccountDomainSid"] = winUser.AccountDomainSid != null
-                            ? winUser.AccountDomainSid.ToString()
-                            : "null";
-                        response.LogonUserInfo["User.IsAccountSid"] = winUser.IsAccountSid().ToString();
+                        response.LogonUserInfo = new Dictionary<string, string> {
+                            { "Name", userIdentity.Name },
+                            { "AuthenticationType", userIdentity.AuthenticationType },
+                            { "IsAuthenticated", userIdentity.IsAuthenticated.ToString() },
+                            { "IsAnonymous", userIdentity.IsAnonymous.ToString() },
+                            { "IsGuest", userIdentity.IsGuest.ToString() },
+                            { "IsSystem", userIdentity.IsSystem.ToString() },
+                            { "Groups", userIdentity.Groups.Map(x => x.Value).Join(", ") },
+                        };
+                        var winUser = userIdentity.User;
+                        if (winUser != null)
+                        {
+                            response.LogonUserInfo["User"] = winUser.Value;
+                            response.LogonUserInfo["User.AccountDomainSid"] = winUser.AccountDomainSid != null
+                                ? winUser.AccountDomainSid.ToString()
+                                : "null";
+                            response.LogonUserInfo["User.IsAccountSid"] = winUser.IsAccountSid().ToString();
+                        }
                     }
                 }
             }
@@ -215,6 +244,7 @@ namespace ServiceStack.Host.Handlers
             var json = JsonSerializer.SerializeToString(response);
             httpRes.ContentType = MimeTypes.Json;
             httpRes.Write(json);
+            httpRes.EndHttpHandlerRequest(skipHeaders:true);
         }
 
         public override void ProcessRequest(HttpContextBase context)
@@ -241,18 +271,43 @@ namespace ServiceStack.Host.Handlers
 
         public static RequestInfoResponse GetRequestInfo(IRequest httpReq)
         {
+            int virtualPathCount = 0;
+            int.TryParse(httpReq.QueryString["virtualPathCount"], out virtualPathCount);
+            var hostType = HostContext.AppHost.GetType();
+
+            var ipv4Addr = "";
+            foreach (var entry in ServiceStackHandlerBase.NetworkInterfaceIpv4Addresses)
+            {
+                if (ipv4Addr.Length > 0)
+                    ipv4Addr += ", ";
+                ipv4Addr += new IPAddress(entry.Key) + "/" + new IPAddress(entry.Value);
+            }
+
+            var ipv6Address = "";
+            foreach (var addr in ServiceStackHandlerBase.NetworkInterfaceIpv6Addresses)
+            {
+                if (ipv6Address.Length > 0)
+                    ipv6Address += ", ";
+                ipv6Address += new IPAddress(addr);
+            }
+
             var response = new RequestInfoResponse
             {
-                Usage = "append '?debug=requestinfo' to any querystring",
+                Usage = "append '?debug=requestinfo' to any querystring. Optional params: virtualPathCount",
                 Host = HostContext.Config.DebugHttpListenerHostEnvironment + "_v" + Env.ServiceStackVersion + "_" + HostContext.ServiceName,
-                Date = DateTime.UtcNow,
+                HostType = "{0} ({1})".Fmt(HostContext.IsAspNetHost ? "ASP.NET" : "SelfHost", hostType.BaseType != null ? hostType.BaseType.Name : hostType.Name),
+                Date = DateTime.UtcNow.ToString("yy-MM-dd HH:mm:ss"),
                 ServiceName = HostContext.ServiceName,
                 HandlerFactoryPath = HostContext.Config.HandlerFactoryPath,
                 UserHostAddress = httpReq.UserHostAddress,
                 HttpMethod = httpReq.Verb,
                 AbsoluteUri = httpReq.AbsoluteUri,
+                WebHostUrl = HostContext.Config.WebHostUrl,
+                ApplicationBaseUrl = httpReq.GetBaseUrl(),
                 ResolveAbsoluteUrl = HostContext.AppHost.ResolveAbsoluteUrl("~/resolve", httpReq),
+                RootDirectoryPath = HostContext.VirtualFileSources.RootDirectory.RealPath,
                 StripApplicationVirtualPath = HostContext.Config.StripApplicationVirtualPath,
+                CurrentDirectory = Directory.GetCurrentDirectory(),
                 RawUrl = httpReq.RawUrl,
                 ResolvedPathInfo = httpReq.PathInfo,
                 ContentType = httpReq.ContentType,
@@ -263,10 +318,13 @@ namespace ServiceStack.Host.Handlers
                 ContentLength = httpReq.ContentLength,
                 OperationName = httpReq.OperationName,
                 ResponseContentType = httpReq.ResponseContentType,
+                RequestAttributes = httpReq.GetAttributes().ToString(),
+                Ipv4Addresses = ipv4Addr,
+                Ipv6Addresses = ipv6Address,
                 PluginsLoaded = HostContext.AppHost.PluginsLoaded,
                 StartUpErrors = HostContext.AppHost.StartUpErrors,
                 LastRequestInfo = LastRequestInfo,
-                VirtualPathProviderFiles = HostContext.AppHost.VirtualPathProvider.GetAllMatchingFiles("*").Take(1000).Map(x => x.RealPath),
+                VirtualPathProviderFiles = HostContext.AppHost.VirtualFileSources.GetAllMatchingFiles("*").Take(virtualPathCount).Map(x => x.RealPath),
                 Stats = new Dictionary<string, string> {
                     {"RawHttpHandlers", HostContext.AppHost.RawHttpHandlers.Count.ToString() },
                     {"PreRequestFilters", HostContext.AppHost.PreRequestFilters.Count.ToString() },
@@ -282,7 +340,7 @@ namespace ServiceStack.Host.Handlers
                     {"RestPaths", HostContext.AppHost.RestPaths.Count.ToString() },
                     {"ContentTypes", HostContext.AppHost.ContentTypes.ContentTypeFormats.Count.ToString() },
                     {"EnableFeatures", HostContext.Config.EnableFeatures.ToString() },
-                    {"VirtualPathProvider", HostContext.AppHost.VirtualPathProvider.ToString() }
+                    {"VirtualPathProvider", HostContext.AppHost.VirtualFileSources.ToString() }
                 },
             };
             return response;

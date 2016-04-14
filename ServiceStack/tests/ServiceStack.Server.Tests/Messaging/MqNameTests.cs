@@ -9,8 +9,8 @@ namespace ServiceStack.Server.Tests.Messaging
         [Test]
         public void Does_resolve_the_same_default_QueueNames()
         {
-            Assert.That(new QueueNames(typeof(HelloIntro)).In, Is.EqualTo("mq:Hello.inq"));
-            Assert.That(QueueNames<HelloIntro>.In, Is.EqualTo("mq:Hello.inq"));
+            Assert.That(new QueueNames(typeof(HelloIntro)).In, Is.EqualTo("mq:HelloIntro.inq"));
+            Assert.That(QueueNames<HelloIntro>.In, Is.EqualTo("mq:HelloIntro.inq"));
         }
 
         public class TestPrefix { }
@@ -36,6 +36,36 @@ namespace ServiceStack.Server.Tests.Messaging
 
             Assert.That(new QueueNames(typeof(TestFilter)).In, Is.EqualTo("SITE.TestFilter.INQ"));
             Assert.That(QueueNames<TestFilter>.In, Is.EqualTo("SITE.TestFilter.INQ"));
+
+            QueueNames.ResolveQueueNameFn = QueueNames.ResolveQueueName;
+        }
+
+        [Test]
+        public void Can_determine_TempQueue()
+        {
+            var tmpName = QueueNames.GetTempQueueName();
+            Assert.That(QueueNames.IsTempQueue(tmpName), Is.True);
+        }
+
+        [Test]
+        public void Can_determine_TempQueue_with_Custom_QueuePrefix()
+        {
+            QueueNames.SetQueuePrefix("site1.");
+
+            var tmpName = QueueNames.GetTempQueueName();
+            Assert.That(QueueNames.IsTempQueue(tmpName), Is.True);
+
+            QueueNames.SetQueuePrefix("");
+        }
+
+        [Test]
+        public void Can_determine_TempQueue_with_Custom_QueueNameFm()
+        {
+            QueueNames.ResolveQueueNameFn = (typeName, suffix) =>
+                "SITE.{0}{1}".Fmt(typeName, suffix.ToUpper());
+
+            var tmpName = QueueNames.GetTempQueueName();
+            Assert.That(QueueNames.IsTempQueue(tmpName), Is.True);
 
             QueueNames.ResolveQueueNameFn = QueueNames.ResolveQueueName;
         }

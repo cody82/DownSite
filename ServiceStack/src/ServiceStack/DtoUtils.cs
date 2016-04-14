@@ -11,7 +11,7 @@ namespace ServiceStack
 {
     public static class DtoUtils
     {
-        private static readonly ILog Log = LogManager.GetLogger(typeof (DtoUtils));
+        private static readonly ILog Log = LogManager.GetLogger(typeof(DtoUtils));
 
         /// <summary>
         /// Naming convention for the ResponseStatus property name on the response DTO
@@ -20,15 +20,9 @@ namespace ServiceStack
 
         public static ResponseStatus ToResponseStatus(this Exception exception)
         {
-            var responseStatusConverter = exception as IResponseStatusConvertible;
-            if (responseStatusConverter != null)
-            {
-                return responseStatusConverter.ToResponseStatus();
-            }
-
-            var httpError = exception as IHttpError;
-            return httpError != null
-                ? CreateResponseStatus(httpError.ErrorCode, httpError.Message)
+            var customStatus = exception as IResponseStatusConvertible;
+            return customStatus != null
+                ? customStatus.ToResponseStatus()
                 : CreateResponseStatus(exception.GetType().Name, exception.Message);
         }
 
@@ -100,7 +94,7 @@ namespace ServiceStack
                 errorMsg = responseStatus.Message ?? errorMsg;
             }
 
-            return new HttpError(responseDto, ex.ToStatusCode(), errorCode, errorMsg);
+            return new HttpError(responseDto, ex.ToStatusCode(), errorCode, errorMsg, ex);
         }
 
         /// <summary>
@@ -146,12 +140,7 @@ namespace ServiceStack
         /// <returns></returns>
         public static object CreateErrorResponse(object request, Exception ex)
         {
-            if (HostContext.Config.ReturnsInnerException 
-                && ex.InnerException != null && !(ex is IHttpError))
-            {
-                ex = ex.InnerException;
-            }
-
+            ex = HostContext.AppHost.ResolveResponseException(ex);
             var responseStatus = ex.ToResponseStatus();
 
             if (HostContext.DebugMode)
@@ -168,7 +157,7 @@ namespace ServiceStack
 
             return errorResponse;
         }
-        
+
         /// <summary>
         /// Override to provide additional/less context about the Service Exception. 
         /// By default the request is serialized and appended to the ResponseStatus StackTrace.
@@ -185,7 +174,7 @@ namespace ServiceStack
                 //Serializing request successfully is not critical and only provides added error info
             }
 
-            return string.Format("[{0}: {1}]:\n[REQUEST: {2}]", (request?? new object()).GetType().GetOperationName(), DateTime.UtcNow, requestString);
+            return string.Format("[{0}: {1}]:\n[REQUEST: {2}]", (request ?? new object()).GetType().GetOperationName(), DateTime.UtcNow, requestString);
         }
     }
 }

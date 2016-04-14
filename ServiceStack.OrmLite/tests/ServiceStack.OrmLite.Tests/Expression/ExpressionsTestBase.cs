@@ -11,13 +11,14 @@ namespace ServiceStack.OrmLite.Tests.Expression
         [SetUp]
         public void Setup()
         {
-            OpenDbConnection().CreateTable<TestType>(true);
+            using (var db = OpenDbConnection())
+                db.CreateTable<TestType>(true);
         }
 
         //Avoid painful refactor to change all tests to use a using pattern
         private IDbConnection db;
 
-        public override IDbConnection OpenDbConnection(string connString = null)
+        public override IDbConnection OpenDbConnection()
         {
             try
             {
@@ -29,7 +30,7 @@ namespace ServiceStack.OrmLite.Tests.Expression
                 db = null;
             }
 
-            return db ?? (db = base.OpenDbConnection(connString));
+            return db ?? (db = base.OpenDbConnection());
         }
 
         [TearDown]

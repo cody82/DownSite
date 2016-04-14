@@ -27,6 +27,7 @@ namespace Check.ServiceInterface
         public int? RockstarIdOnOrAfter { get; set; }
     }
 
+    [AutoQueryViewer(Title = "Search for Rockstars", Description = "Use this option to search for Rockstars!")]
     public class QueryCustomRockstars : QueryBase<Rockstar, CustomRockstar>
     {
         public int? Age { get; set; }
@@ -136,10 +137,18 @@ namespace Check.ServiceInterface
 
     public class CustomRockstar
     {
+        [AutoQueryViewerField(Title = "Name")]
         public string FirstName { get; set; }
+
+        [AutoQueryViewerField(HideInSummary = true)]
         public string LastName { get; set; }
         public int? Age { get; set; }
+
+        [AutoQueryViewerField(Title = "Album")]
         public string RockstarAlbumName { get; set; }
+
+        [AutoQueryViewerField(Title = "Genre")]
+        public string RockstarGenreName { get; set; }
     }
 
     [Route("/movies/search")]
@@ -205,7 +214,7 @@ namespace Check.ServiceInterface
         //Override with custom impl
         public QueryResponse<Rockstar> Any(QueryRockstars dto)
         {
-            var q = AutoQuery.CreateQuery(dto, Request.GetRequestParams());
+            var q = AutoQuery.CreateQuery(dto, Request.GetRequestParams(), Request);
             q.Take(1);
             return AutoQuery.Execute(dto, q);
         }

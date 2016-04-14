@@ -82,6 +82,19 @@ namespace ServiceStack.Text.Tests
             Assert.That("path/to/file.ext".WithoutExtension(), Is.EqualTo("path/to/file"));
         }
 
+        [TestCase(null, null)]
+        [TestCase("/", "")]
+        [TestCase("/a", "")]
+        [TestCase("/a.b", ".b")]
+        [TestCase("/a.b.c", ".c")]
+        [TestCase("/{a.b}.c", ".c")]
+        [TestCase("/:=#%$@{a.b}.c", ".c")]
+        public void Does_get_Path_extension(string actual, string expected)
+        {
+            Assert.That(actual.GetExtension(), Is.EqualTo(Path.GetExtension(actual)));
+            Assert.That(actual.GetExtension(), Is.EqualTo(expected));
+        }
+
         //         0         1
         //         01234567890123456789
         [TestCase("text with /* and <!--", "<!--", "/*", 10)]
@@ -253,7 +266,23 @@ namespace ServiceStack.Text.Tests
             Assert.That(input.SafeSubstring(2, 4), Is.EqualTo("stSt"));
             Assert.That(input.SafeSubstring(20, 4), Is.EqualTo(""));
             Assert.That(input.SafeSubstring(0, 20), Is.EqualTo("TestString"));
+        }
 
+        [Test]
+        public void Can_convert_ToPascalCase()
+        {
+            Assert.That(((string)null).ToPascalCase(), Is.Null);
+            Assert.That("".ToPascalCase(), Is.EqualTo(""));
+            Assert.That("a".ToPascalCase(), Is.EqualTo("A"));
+            Assert.That("aB".ToPascalCase(), Is.EqualTo("AB"));
+            Assert.That("AB".ToPascalCase(), Is.EqualTo("Ab"));
+            Assert.That("aaBb".ToPascalCase(), Is.EqualTo("AaBb"));
+            Assert.That("aaBbCc".ToPascalCase(), Is.EqualTo("AaBbCc"));
+            Assert.That("a_B".ToPascalCase(), Is.EqualTo("AB"));
+            Assert.That("a_b".ToPascalCase(), Is.EqualTo("AB"));
+            Assert.That("aa_bb".ToPascalCase(), Is.EqualTo("AaBb"));
+            Assert.That("Aa_Bb".ToPascalCase(), Is.EqualTo("AaBb"));
+            Assert.That("AA_BB".ToPascalCase(), Is.EqualTo("AaBb"));
         }
     }
 }

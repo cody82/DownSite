@@ -50,7 +50,7 @@ namespace ServiceStack.Auth
                 if (!LoginMatchesSession(session, request.UserName)) return false;
             }
 
-            return tokens != null && !string.IsNullOrEmpty(tokens.AccessTokenSecret);
+            return session != null && session.IsAuthenticated && tokens != null && !string.IsNullOrEmpty(tokens.AccessTokenSecret);
         }
 
         /// <summary>
@@ -80,14 +80,14 @@ namespace ServiceStack.Auth
                     tokens.AccessTokenSecret = OAuthUtils.AccessTokenSecret;
 
                     return OnAuthenticated(authService, session, tokens, OAuthUtils.AuthInfo)
-                        ?? authService.Redirect(session.ReferrerUrl.AddHashParam("s", "1")); //Haz Access
+                        ?? authService.Redirect(SuccessRedirectUrlFilter(this, session.ReferrerUrl.SetParam("s", "1"))); //Haz Access
                 }
 
                 //No Joy :(
                 tokens.RequestToken = null;
                 tokens.RequestTokenSecret = null;
                 authService.SaveSession(session, SessionExpiry);
-                return authService.Redirect(session.ReferrerUrl.AddHashParam("f", "AccessTokenFailed"));
+                return authService.Redirect(FailedRedirectUrlFilter(this, session.ReferrerUrl.SetParam("f", "AccessTokenFailed")));
             }
             if (OAuthUtils.AcquireRequestToken())
             {
@@ -96,12 +96,12 @@ namespace ServiceStack.Auth
                 authService.SaveSession(session, SessionExpiry);
 
                 //Redirect to OAuth provider to approve access
-                return authService.Redirect(this.AuthorizeUrl
+                return authService.Redirect(AccessTokenUrlFilter(this, this.AuthorizeUrl
                     .AddQueryParam("oauth_token", tokens.RequestToken)
-                    .AddQueryParam("oauth_callback", session.ReferrerUrl));
+                    .AddQueryParam("oauth_callback", session.ReferrerUrl)));
             }
 
-            return authService.Redirect(session.ReferrerUrl.AddHashParam("f", "RequestTokenFailed"));
+            return authService.Redirect(FailedRedirectUrlFilter(this, session.ReferrerUrl.SetParam("f", "RequestTokenFailed")));
         }
 
         /// <summary>

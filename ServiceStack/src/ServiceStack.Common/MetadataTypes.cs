@@ -14,8 +14,17 @@ namespace ServiceStack
             bool convertDescriptionToComments = true,
             bool addDataContractAttributes = false,
             bool addIndexesToDataMembers = false,
+            bool addGeneratedCodeAttributes = false,
             string addDefaultXmlNamespace = null,
+            string baseClass = null,
+            string package = null,
             bool addResponseStatus = false,
+            bool addServiceStackTypes = true,
+            bool addModelExtensions = true,
+            bool addPropertyAccessors = true,
+            bool excludeGenericBaseTypes = true,
+            bool settersReturnThis = true,
+            bool makePropertiesOptional = true,
             bool makeDataContractsExtensible = false,
             bool initializeCollections = true,
             int? addImplicitVersion = null)
@@ -27,34 +36,54 @@ namespace ServiceStack
             AddDescriptionAsComments = convertDescriptionToComments;
             AddDataContractAttributes = addDataContractAttributes;
             AddDefaultXmlNamespace = addDefaultXmlNamespace;
+            BaseClass = baseClass;
+            Package = package;
             MakeDataContractsExtensible = makeDataContractsExtensible;
             AddIndexesToDataMembers = addIndexesToDataMembers;
+            AddGeneratedCodeAttributes = addGeneratedCodeAttributes;
             InitializeCollections = initializeCollections;
             AddResponseStatus = addResponseStatus;
+            AddServiceStackTypes = addServiceStackTypes;
+            AddModelExtensions = addModelExtensions;
+            AddPropertyAccessors = addPropertyAccessors;
+            ExcludeGenericBaseTypes = excludeGenericBaseTypes;
+            SettersReturnThis = settersReturnThis;
+            MakePropertiesOptional = makePropertiesOptional;
             AddImplicitVersion = addImplicitVersion;
         }
 
         public string BaseUrl { get; set; }
         public bool MakePartial { get; set; }
         public bool MakeVirtual { get; set; }
+        public string BaseClass { get; set; }
+        public string Package { get; set; }
         public bool AddReturnMarker { get; set; }
         public bool AddDescriptionAsComments { get; set; }
         public bool AddDataContractAttributes { get; set; }
         public bool AddIndexesToDataMembers { get; set; }
+        public bool AddGeneratedCodeAttributes { get; set; }
         public int? AddImplicitVersion { get; set; }
         public bool AddResponseStatus { get; set; }
+        public bool AddServiceStackTypes { get; set; }
+        public bool AddModelExtensions { get; set; }
+        public bool AddPropertyAccessors { get; set; }
+        public bool ExcludeGenericBaseTypes { get; set; }
+        public bool SettersReturnThis { get; set; }
+        public bool MakePropertiesOptional { get; set; }
+        public bool ExportAsTypes { get; set; }
         public string AddDefaultXmlNamespace { get; set; }
         public bool MakeDataContractsExtensible { get; set; }
         public bool InitializeCollections { get; set; }
         public List<string> DefaultNamespaces { get; set; }
+        public List<string> DefaultImports { get; set; }
+        public List<string> IncludeTypes { get; set; }
+        public List<string> ExcludeTypes { get; set; }
+        public List<string> TreatTypesAsStrings { get; set; }
 
         public string GlobalNamespace { get; set; }
 
-        public Dictionary<string, string> CSharpTypeAlias { get; set; }
-        public Dictionary<string, string> FSharpTypeAlias { get; set; }
-        public Dictionary<string, string> VbNetTypeAlias { get; set; }
-        public HashSet<string> VbNetKeyWords { get; set; }
         public HashSet<Type> IgnoreTypes { get; set; }
+        public HashSet<Type> ExportTypes { get; set; }
         public HashSet<Type> ExportAttributes { get; set; }
         public List<string> IgnoreTypesInNamespaces { get; set; }
     }
@@ -66,11 +95,11 @@ namespace ServiceStack
         {
             Types = new List<MetadataType>();
             Operations = new List<MetadataOperationType>();
-            Version = 1;
+            Namespaces = new List<string>();
         }
 
-        public int Version { get; set; }
         public MetadataTypesConfig Config { get; set; }
+        public List<string> Namespaces { get; set; }
         public List<MetadataType> Types { get; set; }
         public List<MetadataOperationType> Operations { get; set; }
     }
@@ -88,11 +117,14 @@ namespace ServiceStack
         public string Namespace { get; set; }
         public string[] GenericArgs { get; set; }
         public MetadataTypeName Inherits { get; set; }
+        public MetadataTypeName[] Implements { get; set; }
         public string DisplayType { get; set; }
         public string Description { get; set; }
         public bool ReturnVoidMarker { get; set; }
         public bool? IsNested { get; set; }
         public bool? IsEnum { get; set; }
+        public bool? IsInterface { get; set; }
+        public bool? IsAbstract { get; set; }
 
         public MetadataTypeName ReturnMarkerTypeName { get; set; }
 
@@ -107,7 +139,7 @@ namespace ServiceStack
         public List<MetadataTypeName> InnerTypes { get; set; }
 
         public List<string> EnumNames { get; set; }
-        public List<string> EnumValues { get; set; } 
+        public List<string> EnumValues { get; set; }
 
         public string GetFullName()
         {

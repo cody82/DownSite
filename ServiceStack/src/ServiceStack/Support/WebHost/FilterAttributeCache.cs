@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using ServiceStack.Text;
 using ServiceStack.Web;
 
 namespace ServiceStack.Support.WebHost
@@ -37,13 +36,16 @@ namespace ServiceStack.Support.WebHost
 
         public static IHasRequestFilter[] GetRequestFilterAttributes(Type requestDtoType)
         {
-        	IHasRequestFilter[] attrs;
+            IHasRequestFilter[] attrs;
             if (requestFilterAttributes.TryGetValue(requestDtoType, out attrs)) return attrs.ShallowCopy();
 
             var attributes = requestDtoType.AllAttributes<IHasRequestFilter>().ToList();
 
             var serviceType = HostContext.Metadata.GetServiceTypeByRequest(requestDtoType);
-			attributes.AddRange(serviceType.AllAttributes<IHasRequestFilter>());
+            if (serviceType != null)
+            {
+                attributes.AddRange(serviceType.AllAttributes<IHasRequestFilter>());
+            }
 
 			attributes.Sort((x,y) => x.Priority - y.Priority);
 			attrs = attributes.ToArray();
@@ -63,7 +65,7 @@ namespace ServiceStack.Support.WebHost
 
         public static IHasResponseFilter[] GetResponseFilterAttributes(Type responseDtoType)
         {
-			IHasResponseFilter[] attrs;
+            IHasResponseFilter[] attrs;
             if (responseFilterAttributes.TryGetValue(responseDtoType, out attrs)) return attrs.ShallowCopy();
 
 			var attributes = responseDtoType.AllAttributes<IHasResponseFilter>().ToList();

@@ -30,9 +30,7 @@ namespace ServiceStack.Text.Common
                 return value => JsConfig<T>.ParseFn(Serializer, value);
 
             if (type.IsEnum())
-            {
-                return x => Enum.Parse(type, Serializer.UnescapeSafeString(x), true);
-            }
+                return x => ParseUtils.TryParseEnum(type, Serializer.UnescapeSafeString(x));
 
             if (type == typeof(string))
                 return Serializer.UnescapeString;
@@ -43,9 +41,6 @@ namespace ServiceStack.Text.Common
             var specialParseFn = ParseUtils.GetSpecialParseMethod(type);
             if (specialParseFn != null)
                 return specialParseFn;
-
-            if (type.IsEnum())
-                return x => Enum.Parse(type, x, true);
 
             if (type.IsArray)
             {
@@ -82,9 +77,9 @@ namespace ServiceStack.Text.Common
                     return customFn;
             }
 
-			var pclParseFn = PclExport.Instance.GetJsReaderParseMethod<TSerializer>(typeof(T));
-			if (pclParseFn != null)
-				return pclParseFn;
+            var pclParseFn = PclExport.Instance.GetJsReaderParseMethod<TSerializer>(typeof(T));
+            if (pclParseFn != null)
+                return pclParseFn;
 
             var isDictionary = typeof(T) != typeof(IEnumerable) && typeof(T) != typeof(ICollection)
                 && (typeof(T).AssignableFrom(typeof(IDictionary)) || typeof(T).HasInterface(typeof(IDictionary)));

@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
+using ServiceStack.DataAnnotations;
 using ServiceStack.Host;
+using ServiceStack.Text;
 using ServiceStack.Web;
 
 namespace ServiceStack.NativeTypes
@@ -29,28 +32,52 @@ namespace ServiceStack.NativeTypes
                 AddReturnMarker = req.AddReturnMarker ?? defaults.AddReturnMarker,
                 AddDescriptionAsComments = req.AddDescriptionAsComments ?? defaults.AddDescriptionAsComments,
                 AddDataContractAttributes = req.AddDataContractAttributes ?? defaults.AddDataContractAttributes,
-                MakeDataContractsExtensible =
-                    req.MakeDataContractsExtensible ?? defaults.MakeDataContractsExtensible,
+                MakeDataContractsExtensible = req.MakeDataContractsExtensible ?? defaults.MakeDataContractsExtensible,
                 AddIndexesToDataMembers = req.AddIndexesToDataMembers ?? defaults.AddIndexesToDataMembers,
+                AddGeneratedCodeAttributes = req.AddGeneratedCodeAttributes ?? defaults.AddGeneratedCodeAttributes,
                 InitializeCollections = req.InitializeCollections ?? defaults.InitializeCollections,
                 AddImplicitVersion = req.AddImplicitVersion ?? defaults.AddImplicitVersion,
+                BaseClass = req.BaseClass ?? defaults.BaseClass,
+                Package = req.Package ?? defaults.Package,
                 AddResponseStatus = req.AddResponseStatus ?? defaults.AddResponseStatus,
+                AddServiceStackTypes = req.AddServiceStackTypes ?? defaults.AddServiceStackTypes,
+                AddModelExtensions = req.AddModelExtensions ?? defaults.AddModelExtensions,
+                AddPropertyAccessors = req.AddPropertyAccessors ?? defaults.AddPropertyAccessors,
+                ExcludeGenericBaseTypes = req.ExcludeGenericBaseTypes ?? defaults.ExcludeGenericBaseTypes,
+                SettersReturnThis = req.SettersReturnThis ?? defaults.SettersReturnThis,
+                MakePropertiesOptional = req.MakePropertiesOptional ?? defaults.MakePropertiesOptional,
+                ExportAsTypes = req.ExportAsTypes ?? defaults.ExportAsTypes,
                 AddDefaultXmlNamespace = req.AddDefaultXmlNamespace ?? defaults.AddDefaultXmlNamespace,
                 DefaultNamespaces = req.DefaultNamespaces ?? defaults.DefaultNamespaces,
+                DefaultImports = req.DefaultImports ?? defaults.DefaultImports,
+                IncludeTypes = TrimArgs(req.IncludeTypes ?? defaults.IncludeTypes),
+                ExcludeTypes = TrimArgs(req.ExcludeTypes ?? defaults.ExcludeTypes),
+                TreatTypesAsStrings = TrimArgs(req.TreatTypesAsStrings ?? defaults.TreatTypesAsStrings),
                 ExportAttributes = defaults.ExportAttributes,
+                ExportTypes = defaults.ExportTypes,
                 IgnoreTypes = defaults.IgnoreTypes,
                 IgnoreTypesInNamespaces = defaults.IgnoreTypesInNamespaces,
-                CSharpTypeAlias = defaults.CSharpTypeAlias,
-                FSharpTypeAlias = defaults.FSharpTypeAlias,
-                VbNetTypeAlias = defaults.VbNetTypeAlias,
-                VbNetKeyWords = defaults.VbNetKeyWords,
-                GlobalNamespace = defaults.GlobalNamespace,
+                GlobalNamespace = req.GlobalNamespace ?? defaults.GlobalNamespace,
             };
         }
 
-        public MetadataTypes GetMetadataTypes(IRequest req, MetadataTypesConfig config = null)
+        public static List<string> TrimArgs(List<string> from)
         {
-            return new MetadataTypesGenerator(meta, config ?? defaults).GetMetadataTypes(req);
+            if (from == null)
+                return null;
+
+            var to = from.Map(x => x == null ? x : x.Trim());
+            return to;
+        }
+
+        public MetadataTypes GetMetadataTypes(IRequest req, MetadataTypesConfig config = null, Func<Operation, bool> predicate = null)
+        {
+            return GetMetadataTypesGenerator(config).GetMetadataTypes(req, predicate);
+        }
+
+        internal MetadataTypesGenerator GetMetadataTypesGenerator(MetadataTypesConfig config)
+        {
+            return new MetadataTypesGenerator(meta, config ?? defaults);
         }
     }
 
@@ -65,7 +92,7 @@ namespace ServiceStack.NativeTypes
             this.config = config;
         }
 
-        public MetadataTypes GetMetadataTypes(IRequest req)
+        public MetadataTypes GetMetadataTypes(IRequest req, Func<Operation, bool> predicate = null)
         {
             var metadata = new MetadataTypes
             {
@@ -75,9 +102,13 @@ namespace ServiceStack.NativeTypes
             var skipTypes = config.IgnoreTypes ?? new HashSet<Type>();
             var opTypes = new HashSet<Type>();
             var ignoreNamespaces = config.IgnoreTypesInNamespaces ?? new List<string>();
+            var exportTypes = config.ExportTypes ?? new HashSet<Type>();
 
             foreach (var operation in meta.Operations)
             {
+                if (predicate != null && !predicate(operation))
+                    continue;
+
                 if (!meta.IsVisible(req, operation))
                     continue;
 
@@ -98,7 +129,7 @@ namespace ServiceStack.NativeTypes
                 };
                 metadata.Operations.Add(opType);
                 opTypes.Add(operation.RequestType);
-                
+
                 if (operation.ResponseType != null)
                 {
                     if (skipTypes.Contains(operation.ResponseType))
@@ -116,60 +147,97 @@ namespace ServiceStack.NativeTypes
             var considered = new HashSet<Type>(opTypes);
             var queue = new Queue<Type>(opTypes);
 
-            Func<Type, bool> ignoreTypeFn = t => 
+            Func<Type, bool> ignoreTypeFn = t =>
                 t == null
                 || t.IsGenericParameter
+                || t == typeof(Enum)
                 || considered.Contains(t)
                 || skipTypes.Contains(t)
-                || ignoreNamespaces.Contains(t.Namespace);
+                || (ignoreNamespaces.Contains(t.Namespace) && !exportTypes.Contains(t));
 
             Action<Type> registerTypeFn = null;
-            registerTypeFn = t => {
+            registerTypeFn = t =>
+            {
                 if (t.IsArray || t == typeof(Array))
                     return;
 
                 considered.Add(t);
                 queue.Enqueue(t);
 
-                if (t.IsUserType() || t.IsUserEnum())
+                if ((!t.IsSystemType()
+                        && (t.IsClass || t.IsEnum || t.IsInterface)
+                        && !(t.IsGenericParameter))
+                    || exportTypes.Contains(t))
                 {
                     metadata.Types.Add(ToType(t));
+
+                    foreach (var ns in GetNamespacesUsed(t))
+                    {
+                        if (!metadata.Namespaces.Contains(ns))
+                            metadata.Namespaces.Add(ns);
+                    }
                 }
             };
 
             while (queue.Count > 0)
             {
                 var type = queue.Dequeue();
-                if (!type.IsUserType()) continue;
 
-                foreach (var pi in type.GetSerializableProperties()
-                    .Where(pi => !ignoreTypeFn(pi.PropertyType)))
+                if (IsSystemCollection(type))
                 {
-                    registerTypeFn(pi.PropertyType);
+                    type = type.GetCollectionType();
+                    if (type != null && !ignoreTypeFn(type))
+                        registerTypeFn(type);
+                    continue;
+                }
 
-                    //Register Property Array Element Types 
-                    if (pi.PropertyType.IsArray && !ignoreTypeFn(pi.PropertyType.GetElementType()))
-                    {
-                        registerTypeFn(pi.PropertyType.GetElementType());
-                    }
+                if (type.DeclaringType != null)
+                {
+                    if (!ignoreTypeFn(type.DeclaringType))
+                        registerTypeFn(type.DeclaringType);
+                }
 
-                    //Register Property Generic Arg Types 
-                    if (!pi.PropertyType.IsGenericType()) continue;
-                    var propArgs = pi.PropertyType.GetGenericArguments();
-                    foreach (var arg in propArgs.Where(arg => !ignoreTypeFn(arg)))
+                if (type.HasInterface(typeof(IService)) && type.GetNestedTypes().IsEmpty())
+                    continue;
+
+                if (!type.IsUserType() && !type.IsInterface
+                    && !exportTypes.Contains(type))
+                    continue;
+
+                if (!type.HasInterface(typeof(IService)))
+                {
+                    foreach (var pi in type.GetSerializableProperties()
+                        .Where(pi => !ignoreTypeFn(pi.PropertyType)))
                     {
-                        registerTypeFn(arg);
+                        registerTypeFn(pi.PropertyType);
+
+                        //Register Property Array Element Types 
+                        if (pi.PropertyType.IsArray && !ignoreTypeFn(pi.PropertyType.GetElementType()))
+                        {
+                            registerTypeFn(pi.PropertyType.GetElementType());
+                        }
+
+                        //Register Property Generic Arg Types 
+                        if (!pi.PropertyType.IsGenericType()) continue;
+                        var propArgs = pi.PropertyType.GetGenericArguments();
+                        foreach (var arg in propArgs.Where(arg => !ignoreTypeFn(arg)))
+                        {
+                            registerTypeFn(arg);
+                        }
                     }
                 }
 
-                if (!ignoreTypeFn(type.BaseType))
+                var genericBaseTypeDef = type.BaseType != null && type.BaseType.IsGenericType
+                    ? type.BaseType.GetGenericTypeDefinition()
+                    : null;
+
+                if (!ignoreTypeFn(type.BaseType) || genericBaseTypeDef == typeof(QueryBase<,>))
                 {
-                    if (type.BaseType.IsGenericType)
+                    if (genericBaseTypeDef != null)
                     {
-                        var genericDef = type.BaseType.GetGenericTypeDefinition();
-                        if (!ignoreTypeFn(genericDef))
-                            registerTypeFn(genericDef);
-                        
+                        if (!ignoreTypeFn(genericBaseTypeDef))
+                            registerTypeFn(genericBaseTypeDef);
+
                         foreach (var arg in type.BaseType.GetGenericArguments()
                             .Where(arg => !ignoreTypeFn(arg)))
                         {
@@ -182,7 +250,8 @@ namespace ServiceStack.NativeTypes
                     }
                 }
 
-                if (!type.IsGenericType()) continue;
+                if (!type.IsGenericType())
+                    continue;
 
                 //Register Generic Arg Types 
                 var args = type.GetGenericArguments();
@@ -193,6 +262,14 @@ namespace ServiceStack.NativeTypes
             }
 
             return metadata;
+        }
+
+        private static bool IsSystemCollection(Type type)
+        {
+            return type.IsArray
+                || (type.Namespace != null
+                    && type.Namespace.StartsWith("System")
+                    && type.IsOrHasGenericInterfaceTypeOf(typeof(IEnumerable<>)));
         }
 
         public MetadataTypeName ToTypeName(Type type)
@@ -211,31 +288,30 @@ namespace ServiceStack.NativeTypes
 
         public MetadataType ToType(Type type)
         {
-            if (type == null) return null;
+            if (type == null) 
+                return null;
+
+            if (type.IsGenericType)
+                type = type.GetGenericTypeDefinition();
 
             var metaType = new MetadataType
             {
                 Name = type.GetOperationName(),
                 Namespace = type.Namespace,
-                GenericArgs = type.IsGenericType
-                    ? type.GetGenericArguments().Select(x => x.GetOperationName()).ToArray()
-                    : null,
+                GenericArgs = type.IsGenericType ? GetGenericArgs(type) : null,
+                Implements = ToInterfaces(type),
                 Attributes = ToAttributes(type),
                 Properties = ToProperties(type),
                 IsNested = type.IsNested ? true : (bool?)null,
                 IsEnum = type.IsEnum ? true : (bool?)null,
+                IsInterface = type.IsInterface ? true : (bool?)null,
+                IsAbstract = type.IsAbstract ? true : (bool?)null,
             };
 
-            if (type.BaseType != null && type.BaseType != typeof(object) && !type.IsEnum)
+            if (type.BaseType != null && type.BaseType != typeof(object) && !type.IsEnum
+                && !type.HasInterface(typeof(IService)))
             {
-                metaType.Inherits = new MetadataTypeName 
-                {
-                    Name = type.BaseType.GetOperationName(),
-                    Namespace = type.BaseType.Namespace,
-                    GenericArgs = type.BaseType.IsGenericType
-                        ? type.BaseType.GetGenericArguments().Select(x => x.GetOperationName()).ToArray()
-                        : null
-                };
+                metaType.Inherits = ToTypeName(type.BaseType);
             }
 
             if (type.GetTypeWithInterfaceOf(typeof(IReturnVoid)) != null)
@@ -297,7 +373,7 @@ namespace ServiceStack.NativeTypes
                 }
 
                 if (isDefaultLayout)
-                    metaType.EnumValues = null; 
+                    metaType.EnumValues = null;
             }
 
             var innerTypes = type.GetNestedTypes(BindingFlags.Public | BindingFlags.NonPublic);
@@ -319,20 +395,71 @@ namespace ServiceStack.NativeTypes
             return metaType;
         }
 
+        private static string[] GetGenericArgs(Type type)
+        {
+            return type.GetGenericArguments().Select(x => x.GetOperationName()).ToArray();
+        }
+
+        private MetadataTypeName[] ToInterfaces(Type type)
+        {
+            return type.GetInterfaces().Where(x => config.ExportTypes.Contains(x)).Map(x =>
+                new MetadataTypeName {
+                    Name = x.Name,
+                    Namespace = x.Namespace,
+                    GenericArgs = GetGenericArgs(x),
+                }).ToArray();
+        }
+
         public List<MetadataAttribute> ToAttributes(Type type)
         {
-            return !(type.IsUserType() || type.IsUserEnum()) || type.IsOrHasGenericInterfaceTypeOf(typeof(IEnumerable<>))
+            return !(type.IsUserType() || type.IsUserEnum() || type.IsInterface) 
+                    || type.IsOrHasGenericInterfaceTypeOf(typeof(IEnumerable<>))
                 ? null
-                : ToAttributes(type.GetCustomAttributes(false));
+                : ToAttributes(type.AllAttributes());
         }
 
         public List<MetadataPropertyType> ToProperties(Type type)
         {
-            var props = !type.IsUserType() || type.IsOrHasGenericInterfaceTypeOf(typeof(IEnumerable<>))
+            var props = (!type.IsUserType() && !type.IsInterface) || type.IsOrHasGenericInterfaceTypeOf(typeof(IEnumerable<>))
                 ? null
                 : GetInstancePublicProperties(type).Select(x => ToProperty(x)).ToList();
 
             return props == null || props.Count == 0 ? null : props;
+        }
+
+        public HashSet<string> GetNamespacesUsed(Type type)
+        {
+            var to = new HashSet<string>();
+
+            if (type.IsUserType() || type.IsInterface || type.IsOrHasGenericInterfaceTypeOf(typeof(IEnumerable<>)))
+            {
+                foreach (var pi in GetInstancePublicProperties(type))
+                {
+                    if (pi.PropertyType.Namespace != null)
+                    {
+                        to.Add(pi.PropertyType.Namespace);
+                    }
+
+                    if (pi.PropertyType.IsGenericType)
+                    {
+                        pi.PropertyType.GetGenericArguments()
+                            .Where(x => x.Namespace != null).Each(x => to.Add(x.Namespace));
+                    }
+                }
+
+                if (type.IsGenericType)
+                {
+                    type.GetGenericArguments()
+                        .Where(x => x.Namespace != null).Each(x => to.Add(x.Namespace));
+                }
+            }
+
+            if (type.Namespace != null)
+            {
+                to.Add(type.Namespace);
+            }
+
+            return to;
         }
 
         public bool IncludeAttrsFilter(Attribute x)
@@ -396,7 +523,7 @@ namespace ServiceStack.NativeTypes
             }
 
             //Only emit ctor args or property args
-            if (metaAttr.ConstructorArgs == null 
+            if (metaAttr.ConstructorArgs == null
                 || metaAttr.ConstructorArgs.Count != metaAttr.Args.Count)
             {
                 metaAttr.ConstructorArgs = null;
@@ -425,11 +552,11 @@ namespace ServiceStack.NativeTypes
                 Name = pi.Name,
                 Attributes = ToAttributes(pi.GetCustomAttributes(false)),
                 Type = pi.PropertyType.GetOperationName(),
-                IsValueType = pi.PropertyType.IsValueType ? true : (bool?) null,
+                IsValueType = pi.PropertyType.IsValueType ? true : (bool?)null,
                 TypeNamespace = pi.PropertyType.Namespace,
                 DataMember = ToDataMember(pi.GetDataMember()),
                 GenericArgs = pi.PropertyType.IsGenericType
-                    ? pi.PropertyType.GetGenericArguments().Select(x => x.GetOperationName()).ToArray()
+                    ? pi.PropertyType.GetGenericArguments().Select(x => x.ExpandTypeName()).ToArray()
                     : null,
                 Description = pi.GetDescription(),
             };
@@ -514,8 +641,322 @@ namespace ServiceStack.NativeTypes
         public static PropertyInfo[] GetInstancePublicProperties(Type type)
         {
             return type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                .OnlySerializableProperties(type)
                 .Where(t => t.GetIndexParameters().Length == 0) // ignore indexed properties
                 .ToArray();
         }
+    }
+
+    public class CreateTypeOptions
+    {
+        public Func<string> ImplementsFn { get; set; }
+        public bool IsRequest { get; set; }
+        public bool IsResponse { get; set; }
+        public bool IsType { get; set; }
+        public bool IsNestedType { get; set; }
+    }
+
+    public class TextNode
+    {
+        public TextNode()
+        {
+            Children = new List<TextNode>();
+        }
+
+        public string Text { get; set; }
+
+        public List<TextNode> Children { get; set; }
+    }
+
+    public static class MetadataExtensions
+    {
+        public static MetadataTypeName ToMetadataTypeName(this MetadataType type)
+        {
+            if (type == null) return null;
+
+            return new MetadataTypeName
+            {
+                Name = type.Name,
+                Namespace = type.Namespace,
+                GenericArgs = type.GenericArgs
+            };
+        }
+
+        public static HashSet<string> GetReferencedTypeNames(this MetadataType type)
+        {
+            var to = new HashSet<string>();
+
+            if (type.Inherits != null)
+            {
+                to.Add(type.Inherits.Name);
+
+                foreach (var genericArg in type.Inherits.GenericArgs.Safe())
+                {
+                    to.Add(genericArg);
+                }
+            }
+
+            foreach (var pi in type.Properties.Safe())
+            {
+                to.Add(pi.Type);
+
+                foreach (var genericArg in pi.GenericArgs.Safe())
+                {
+                    to.Add(genericArg);
+                }
+            }
+
+            return to;
+        }
+
+        public static bool IgnoreSystemType(this MetadataType type)
+        {
+            return type == null
+                || (type.Namespace != null && type.Namespace.StartsWith("System"))
+                || (type.Inherits != null && type.Inherits.Name == "Array");
+        }
+
+        public static HashSet<string> GetDefaultNamespaces(this MetadataTypesConfig config, MetadataTypes metadata)
+        {
+            var namespaces = config.DefaultNamespaces.ToHashSet();
+
+            //Add any ignored namespaces used
+            foreach (var ns in metadata.Namespaces)
+            {
+                //Ignored by IsUserType()
+                if (!ns.StartsWith("System") && !config.IgnoreTypesInNamespaces.Contains(ns))
+                    continue;
+
+                if (!namespaces.Contains(ns))
+                {
+                    namespaces.Add(ns);
+                }
+            }
+
+            return namespaces;
+        }
+
+        static char[] blockChars = new[] { '<', '>' };
+        public static TextNode ParseTypeIntoNodes(this string typeDef)
+        {
+            if (string.IsNullOrEmpty(typeDef))
+                return null;
+
+            var node = new TextNode();
+            var lastBlockPos = typeDef.IndexOf('<');
+
+            if (lastBlockPos >= 0)
+            {
+                node.Text = typeDef.Substring(0, lastBlockPos);
+
+                var blockStartingPos = new Stack<int>();
+                blockStartingPos.Push(lastBlockPos);
+
+                while (lastBlockPos != -1 || blockStartingPos.Count == 0)
+                {
+                    var nextPos = typeDef.IndexOfAny(blockChars, lastBlockPos + 1);
+                    if (nextPos == -1)
+                        break;
+
+                    var blockChar = typeDef.Substring(nextPos, 1);
+
+                    if (blockChar == "<")
+                    {
+                        blockStartingPos.Push(nextPos);
+                    }
+                    else
+                    {
+                        var startPos = blockStartingPos.Pop();
+                        if (blockStartingPos.Count == 0)
+                        {
+                            var endPos = nextPos;
+                            var childBlock = typeDef.Substring(startPos + 1, endPos - startPos - 1);
+
+                            var args = SplitGenericArgs(childBlock);
+                            foreach (var arg in args)
+                            {
+                                if (arg.IndexOfAny(blockChars) >= 0)
+                                {
+                                    var childNode = ParseTypeIntoNodes(arg);
+                                    if (childNode != null)
+                                    {
+                                        node.Children.Add(childNode);
+                                    }
+                                }
+                                else
+                                {
+                                    node.Children.Add(new TextNode { Text = arg });
+                                }
+                            }
+
+                        }
+                    }
+
+                    lastBlockPos = nextPos;
+                }
+            }
+            else
+            {
+                node.Text = typeDef;
+            }
+
+            return node;
+        }
+
+        public static string ToPrettyName(this Type type)
+        {
+            if (!type.IsGenericType)
+                return type.Name;
+            
+            var genericTypeName = type.GetGenericTypeDefinition().Name;
+            genericTypeName = genericTypeName.SplitOnFirst('`')[0];
+            var genericArgs = string.Join(",",
+                type.GetGenericArguments()
+                    .Select(ToPrettyName).ToArray());
+            return genericTypeName + "<" + genericArgs + ">";
+        }
+
+        private static List<string> SplitGenericArgs(string argList)
+        {
+            var to = new List<string>();
+            if (string.IsNullOrEmpty(argList))
+                return to;
+
+            var lastPos = 0;
+            var blockCount = 0;
+            for (var i = 0; i < argList.Length; i++)
+            {
+                var argChar = argList[i];
+                switch (argChar)
+                {
+                    case ',':
+                        if (blockCount == 0)
+                        {
+                            var arg = argList.Substring(lastPos, i - lastPos);
+                            to.Add(arg);
+                            lastPos = i;
+                        }
+                        break;
+                    case '<':
+                        blockCount++;
+                        break;
+                    case '>':
+                        blockCount--;
+                        break;
+                }
+            }
+
+            if (lastPos > 0)
+            {
+                var arg = argList.Substring(lastPos + 1);
+                to.Add(arg);
+            }
+            else
+            {
+                to.Add(argList);
+            }
+
+            return to;
+        }
+
+        public static void RemoveIgnoredTypesForNet(this MetadataTypes metadata, MetadataTypesConfig config)
+        {
+            metadata.RemoveIgnoredTypes(config);
+            //Don't include Exported Types in System 
+            metadata.Types.RemoveAll(x => x.IgnoreSystemType()); 
+        }
+
+        public static void RemoveIgnoredTypes(this MetadataTypes metadata, MetadataTypesConfig config)
+        {
+            metadata.Types.RemoveAll(x => x.IgnoreType(config));
+            metadata.Operations.RemoveAll(x => x.Request.IgnoreType(config));
+            metadata.Operations.Each(x => {
+                if (x.Response != null && x.Response.IgnoreType(config))
+                {
+                    x.Response = null;
+                }
+            });
+        }
+
+        public static bool IgnoreType(this MetadataType type, MetadataTypesConfig config)
+        {
+            if (type.IgnoreSystemType() && config.ExportTypes.All(x => x.Name != type.Name))
+                return true;
+
+            if (config.IncludeTypes != null && !config.IncludeTypes.Contains(type.Name))
+                return true;
+
+            if (config.ExcludeTypes != null && 
+                config.ExcludeTypes.Any(x => type.Name == x || type.Name.StartsWith(x + "`")))
+                return true;
+
+            return false;
+        }
+
+        public static string SanitizeType(this string typeName)
+        {
+            return typeName != null ? typeName.TrimStart('\'') : null;
+        }
+
+        public static string SafeComment(this string comment)
+        {
+            return comment.Replace("\r", "").Replace("\n", "");
+        }
+
+        public static string SafeToken(this string token)
+        {
+            if (!NativeTypesFeature.DisableTokenVerification && token.ContainsAny("\"", "-", "+", "\\", "*", "=", "!"))
+                throw new InvalidDataException("MetaData is potentially malicious. Expected token, Received: {0}".Fmt(token));
+
+            return token;
+        }
+
+        public static string SafeValue(this string value)
+        {
+            if (!NativeTypesFeature.DisableTokenVerification && value.Contains('"'))
+                throw new InvalidDataException("MetaData is potentially malicious. Expected scalar value, Received: {0}".Fmt(value));
+
+            return value;
+        }
+
+        public static string QuotedSafeValue(this string value)
+        {
+            value = value.Replace("\r", "").Replace("\n", "");
+            return "\"{0}\"".Fmt(value.SafeValue());
+        }
+
+        public static MetadataAttribute ToMetadataAttribute(this MetadataRoute route)
+        {
+            var attr = new MetadataAttribute
+            {
+                Name = "Route",
+                ConstructorArgs = new List<MetadataPropertyType>
+                {
+                    new MetadataPropertyType { Type = "string", Value = route.Path },
+                },
+            };
+
+            if (route.Verbs != null)
+            {
+                attr.ConstructorArgs.Add(
+                    new MetadataPropertyType { Type = "string", Value = route.Verbs });
+            }
+
+            return attr;
+        }
+
+        public static List<MetadataType> GetAllTypes(this MetadataTypes metadata)
+        {
+            var map = new Dictionary<string, MetadataType>();
+            foreach (var op in metadata.Operations)
+            {
+                if (!(op.Request.Namespace ?? "").StartsWith("System"))
+                    map[op.Request.Name] = op.Request;
+                if (op.Response != null && !(op.Response.Namespace ?? "").StartsWith("System"))
+                    map[op.Response.Name] = op.Response;
+            }
+            metadata.Types.Each(x => map[x.Name] = x);
+            return map.Values.ToList();
+        } 
     }
 }

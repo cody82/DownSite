@@ -40,6 +40,7 @@ namespace ServiceStack.Common.Tests
         public string Sentence { get; set; }
     }
 
+    [Explicit]
     public class CheckWebTests
     {
         private const string BaseUri = "http://localhost:55799/";
@@ -50,8 +51,6 @@ namespace ServiceStack.Common.Tests
             var client = new JsonServiceClient(BaseUri);
 
             var response = client.Post(new Echoes { Sentence = "Foo" });
-
-            response.PrintDump();
         }
     }
 }

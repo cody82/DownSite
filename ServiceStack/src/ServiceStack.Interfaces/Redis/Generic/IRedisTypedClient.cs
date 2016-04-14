@@ -5,7 +5,7 @@
 // Authors:
 //   Demis Bellot (demis.bellot@gmail.com)
 //
-// Copyright 2014 Service Stack LLC. All Rights Reserved.
+// Copyright 2016 Service Stack LLC. All Rights Reserved.
 //
 // Licensed under the same terms of ServiceStack.
 //
@@ -39,6 +39,8 @@ namespace ServiceStack.Redis.Generic
 
         T this[string key] { get; set; }
 
+        string UrnKey(T value);
+
         string SequenceKey { get; set; }
         void SetSequence(int value);
         long GetNextSequence();
@@ -46,9 +48,20 @@ namespace ServiceStack.Redis.Generic
         RedisKeyType GetEntryType(string key);
         string GetRandomKey();
 
+        [Obsolete("Use SetValue()")]
         void SetEntry(string key, T value);
+        [Obsolete("Use SetValue()")]
         void SetEntry(string key, T value, TimeSpan expireIn);
+        [Obsolete("Use SetValueIfNotExists()")]
         bool SetEntryIfNotExists(string key, T value);
+
+        void SetValue(string key, T entity);
+        void SetValue(string key, T entity, TimeSpan expireIn);
+        bool SetValueIfNotExists(string key, T entity);
+        bool SetValueIfExists(string key, T entity);
+
+        T Store(T entity, TimeSpan expireIn);
+
         T GetValue(string key);
         T GetAndSetValue(string key, T value);
         bool ContainsKey(string key);
@@ -162,7 +175,9 @@ namespace ServiceStack.Redis.Generic
         long GetSortedSetCount(IRedisSortedSet<T> set);
         double GetItemScoreInSortedSet(IRedisSortedSet<T> set, T value);
         long StoreIntersectFromSortedSets(IRedisSortedSet<T> intoSetId, params IRedisSortedSet<T>[] setIds);
+        long StoreIntersectFromSortedSets(IRedisSortedSet<T> intoSetId, IRedisSortedSet<T>[] setIds, string[] args);
         long StoreUnionFromSortedSets(IRedisSortedSet<T> intoSetId, params IRedisSortedSet<T>[] setIds);
+        long StoreUnionFromSortedSets(IRedisSortedSet<T> intoSetId, IRedisSortedSet<T>[] setIds, string[] args);
 
         //Hash operations
         bool HashContainsEntry<TKey>(IRedisHash<TKey, T> hash, TKey key);

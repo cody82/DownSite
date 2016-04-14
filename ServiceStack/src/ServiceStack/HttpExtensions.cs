@@ -25,9 +25,21 @@ namespace ServiceStack
             return relativeUrl.ToAbsoluteUri();
         }
 
-        public static string ToAbsoluteUri(this string relativeUrl)
+        public static string ToAbsoluteUri(this object requestDto, IRequest req, string httpMethod = null, string formatFallbackToPredefinedRoute = null)
         {
-            var absoluteUrl = HostContext.Config.WebHostUrl.CombineWith(relativeUrl);
+            var relativeUrl = requestDto.ToUrl(
+                httpMethod ?? HttpMethods.Get,
+                formatFallbackToPredefinedRoute ?? HostContext.Config.DefaultContentType.ToContentFormat());
+
+            return relativeUrl.ToAbsoluteUri(req);
+        }
+
+        public static string ToAbsoluteUri(this string relativeUrl, IRequest req = null)
+        {
+            if (req == null)
+                req = HostContext.TryGetCurrentRequest();
+
+            var absoluteUrl = HostContext.ResolveAbsoluteUrl("~/".CombineWith(relativeUrl), req);
             return absoluteUrl;
         }
 
@@ -38,7 +50,7 @@ namespace ServiceStack
         {
             if (!skipHeaders) httpRes.ApplyGlobalResponseHeaders();
             httpRes.Close();
-            HostContext.CompleteRequest();
+            HostContext.CompleteRequest(null);
         }
 
         /// <summary>
@@ -47,18 +59,19 @@ namespace ServiceStack
         public static void EndRequest(this IResponse httpRes, bool skipHeaders = false)
         {
             httpRes.EndHttpHandlerRequest(skipHeaders: skipHeaders);
-            HostContext.CompleteRequest();
         }
 
         /// <summary>
         /// End a HttpHandler Request
         /// </summary>
-        public static void EndHttpHandlerRequest(this HttpResponseBase httpRes, bool skipHeaders = false, bool skipClose = false, bool closeOutputStream = false, Action<HttpResponseBase> afterHeaders = null)
+        public static void EndHttpHandlerRequest(this HttpContextBase context, bool skipHeaders = false, bool skipClose = false, bool closeOutputStream = false, Action<HttpResponseBase> afterHeaders = null)
         {
+            var httpRes = context.Response;
             if (!skipHeaders) httpRes.ApplyGlobalResponseHeaders();
             if (afterHeaders != null) afterHeaders(httpRes);
             if (closeOutputStream) httpRes.CloseOutputStream();
             else if (!skipClose) httpRes.Close();
+            HostContext.CompleteRequest(context.ToRequest());
 
             //skipHeaders used when Apache+mod_mono doesn't like:
             //response.OutputStream.Flush();
@@ -72,11 +85,17 @@ namespace ServiceStack
         {
             if (!skipHeaders) httpRes.ApplyGlobalResponseHeaders();
             if (afterHeaders != null) afterHeaders(httpRes);
-            if (!skipClose) httpRes.Close();
+            if (!skipClose && !httpRes.IsClosed) httpRes.Close();
+            HostContext.CompleteRequest(httpRes.Request);
+        }
 
-            //skipHeaders used when Apache+mod_mono doesn't like:
-            //response.OutputStream.Flush();
-            //response.Close();
+        /// <summary>
+        /// End an MQ Request
+        /// </summary>
+        public static void EndMqRequest(this IResponse httpRes, bool skipClose = false)
+        {
+            if (!skipClose && !httpRes.IsClosed) httpRes.Close();
+            HostContext.CompleteRequest(httpRes.Request);
         }
 
         /// <summary>

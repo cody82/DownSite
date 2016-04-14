@@ -2,10 +2,12 @@
 //License: https://raw.github.com/ServiceStack/ServiceStack/master/license.txt
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Web;
+using ServiceStack.Text;
 using ServiceStack.Web;
 
 namespace ServiceStack.Host.AspNet
@@ -16,11 +18,13 @@ namespace ServiceStack.Host.AspNet
 
         private readonly HttpResponseBase response;
 
-        public AspNetResponse(HttpResponseBase response)
+        public AspNetResponse(HttpResponseBase response, IRequest request = null)
         {
             this.response = response;
+            this.Request = request;
             this.response.TrySkipIisCustomErrors = true;
             this.Cookies = new Cookies(this);
+            this.Items = new Dictionary<string, object>();
         }
 
         public HttpResponseBase Response
@@ -32,6 +36,8 @@ namespace ServiceStack.Host.AspNet
         {
             get { return response; }
         }
+
+        public IRequest Request { get; private set; }
 
         public int StatusCode
         {
@@ -51,8 +57,6 @@ namespace ServiceStack.Host.AspNet
             set { response.ContentType = value; }
         }
 
-        public ICookies Cookies { get; set; }
-
         public void AddHeader(string name, string value)
         {
             response.AddHeader(name, value);
@@ -63,38 +67,38 @@ namespace ServiceStack.Host.AspNet
             response.Redirect(url);
         }
 
-        private MemoryStream bufferedStream;
+        public MemoryStream BufferedStream { get; set; }
         public Stream OutputStream
         {
-            get { return bufferedStream ?? response.OutputStream; }
+            get { return BufferedStream ?? response.OutputStream; }
         }
 
         public bool UseBufferedStream
         {
-            get { return bufferedStream != null; }
+            get { return BufferedStream != null; }
             set
             {
-                if (value == false)
-                    response.BufferOutput = false;
+                if (true)
+                    this.response.BufferOutput = false;
 
-                bufferedStream = value
-                    ? bufferedStream ?? new MemoryStream()
+                BufferedStream = value
+                    ? BufferedStream ?? new MemoryStream()
                     : null;
             }
         }
 
         private void FlushBufferIfAny()
         {
-            if (bufferedStream == null)
+            if (BufferedStream == null)
                 return;
 
-            var bytes = bufferedStream.ToArray();
+            var bytes = BufferedStream.ToArray();
             try {
                 SetContentLength(bytes.LongLength); //safe to set Length in Buffered Response
             } catch {}
 
             response.OutputStream.Write(bytes, 0, bytes.Length);
-            bufferedStream = new MemoryStream();
+            BufferedStream = MemoryStreamFactory.GetStream();
         }
 
         public object Dto { get; set; }
@@ -143,7 +147,7 @@ namespace ServiceStack.Host.AspNet
         {
             try
             {
-                response.Headers.Add("Content-Length", contentLength.ToString(CultureInfo.InvariantCulture));
+                response.Headers["Content-Length"] = contentLength.ToString(CultureInfo.InvariantCulture);
             }
             catch (PlatformNotSupportedException /*ignore*/) { } //This operation requires IIS integrated pipeline mode.
         }
@@ -151,10 +155,22 @@ namespace ServiceStack.Host.AspNet
         //Benign, see how to enable in ASP.NET: http://technet.microsoft.com/en-us/library/cc772183(v=ws.10).aspx
         public bool KeepAlive { get; set; }
 
+        public Dictionary<string, object> Items { get; private set; }
+
+        public ICookies Cookies { get; set; }
+
         public void SetCookie(Cookie cookie)
         {
+            if (!HostContext.AppHost.AllowSetCookie(Request, cookie.Name))
+                return;
+
             var httpCookie = cookie.ToHttpCookie();
             response.SetCookie(httpCookie);            
+        }
+
+        public void ClearCookies()
+        {
+            response.Cookies.Clear();
         }
     }
 }

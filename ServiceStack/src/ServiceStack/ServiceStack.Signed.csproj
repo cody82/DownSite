@@ -103,8 +103,31 @@
     <Compile Include="AspNet\ServiceStackPage.cs">
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Compile Include="ConnectionInfo.cs" />
+    <Compile Include="ConnectionInfoAttribute.cs" />
+    <Compile Include="FluentValidation\Internal\CollectionPropertyRule.cs" />
+    <Compile Include="Host\Handlers\StaticContentHandler.cs" />
+    <Compile Include="NativeTypes\Kotlin\KotlinGenerator.cs" />
+    <Compile Include="RequiresSchemaProviders.cs" />
+    <Compile Include="CancellableRequestsFeature.cs" />
     <Compile Include="Configuration\EnvironmentVariableSettings.cs" />
     <Compile Include="Configuration\MultiAppSettings.cs" />
+    <Compile Include="EncryptedMessagesFeature.cs" />
+    <Compile Include="Html\Minifiers.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Html\Minifiers.css.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Html\Minifiers.html.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Html\Minifiers.js.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="NativeTypes\Java\JavaGenerator.cs" />
+    <Compile Include="NativeTypes\Swift\SwiftGenerator.cs" />
+    <Compile Include="NativeTypes\TypeScript\TypeScriptGenerator.cs" />
     <Compile Include="NativeTypes\VbNet\VbNetGenerator.cs" />
     <Compile Include="ServiceStackProvider.cs" />
     <Compile Include="AsyncExtensions.cs" />
@@ -133,7 +156,6 @@
     <Compile Include="Host\Handlers\CustomActionHandler.cs" />
     <Compile Include="Host\Handlers\HttpAsyncTaskHandler.cs" />
     <Compile Include="Host\RequestBaseWrapper.cs" />
-    <Compile Include="Messaging\IMessageHandler.cs" />
     <Compile Include="Messaging\IMessageHandlerDisposer.cs" />
     <Compile Include="Messaging\IMessageHandlerFactory.cs" />
     <Compile Include="Messaging\InMemoryTransientMessageFactory.cs" />
@@ -147,6 +169,7 @@
     <Compile Include="PostmanFeature.cs" />
     <Compile Include="RequestContext.cs" />
     <Compile Include="ServerEventsFeature.cs" />
+    <Compile Include="SitemapFeature.cs" />
     <Compile Include="SmartThreadPool\CallerThreadContext.cs" />
     <Compile Include="SmartThreadPool\CanceledWorkItemsGroup.cs" />
     <Compile Include="SmartThreadPool\EventWaitHandle.cs" />
@@ -176,7 +199,7 @@
     <Compile Include="Host\HttpResponseStreamWrapper.cs" />
     <Compile Include="HttpError.cs" />
     <Compile Include="HttpResult.cs" />
-    <Compile Include="HttpResultExtensions.cs" />
+    <Compile Include="HttpResultUtils.cs" />
     <Compile Include="LocalizedStrings.cs" />
     <Compile Include="RedisErrorLoggerFeature.cs" />
     <Compile Include="RequestLogsFeature.cs" />
@@ -501,7 +524,6 @@
     <Compile Include="Host\AppDelegates.cs" />
     <Compile Include="Host\Handlers\CustomResponseHandler.cs" />
     <Compile Include="Templates\HtmlTemplates.cs" />
-    <Compile Include="Host\RequestBindingException.cs" />
     <Compile Include="Support\Markdown\Evaluator.cs" />
     <Compile Include="Support\Markdown\ITemplateWriter.cs" />
     <Compile Include="Support\Markdown\Markdown.cs" />
@@ -572,6 +594,7 @@
     <Compile Include="Metadata\IndexOperationsControl.cs" />
     <Compile Include="Metadata\XsdTypeNames.cs" />
     <Compile Include="Metadata\XsdTypes.cs" />
+    <Compile Include="VirtualPath\VirtualPathProviderExtensions.cs" />
     <Compile Include="WebSudoFeature.cs" />
     <Compile Include="WebSudoRequiredAttribute.cs" />
     <Compile Include="XsdUtils.cs" />
@@ -604,6 +627,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Funq\License.txt" />
+    <EmbeddedResource Include="js\ss-utils.d.ts" />
     <EmbeddedResource Include="js\ss-utils.js" />
     <EmbeddedResource Include="Templates\OperationControl.html" />
     <EmbeddedResource Include="Templates\IndexOperations.html" />

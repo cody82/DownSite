@@ -136,10 +136,21 @@
       <div class="query">
         <pre class="stack-trace"><%= s.StackTraceSnippet %></pre>
         <pre class="prettyprint lang-sql"><code><%= s.FormattedCommandString %></code></pre>
+        <% if (s.Parameters){ %>
+         <div class="params">
+            <% $._each(s.Parameters, function($value){ %>
+            <%= $.tmpl("#sqlParameterTemplate", $value) %>
+            <% }) %>
+         </div>
+        <% } %>
       </div>
     </td>
   </tr>
 
+</script>
+
+<script id="sqlParameterTemplate" type="text/x-jquery-tmpl">
+  <div><span><%= DbType %></span> @<%= Name %> = <b><%= Value %></b></div>
 </script>
 
 <script id="sqlGapTemplate" type="text/x-jquery-tmpl">

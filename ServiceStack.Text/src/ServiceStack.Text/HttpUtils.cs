@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-
 using System.IO;
 using System.Net;
 using System.Threading.Tasks;
@@ -40,13 +39,18 @@ namespace ServiceStack
             var qsPos = url.IndexOf('?');
             if (qsPos != -1)
             {
-                var existingKeyPos = url.IndexOf(key, qsPos, PclExport.Instance.InvariantComparison);
+                var existingKeyPos = qsPos + 1 == url.IndexOf(key, qsPos, PclExport.Instance.InvariantComparison)
+                    ? qsPos
+                    : url.IndexOf("&" + key, qsPos, PclExport.Instance.InvariantComparison);
+
                 if (existingKeyPos != -1)
                 {
-                    var endPos = url.IndexOf('&', existingKeyPos);
-                    if (endPos == -1) endPos = url.Length;
+                    var endPos = url.IndexOf('&', existingKeyPos + 1);
+                    if (endPos == -1)
+                        endPos = url.Length;
 
                     var newUrl = url.Substring(0, existingKeyPos + key.Length + 1)
+                        + "="
                         + val.UrlEncode()
                         + url.Substring(endPos);
                     return newUrl;
@@ -64,6 +68,33 @@ namespace ServiceStack
         public static string AddHashParam(this string url, string key, string val)
         {
             if (string.IsNullOrEmpty(url)) return null;
+            var prefix = url.IndexOf('#') == -1 ? "#" : "/";
+            return url + prefix + key + "=" + val.UrlEncode();
+        }
+
+        public static string SetHashParam(this string url, string key, string val)
+        {
+            if (string.IsNullOrEmpty(url)) return null;
+            var hPos = url.IndexOf('#');
+            if (hPos != -1)
+            {
+                var existingKeyPos = hPos + 1 == url.IndexOf(key, hPos, PclExport.Instance.InvariantComparison)
+                    ? hPos
+                    : url.IndexOf("/" + key, hPos, PclExport.Instance.InvariantComparison);
+
+                if (existingKeyPos != -1)
+                {
+                    var endPos = url.IndexOf('/', existingKeyPos + 1);
+                    if (endPos == -1)
+                        endPos = url.Length;
+
+                    var newUrl = url.Substring(0, existingKeyPos + key.Length + 1)
+                        + "="
+                        + val.UrlEncode()
+                        + url.Substring(endPos);
+                    return newUrl;
+                }
+            }
             var prefix = url.IndexOf('#') == -1 ? "#" : "/";
             return url + prefix + key + "=" + val.UrlEncode();
         }
@@ -399,7 +430,7 @@ namespace ServiceStack
 
             if (ResultsFilter != null)
             {
-                return ResultsFilter.GetString(webReq);
+                return ResultsFilter.GetString(webReq, requestBody);
             }
 
             if (requestBody != null)
@@ -466,7 +497,7 @@ namespace ServiceStack
 
             if (ResultsFilter != null)
             {
-                return ResultsFilter.GetBytes(webReq);
+                return ResultsFilter.GetBytes(webReq, requestBody);
             }
 
             if (requestBody != null)
@@ -609,9 +640,11 @@ namespace ServiceStack
             try
             {
                 var webReq = WebRequest.Create(url);
-                var webRes = PclExport.Instance.GetResponse(webReq);
-                var strRes = webRes.ReadToEnd();
-                return null;
+                using (var webRes = PclExport.Instance.GetResponse(webReq))
+                {
+                    webRes.ReadToEnd();
+                    return null;
+                }
             }
             catch (WebException webEx)
             {
@@ -621,7 +654,7 @@ namespace ServiceStack
 
         public static Task<Stream> GetRequestStreamAsync(this WebRequest request)
         {
-            return GetRequestStreamAsync((HttpWebRequest) request);
+            return GetRequestStreamAsync((HttpWebRequest)request);
         }
 
         public static Task<Stream> GetRequestStreamAsync(this HttpWebRequest request)
@@ -704,7 +737,7 @@ namespace ServiceStack
             if (requestFilter != null)
                 requestFilter(httpReq);
 
-            var boundary = "----------------------------" + DateTime.UtcNow.Ticks.ToString("x");
+            var boundary = "----------------------------" + Guid.NewGuid().ToString("N");
 
             httpReq.ContentType = "multipart/form-data; boundary=" + boundary;
 
@@ -719,7 +752,7 @@ namespace ServiceStack
 
             var contentLength = fileStream.Length + headerbytes.Length + boundarybytes.Length;
             PclExport.Instance.InitHttpWebRequest(httpReq,
-                contentLength:contentLength, allowAutoRedirect: false, keepAlive: false);
+                contentLength: contentLength, allowAutoRedirect: false, keepAlive: false);
 
             if (ResultsFilter != null)
             {
@@ -731,13 +764,7 @@ namespace ServiceStack
             {
                 outputStream.Write(headerbytes, 0, headerbytes.Length);
 
-                var buffer = new byte[4096];
-                int byteCount;
-
-                while ((byteCount = fileStream.Read(buffer, 0, 4096)) > 0)
-                {
-                    outputStream.Write(buffer, 0, byteCount);
-                }
+                fileStream.CopyTo(outputStream, 4096);
 
                 outputStream.Write(boundarybytes, 0, boundarybytes.Length);
 
@@ -756,7 +783,6 @@ namespace ServiceStack
             UploadFile(webRequest, fileStream, fileName, mimeType);
         }
 
-#if !XBOX
         public static string PostXmlToUrl(this string url, object data,
             Action<HttpWebRequest> requestFilter = null, Action<HttpWebResponse> responseFilter = null)
         {
@@ -770,13 +796,12 @@ namespace ServiceStack
             return SendStringToUrl(url, method: "PUT", requestBody: data.ToXml(), contentType: MimeTypes.Xml, accept: MimeTypes.Xml,
                 requestFilter: requestFilter, responseFilter: responseFilter);
         }
-#endif
     }
 
     public interface IHttpResultsFilter : IDisposable
     {
-        string GetString(HttpWebRequest webReq);
-        byte[] GetBytes(HttpWebRequest webReq);
+        string GetString(HttpWebRequest webReq, string reqBody);
+        byte[] GetBytes(HttpWebRequest webReq, byte[] reqBody);
         void UploadStream(HttpWebRequest webRequest, Stream fileStream, string fileName);
     }
 
@@ -787,11 +812,11 @@ namespace ServiceStack
         public string StringResult { get; set; }
         public byte[] BytesResult { get; set; }
 
-        public Func<HttpWebRequest, string> StringResultFn { get; set; }
-        public Func<HttpWebRequest, byte[]> BytesResultFn { get; set; }
+        public Func<HttpWebRequest, string, string> StringResultFn { get; set; }
+        public Func<HttpWebRequest, byte[], byte[]> BytesResultFn { get; set; }
         public Action<HttpWebRequest, Stream, string> UploadFileFn { get; set; }
 
-        public HttpResultsFilter(string stringResult=null, byte[] bytesResult=null)
+        public HttpResultsFilter(string stringResult = null, byte[] bytesResult = null)
         {
             StringResult = stringResult;
             BytesResult = bytesResult;
@@ -805,17 +830,17 @@ namespace ServiceStack
             HttpUtils.ResultsFilter = previousFilter;
         }
 
-        public string GetString(HttpWebRequest webReq)
+        public string GetString(HttpWebRequest webReq, string reqBody)
         {
             return StringResultFn != null
-                ? StringResultFn(webReq)
+                ? StringResultFn(webReq, reqBody)
                 : StringResult;
         }
 
-        public byte[] GetBytes(HttpWebRequest webReq)
+        public byte[] GetBytes(HttpWebRequest webReq, byte[] reqBody)
         {
             return BytesResultFn != null
-                ? BytesResultFn(webReq)
+                ? BytesResultFn(webReq, reqBody)
                 : BytesResult;
         }
 
@@ -922,6 +947,12 @@ namespace ServiceStack
                 case "js":
                     return "text/javascript";
 
+                case "ts":
+                    return "text/x.typescript";
+
+                case "jsx":
+                    return "text/jsx";
+
                 case "csv":
                 case "css":
                 case "sgml":
@@ -976,6 +1007,8 @@ namespace ServiceStack
 
                 case "woff":
                     return "application/font-woff";
+                case "woff2":
+                    return "application/font-woff2";
 
                 default:
                     return "application/" + fileExt;
@@ -988,6 +1021,10 @@ namespace ServiceStack
         public const string XParamOverridePrefix = "X-Param-Override-";
 
         public const string XHttpMethodOverride = "X-Http-Method-Override";
+
+        public const string XAutoBatchCompleted = "X-AutoBatch-Completed"; // How many requests were completed before first failure
+
+        public const string XTag = "X-Tag";
 
         public const string XUserAuthId = "X-UAId";
 
@@ -1075,7 +1112,7 @@ namespace ServiceStack
             "ACL",        // RFC 3744
             "PATCH",      // https://datatracker.ietf.org/doc/draft-dusseault-http-patch/
             "SEARCH",     // https://datatracker.ietf.org/doc/draft-reschke-webdav-search/
-            "BCOPY", "BDELETE", "BMOVE", "BPROPFIND", "BPROPPATCH", "NOTIFY",  
+            "BCOPY", "BDELETE", "BMOVE", "BPROPFIND", "BPROPPATCH", "NOTIFY",
             "POLL",  "SUBSCRIBE", "UNSUBSCRIBE" //MS Exchange WebDav: http://msdn.microsoft.com/en-us/library/aa142917.aspx
         };
 

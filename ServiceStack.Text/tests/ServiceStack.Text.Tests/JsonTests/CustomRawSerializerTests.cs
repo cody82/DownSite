@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Globalization;
+using System.Linq;
 using NUnit.Framework;
 
 namespace ServiceStack.Text.Tests.JsonTests
@@ -11,7 +13,7 @@ namespace ServiceStack.Text.Tests.JsonTests
         {
             JsConfig.Reset();
         }
-        
+
         public class RealType
         {
             public string Name { get; set; }
@@ -23,17 +25,54 @@ namespace ServiceStack.Text.Tests.JsonTests
         {
             var test = new RealType { Name = "Test", Data = new byte[] { 1, 2, 3, 4, 5 } };
 
-            // Act: now we set a custom function for byte[]
             JsConfig<byte[]>.RawSerializeFn = c =>
-                {
-                    var temp = new int[c.Length];
-                    Array.Copy(c, temp, c.Length);
-                    return JsonSerializer.SerializeToString(temp);
-                };
+            {
+                var temp = new int[c.Length];
+                Array.Copy(c, temp, c.Length);
+                return JsonSerializer.SerializeToString(temp);
+            };
             var json = JsonSerializer.SerializeToString(test);
 
-            // Assert:
             Assert.That(json, Is.EquivalentTo("{\"Name\":\"Test\",\"Data\":[1,2,3,4,5]}"));
+
+            JsConfig<byte[]>.RawSerializeFn = null;
+            JsConfig.Reset();
+        }
+
+        [Test]
+        public void Can_Serialize_bytes_as_Hex()
+        {
+            JsConfig<byte[]>.SerializeFn = BitConverter.ToString;
+            JsConfig<byte[]>.DeSerializeFn = hex =>
+            {
+                hex = hex.Replace("-", "");
+                return Enumerable.Range(0, hex.Length)
+                    .Where(x => x % 2 == 0)
+                    .Select(x => Convert.ToByte(hex.Substring(x, 2), 16))
+                    .ToArray();
+            };
+
+            var dto = new RealType
+            {
+                Name = "Red",
+                Data = new byte[] { 255, 0, 0 }
+            };
+
+            var json = dto.ToJson();
+            Assert.That(json, Is.StringContaining("FF-00-00"));
+
+            var fromJson = json.FromJson<RealType>();
+
+            Assert.That(fromJson.Data, Is.EquivalentTo(dto.Data));
+
+            JsConfig<byte[]>.SerializeFn = null;
+            JsConfig<byte[]>.DeSerializeFn = null;
+            JsConfig.Reset();
+
+            json = dto.ToJson();
+            json.Print();
+            fromJson = json.FromJson<RealType>();
+            Assert.That(fromJson.Data, Is.EquivalentTo(dto.Data));
         }
 
         [Test]
@@ -43,15 +82,18 @@ namespace ServiceStack.Text.Tests.JsonTests
 
             // Act: now we set a custom function for byte[]
             JsConfig<byte[]>.RawSerializeFn = c =>
-                {
-                    var temp = new int[c.Length];
-                    Array.Copy(c, temp, c.Length);
-                    return JsonSerializer.SerializeToString(temp);
-                };
+            {
+                var temp = new int[c.Length];
+                Array.Copy(c, temp, c.Length);
+                return JsonSerializer.SerializeToString(temp);
+            };
             var json = JsonSerializer.SerializeToString(test);
 
             // Assert:
             Assert.That(json, Is.EquivalentTo("{\"Name\":\"Test\",\"Data\":[1,2,3,4,5]}"));
+
+            JsConfig<byte[]>.RawSerializeFn = null;
+            JsConfig.Reset();
         }
 
         [Test]
@@ -59,18 +101,19 @@ namespace ServiceStack.Text.Tests.JsonTests
         {
             var test = new { Name = "Test", Data = new byte[] { 1, 2, 3, 4, 5 } };
             JsConfig<byte[]>.RawSerializeFn = c =>
-                {
-                    var temp = new int[c.Length];
-                    Array.Copy(c, temp, c.Length);
-                    return JsonSerializer.SerializeToString(temp);
-                };
+            {
+                var temp = new int[c.Length];
+                Array.Copy(c, temp, c.Length);
+                return JsonSerializer.SerializeToString(temp);
+            };
             var json = JsonSerializer.SerializeToString(test);
 
             Assert.That(json, Is.EquivalentTo("{\"Name\":\"Test\",\"Data\":[1,2,3,4,5]}"));
-            // Act: now we set a custom function for byte[]
+
+            JsConfig<byte[]>.RawSerializeFn = null;
             JsConfig.Reset();
             json = JsonSerializer.SerializeToString(test);
-            // Assert:
+
             Assert.That(json, Is.EquivalentTo("{\"Name\":\"Test\",\"Data\":\"AQIDBAU=\"}"));
         }
 
@@ -173,7 +216,8 @@ namespace ServiceStack.Text.Tests.JsonTests
             JsConfig<OuterType>.RawDeserializeFn = str =>
             {
                 var d = str.FromJson<InnerType>();
-                return new OuterType {
+                return new OuterType
+                {
                     P1 = d
                 };
             };
@@ -190,6 +234,73 @@ namespace ServiceStack.Text.Tests.JsonTests
             var outer = json.FromJson<OuterType>();
             Assert.That(outer.P1.A, Is.EqualTo("Hello"));
             Assert.That(outer.P1.B, Is.EqualTo("World"));
+        }
+
+        public class Response
+        {
+            public DateTime DateTime { get; set; }
+        }
+
+        [Test]
+        public void Can_serialize_custom_DateTime()
+        {
+            JsConfig<DateTime>.SerializeFn = time =>
+            {
+                var result = time;
+                if (time.Kind == DateTimeKind.Unspecified)
+                {
+                    result = DateTime.SpecifyKind(result, DateTimeKind.Local);
+                }
+                return result.ToString(CultureInfo.InvariantCulture);
+            };
+
+            var dto = new Response { DateTime = new DateTime(2001, 1, 1, 1, 1, 1) };
+
+            var csv = dto.ToCsv();
+            Assert.That(csv, Is.EqualTo("DateTime\r\n01/01/2001 01:01:01\r\n"));
+
+            var json = dto.ToJson();
+            Assert.That(json, Is.EqualTo("{\"DateTime\":\"01/01/2001 01:01:01\"}"));
+
+            JsConfig<DateTime>.SerializeFn = null;
+            JsConfig.Reset();
+        }
+
+        [Test]
+        public void Can_serialize_custom_DateTime2()
+        {
+            JsConfig<DateTime>.SerializeFn = time =>
+            {
+                var x = new DateTime(time.Ticks, DateTimeKind.Unspecified).ToString("o");
+                return x;
+            };
+
+            JsConfig<DateTime>.DeSerializeFn = time =>
+            {
+                var x = DateTime.ParseExact(time, "o", null);
+                return x;
+            };
+
+            var dateTime = new DateTime(2015, 08, 12, 12, 12, 12, DateTimeKind.Unspecified);
+
+            var json = dateTime.ToJson();
+            Assert.That(json, Is.EqualTo("\"2015-08-12T12:12:12.0000000\""));
+
+            var fromJson = json.FromJson<DateTime>();
+            Assert.That(fromJson, Is.EqualTo(dateTime));
+
+            var dto = new Response
+            {
+                DateTime = dateTime,
+            };
+
+            json = dto.ToJson();
+            Assert.That(json, Is.EqualTo("{\"DateTime\":\"2015-08-12T12:12:12.0000000\"}"));
+            Assert.That(json.FromJson<Response>().DateTime, Is.EqualTo(dateTime));
+
+            JsConfig<DateTime>.SerializeFn = null;
+            JsConfig<DateTime>.DeSerializeFn = null;
+            JsConfig.Reset();
         }
     }
 
@@ -212,7 +323,8 @@ namespace ServiceStack.Text.Tests.JsonTests
         public static InnerType Deserialize(string s)
         {
             var p = s.Split('-');
-            return new InnerType {
+            return new InnerType
+            {
                 A = p[0],
                 B = p[1]
             };

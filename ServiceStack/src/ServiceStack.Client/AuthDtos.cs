@@ -1,13 +1,16 @@
 ﻿// Copyright (c) Service Stack LLC. All Rights Reserved.
 // License: https://raw.github.com/ServiceStack/ServiceStack/master/license.txt
 
+using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
+using ServiceStack.Auth;
+using ServiceStack.DataAnnotations;
 
 namespace ServiceStack
 {
     [DataContract]
-    public class Authenticate : IReturn<AuthenticateResponse>
+    public class Authenticate : IReturn<AuthenticateResponse>, IMeta
     {
         [DataMember(Order = 1)] public string provider { get; set; }
         [DataMember(Order = 2)] public string State { get; set; }
@@ -24,10 +27,11 @@ namespace ServiceStack
         [DataMember(Order = 12)] public string qop { get; set; }
         [DataMember(Order = 13)] public string nc { get; set; }
         [DataMember(Order = 14)] public string cnonce { get; set; }
+        [DataMember(Order = 15)] public Dictionary<string, string> Meta { get; set; }
     }
 
     [DataContract]
-    public class AuthenticateResponse : IMeta
+    public class AuthenticateResponse : IMeta, IHasSessionId
     {
         public AuthenticateResponse()
         {
@@ -72,5 +76,120 @@ namespace ServiceStack
 
         [DataMember(Order = 5)] public ResponseStatus ResponseStatus { get; set; }
         [DataMember(Order = 6)] public Dictionary<string, string> Meta { get; set; }
+    }
+
+    [DataContract]
+    public class AssignRoles : IReturn<AssignRolesResponse>
+    {
+        public AssignRoles()
+        {
+            this.Roles = new List<string>();
+            this.Permissions = new List<string>();
+        }
+
+        [DataMember(Order = 1)]
+        public string UserName { get; set; }
+
+        [DataMember(Order = 2)]
+        public List<string> Permissions { get; set; }
+
+        [DataMember(Order = 3)]
+        public List<string> Roles { get; set; }
+    }
+
+    [DataContract]
+    public class AssignRolesResponse : IHasResponseStatus
+    {
+        public AssignRolesResponse()
+        {
+            this.AllRoles = new List<string>();
+            this.AllPermissions = new List<string>();
+        }
+
+        [DataMember(Order = 1)]
+        public List<string> AllRoles { get; set; }
+
+        [DataMember(Order = 2)]
+        public List<string> AllPermissions { get; set; }
+
+        [DataMember(Order = 3)]
+        public ResponseStatus ResponseStatus { get; set; }
+    }
+
+    [DataContract]
+    public class UnAssignRoles : IReturn<UnAssignRolesResponse>
+    {
+        public UnAssignRoles()
+        {
+            this.Roles = new List<string>();
+            this.Permissions = new List<string>();
+        }
+
+        [DataMember(Order = 1)]
+        public string UserName { get; set; }
+
+        [DataMember(Order = 2)]
+        public List<string> Permissions { get; set; }
+
+        [DataMember(Order = 3)]
+        public List<string> Roles { get; set; }
+    }
+
+    [DataContract]
+    public class UnAssignRolesResponse : IHasResponseStatus
+    {
+        public UnAssignRolesResponse()
+        {
+            this.AllRoles = new List<string>();
+        }
+
+        [DataMember(Order = 1)]
+        public List<string> AllRoles { get; set; }
+
+        [DataMember(Order = 2)]
+        public List<string> AllPermissions { get; set; }
+
+        [DataMember(Order = 3)]
+        public ResponseStatus ResponseStatus { get; set; }
+    }
+
+    [DataContract]
+    public class CancelRequest : IReturn<CancelRequestResponse>
+    {
+        [DataMember(Order = 1)]
+        public string Tag { get; set; }
+    }
+
+    [DataContract]
+    public class CancelRequestResponse
+    {
+        [DataMember(Order = 1)]
+        public string Tag { get; set; }
+
+        [DataMember(Order = 2)]
+        public TimeSpan Elapsed { get; set; }
+
+        [DataMember(Order = 3)]
+        public ResponseStatus ResponseStatus { get; set; }
+    }
+
+    [Exclude(Feature.Soap)]
+    [DataContract]
+    [Route("/event-subscribers/{Id}", "POST")]
+    public class UpdateEventSubscriber : IReturn<UpdateEventSubscriberResponse>
+    {
+        [DataMember(Order = 1)]
+        public string Id { get; set; }
+        [DataMember(Order = 2)]
+        public string[] SubscribeChannels { get; set; }
+        [DataMember(Order = 3)]
+        public string[] UnsubscribeChannels { get; set; }
+    }
+
+    [DataContract]
+    public class UpdateEventSubscriberResponse
+    {
+        [DataMember(Order = 1)]
+        public ResponseStatus ResponseStatus { get; set; }
     }
 }

@@ -52,6 +52,17 @@ namespace ServiceStack.Configuration
             return settings.Get(name);
         }
 
+        public virtual Dictionary<string, string> GetAll()
+        {
+            var keys = GetAllKeys();
+            var to = new Dictionary<string,string>();
+            foreach (var key in keys)
+            {
+                to[key] = GetNullableString(key);
+            }
+            return to;
+        }
+
         public virtual List<string> GetAllKeys()
         {
             var keys = settings.GetAllKeys().ToHashSet();
@@ -105,6 +116,14 @@ namespace ServiceStack.Configuration
                         key);
                 throw new ConfigurationErrorsException(message, ex);
             }
+        }
+
+        public virtual T Get<T>(string name)
+        {
+            var stringValue = GetNullableString(name);
+            return stringValue != null 
+                ? TypeSerializer.DeserializeFromString<T>(stringValue) 
+                : default(T);
         }
 
         public virtual T Get<T>(string name, T defaultValue)

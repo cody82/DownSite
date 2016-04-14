@@ -8,16 +8,20 @@ using ServiceStack.DataAnnotations;
 
 namespace Check.ServiceModel.Operations
 {
+    [Route("/hello")]
     [Route("/hello/{Name}")]
     public class Hello
     {
+        [Required]
         public string Name { get; set; }
+        public string Title { get; set; }
     }
 
     public class HelloResponse
     {
         public string Result { get; set; }
     }
+
 
     public class HelloWithNestedClass : IReturn<HelloResponse>
     {
@@ -30,10 +34,54 @@ namespace Check.ServiceModel.Operations
             public string Value { get; set; }
         }
     }
+
+    public class ListResult
+    {
+        public string Result { get; set; }
+    }
+
+    public class OnlyInReturnListArg
+    {
+        public string Result { get; set; }
+    }
+
+    public class ArrayResult
+    {
+        public string Result { get; set; }
+    }
+
+    public class HelloList : IReturn<List<ListResult>>
+    {
+        public List<string> Names { get; set; }
+    }
+
+    public class HelloReturnList : IReturn<List<OnlyInReturnListArg>>
+    {
+        public List<string> Names { get; set; }
+    }
+
+    public class HelloArray : IReturn<ArrayResult[]>
+    {
+        public List<string> Names { get; set; }
+    }
+
+    public class HelloExisting : IReturn<HelloExistingResponse>
+    {
+        public List<string> Names { get; set; }
+    }
+
+    public class HelloExistingResponse
+    {
+        public HelloList HelloList { get; set; }
+        public HelloArray HelloArray { get; set; }
+        public ArrayResult[] ArrayResults { get; set; }
+        public List<ListResult> ListResults { get; set; }
+    }
     
     public class HelloWithEnum
     {
         public EnumType EnumProp { get; set; }
+        public EnumWithValues EnumWithValues { get; set; }
         public EnumType? NullableEnumProp { get; set; }
 
         public EnumFlags EnumFlags { get; set; }
@@ -43,6 +91,12 @@ namespace Check.ServiceModel.Operations
     {
         Value1,
         Value2
+    }
+
+    public enum EnumWithValues
+    {
+        Value1 = 1,
+        Value2 = 2
     }
 
     [Flags]
@@ -85,8 +139,8 @@ namespace Check.ServiceModel.Operations
     }
 
     [DataContract]
-    [Route("/allowed-attributes","GET")]
-    [Api("AllowedAttributes Description")]
+    [Route("/allowed-attributes", "GET")]
+    [Api(@"AllowedAttributes Description")]
     [ApiResponse(HttpStatusCode.BadRequest, "Your request was not understood")]
     [Description("Description on AllowedAttributes")]
     public class AllowedAttributes
@@ -94,6 +148,7 @@ namespace Check.ServiceModel.Operations
         [Required]
         [Range(1, 10)]
         [Default(5)]
+        [DataMember]
         public int Id { get; set; }
 
         [Range(1.0, 10.0)]
@@ -104,8 +159,19 @@ namespace Check.ServiceModel.Operations
 
         [StringLength(20)]
         [References(typeof(Hello))]
-        [Meta("Foo","Bar")]
+        [Meta("Foo", "Bar")]
         public string Name { get; set; }
+    }
+
+    [Api(@"Multi 
+Line 
+Class")]
+    public class HelloMultiline
+    {
+        [ApiMember(Description = @"Multi 
+Line 
+Property")]
+        public string Overflow { get; set; }
     }
 
     [System.ComponentModel.Description("Description on HelloAllResponse type")]
@@ -130,12 +196,12 @@ namespace Check.ServiceModel.Operations
         public AllCollectionTypes AllCollectionTypes { get; set; }
     }
 
-    public class HelloString
+    public class HelloString : IReturn<string>
     {
         public string Name { get; set; }
     }
 
-    public class HelloVoid
+    public class HelloVoid : IReturnVoid
     {
         public string Name { get; set; }
     }
@@ -248,7 +314,7 @@ namespace Check.ServiceModel.Operations
 
 namespace Check.ServiceModel.Types
 {
-    public class AllTypes
+    public class AllTypes : IReturn<AllTypes>
     {
         public int Id { get; set; }
         public int? NullableId { get; set; }
@@ -265,6 +331,9 @@ namespace Check.ServiceModel.Types
         public string String { get; set; }
         public DateTime DateTime { get; set; }
         public TimeSpan TimeSpan { get; set; }
+        public DateTimeOffset DateTimeOffset { get; set; }
+        public Guid Guid { get; set; }
+        public Char Char { get; set; }
         public DateTime? NullableDateTime { get; set; }
         public TimeSpan? NullableTimeSpan { get; set; }
         public List<string> StringList { get; set; }
@@ -272,6 +341,9 @@ namespace Check.ServiceModel.Types
         public Dictionary<string, string> StringMap { get; set; }
         public Dictionary<int, string> IntStringMap { get; set; }
         public SubType SubType { get; set; }
+
+        [DataMember(Name = "aliasedName")]
+        public string OriginalName { get; set; }
     }
 
     public class AllCollectionTypes
@@ -284,6 +356,9 @@ namespace Check.ServiceModel.Types
 
         public Poco[] PocoArray { get; set; }
         public List<Poco> PocoList { get; set; }
+
+        public Dictionary<string, List<Poco>> PocoLookup { get; set; }
+        public Dictionary<string, List<Dictionary<string,Poco>>> PocoLookupMap { get; set; } 
     }
 
     public class Poco
@@ -291,7 +366,7 @@ namespace Check.ServiceModel.Types
         public string Name { get; set; }
     }
 
-    public class HelloBase
+    public abstract class HelloBase
     {
         public int Id { get; set; }
     }
@@ -316,4 +391,227 @@ namespace Check.ServiceModel.Types
         public int Id { get; set; }
         public string Name { get; set; }
     }
+
+    public class HelloSession : IReturn<HelloSessionResponse>
+    {        
+    }
+
+    public class HelloSessionResponse
+    {
+        public AuthUserSession Result { get; set; }
+    }
+
+    public class HelloInterface : IGenericInterface<string>
+    {
+        public IPoco Poco { get; set; }
+        public IEmptyInterface EmptyInterface { get; set; }
+        public EmptyClass EmptyClass { get; set; }
+        public string Value { get; set; }
+        //public IGenericInterface<string> GenericInterface { get; set; }
+    }
+
+    public interface IPoco
+    {
+        string Name { get; set; }
+    }
+
+    public interface IEmptyInterface {}
+    public class EmptyClass {}
+
+    public interface IGenericInterface<T>
+    {
+        T Value { get; }
+    }
+
+    /// <summary>
+    /// Duplicate Types
+    /// </summary>
+    public class TypeB
+    {
+        public string Foo { get; set; }
+    }
+
+    public class TypeA
+    {
+        public List<TypeB> Bar { get; set; }
+    }
+
+    public class Request1 : IReturn<Request1Response>
+    {
+        public TypeA Test { get; set; }
+    }
+
+    public class Request1Response
+    {
+        public TypeA Test { get; set; }
+    }
+
+    public class Request2 : IReturn<Request2Response>
+    {
+        public TypeA Test { get; set; }
+    }
+
+    public class Request2Response
+    {
+        public TypeA Test { get; set; }
+    }
+
+    public class TypesGroup
+    {
+        public class InnerType
+        {
+            public long Id { get; set; }
+            public string Name { get; set; }
+        }
+
+        public enum InnerEnum
+        {
+            Foo,
+            Bar,
+            Baz
+        }
+    }
+
+    public class HelloInnerTypes : IReturn<HelloInnerTypesResponse> { }
+
+    public class HelloInnerTypesResponse
+    {
+        public TypesGroup.InnerType InnerType { get; set; }
+
+        public TypesGroup.InnerEnum InnerEnum { get; set; }
+    }
+
+    public class QueryTemplate : IReturn<QueryResponseTemplate<Poco>> {}
+
+    [DataContract]
+    public class QueryResponseTemplate<T> : IHasResponseStatus, IMeta
+    {
+        [DataMember(Order = 1)]
+        public virtual int Offset { get; set; }
+
+        [DataMember(Order = 2)]
+        public virtual int Total { get; set; }
+
+        [DataMember(Order = 3)]
+        public virtual List<T> Results { get; set; }
+
+        [DataMember(Order = 4)]
+        public virtual Dictionary<string, string> Meta { get; set; }
+
+        [DataMember(Order = 5)]
+        public virtual ResponseStatus ResponseStatus { get; set; }
+    }
+
+    public class HelloReserved
+    {
+        public string Class { get; set; }
+        public string Type { get; set; }
+        public string extension { get; set; }
+    }
+
+    public class HelloDictionary : IReturn<Dictionary<string, string>>
+    {
+        public string Key { get; set; }
+        public string Value { get; set; }
+    }
+
+    public class HelloBuiltin
+    {
+        public DayOfWeek DayOfWeek { get; set; }
+    }
+
+    public class HelloVerbResponse
+    {
+        public string Result { get; set; }
+    }
+
+    public class HelloGet : IReturn<HelloVerbResponse>, IGet
+    {
+        public int Id { get; set; }
+    }
+    public class HelloPost : HelloBase, IReturn<HelloVerbResponse>, IPost
+    {
+    }
+    public class HelloPut : IReturn<HelloVerbResponse>, IPut
+    {
+        public int Id { get; set; }
+    }
+    public class HelloDelete : IReturn<HelloVerbResponse>, IDelete
+    {
+        public int Id { get; set; }
+    }
+    public class HelloPatch : IReturn<HelloVerbResponse>, IPatch
+    {
+        public int Id { get; set; }
+    }
+
+    public class HelloReturnVoid : IReturnVoid
+    {
+        public int Id { get; set; }
+    }
+
+    public class EnumRequest : IReturn<EnumResponse>, IPut
+    {
+        public ScopeType Operator { get; set; }
+    }
+
+    public class EnumResponse
+    {
+        public ScopeType Operator { get; set; }
+    }
+
+    [DataContract]
+    public enum ScopeType
+    {
+        [EnumMember]
+        Global = 1,
+        [EnumMember]
+        Sale = 2,
+    }
+
+    public class ExcludeTest1 : IReturn<ExcludeTestNested>
+    {
+    }
+
+    public class ExcludeTest2 : IReturn<string>
+    {
+        public ExcludeTestNested ExcludeTestNested { get; set; }
+    }
+
+    public class ExcludeTestNested
+    {
+        public int Id { get; set; }
+    }
+
+
+    [Exclude(Feature.Metadata)]
+    public class ExcludeMetadata : IReturn<ExcludeMetadata>
+    {
+        public int Id { get; set; }
+    }
+
+    [Restrict(LocalhostOnly = true)]
+    public class RestrictLocalhost : IReturn<RestrictLocalhost>
+    {
+        public int Id { get; set; }
+    }
+
+    [Restrict(InternalOnly = true)]
+    public class RestrictInternal : IReturn<RestrictInternal>
+    {
+        public int Id { get; set; }
+    }
+
+    [Restrict(ExternalOnly = true)]
+    public class RestrictExternal : IReturn<RestrictExternal>
+    {
+        public int Id { get; set; }
+    }
+
+    public class IgnoreInMetadataConfig : IReturn<IgnoreInMetadataConfig>
+    {
+        public int Id { get; set; }
+    }
 }
+
+

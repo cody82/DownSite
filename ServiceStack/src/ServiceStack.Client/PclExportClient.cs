@@ -30,6 +30,7 @@
 
 /*** REMINDER: Keep this file in sync with ServiceStack.Text/Pcl.NameValueCollection.cs ***/
 
+using System.IO;
 using System.Net;
 using System.Reflection;
 using System.Threading;
@@ -1699,8 +1700,6 @@ namespace ServiceStack
         public virtual string GetHeader(WebHeaderCollection headers, string name, Func<string, bool> valuePredicate)
         {
             return null;
-            var header = headers[name];
-            return valuePredicate(header) ? header : null;
         }
 
         public virtual void SetCookieContainer(HttpWebRequest webRequest, ServiceClientBase client)
@@ -1729,14 +1728,16 @@ namespace ServiceStack
 
         public virtual Task WaitAsync(int waitForMs)
         {
-#if PCL
-            return EmptyTask;
-#else
-            var tcs = new TaskCompletionSource<object>();
-            Thread.Sleep(waitForMs);
-            tcs.SetResult(null);
+            if (waitForMs <= 0)
+                throw new ArgumentOutOfRangeException("waitForMs");
+
+            var tcs = new TaskCompletionSource<bool>();
+            Timer timer = null;
+            timer = new Timer(self => {
+                tcs.TrySetResult(true);
+                timer.Dispose();
+            }, null, waitForMs, Timeout.Infinite);
             return tcs.Task;
-#endif
         }
 
         public virtual void RunOnUiThread(Action fn)
@@ -1757,6 +1758,26 @@ namespace ServiceStack
             Instance = instance;
             Instance.UiContext = SynchronizationContext.Current;
         }
+
+        public virtual Exception CreateTimeoutException(Exception ex, string errorMsg)
+        {
+            return new WebException("The request timed out", ex, WebExceptionStatus.RequestCanceled, null);
+        }
+
+        public virtual void CloseReadStream(Stream stream)
+        {
+            stream.Close();
+        }
+
+        public virtual void CloseWriteStream(Stream stream)
+        {
+            stream.Close();
+        }
+
+        public virtual bool IsWebException(WebException webEx)
+        {
+            return webEx != null && webEx.Response != null;
+        }
     }
 
 #if PCL
@@ -1764,8 +1785,11 @@ namespace ServiceStack
 
     public sealed class Timer : CancellationTokenSource, ITimer, IDisposable
     {
-        public Timer(TimerCallback callback, object state, int dueTime)
+        public Timer(TimerCallback callback, object state, int dueTime, int period=0)
         {
+            if (period > 0)
+                throw new NotImplementedException("period is not supported in PCL libraries");
+
             Task.Delay(dueTime, Token).ContinueWith((t, s) =>
             {
                 var tuple = (Tuple<TimerCallback, object>)s;

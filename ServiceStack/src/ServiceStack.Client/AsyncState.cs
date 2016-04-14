@@ -6,6 +6,7 @@ using System.IO;
 using System.Net;
 using System.Text;
 using System.Threading;
+using ServiceStack.Text;
 
 namespace ServiceStack
 {
@@ -17,7 +18,7 @@ namespace ServiceStack
         {
             BufferRead = new byte[bufferSize];
             TextData = new StringBuilder();
-            BytesData = new MemoryStream(bufferSize);
+            BytesData = MemoryStreamFactory.GetStream(bufferSize);
             WebRequest = null;
             ResponseStream = null;
         }
@@ -46,9 +47,11 @@ namespace ServiceStack
 
         public ITimer Timer;
 
+        public Action<WebResponse> OnResponseInit;
+
         public Action<TResponse> OnSuccess;
 
-        public Action<TResponse, Exception> OnError;
+        public Action<object, Exception> OnError;
 
         public SynchronizationContext UseSynchronizationContext;
 
@@ -73,7 +76,7 @@ namespace ServiceStack
                 this.OnSuccess(response);
         }
 
-        public void HandleError(TResponse response, Exception ex)
+        public void HandleError(object response, Exception ex)
         {
             StopTimer();
 
@@ -83,7 +86,7 @@ namespace ServiceStack
             var toReturn = ex;
             if (timedOut)
             {
-                toReturn = ex.CreateTimeoutException("The request timed out");
+                toReturn = PclExportClient.Instance.CreateTimeoutException(ex, "The request timed out");
             }
 
             if (UseSynchronizationContext != null)
@@ -96,7 +99,7 @@ namespace ServiceStack
 
         public void StartTimer(TimeSpan timeOut)
         {
-            this.Timer = this.CreateTimer(timeOut);
+            this.Timer = PclExportClient.Instance.CreateTimer(this.TimedOut, timeOut, this);
         }
 
         public void StopTimer()

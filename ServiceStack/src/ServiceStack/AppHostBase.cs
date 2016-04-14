@@ -1,4 +1,6 @@
+using System;
 using System.Reflection;
+using System.Web;
 using ServiceStack.Host.AspNet;
 using ServiceStack.Web;
 
@@ -11,10 +13,14 @@ namespace ServiceStack
     public abstract class AppHostBase : ServiceStackHost
     {
         protected AppHostBase(string serviceName, params Assembly[] assembliesWithServices)
-            : base(serviceName, assembliesWithServices) { }
+            : base(serviceName, assembliesWithServices)
+        { }
 
         public override string ResolveAbsoluteUrl(string virtualPath, IRequest httpReq)
         {
+            if (httpReq == null)
+                return (Config.WebHostUrl ?? "/").CombineWith(virtualPath.TrimStart('~'));
+
             virtualPath = virtualPath.SanitizedVirtualPath();
             return httpReq.GetAbsoluteUrl(virtualPath);
         }
@@ -23,6 +29,18 @@ namespace ServiceStack
         {
             var path = ((AspNetRequest)httpReq).HttpRequest.PhysicalPath;
             return path;
+        }
+
+        public override IRequest TryGetCurrentRequest()
+        {
+            try
+            {
+                return HasStarted ? HttpContext.Current.ToRequest() : null;
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 }

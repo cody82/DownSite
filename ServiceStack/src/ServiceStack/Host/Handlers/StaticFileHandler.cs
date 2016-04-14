@@ -31,6 +31,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
 using System.Web;
 using ServiceStack.IO;
 using ServiceStack.Logging;
@@ -44,10 +45,22 @@ namespace ServiceStack.Host.Handlers
         private static readonly ILog log = LogManager.GetLogger(typeof(StaticFileHandler));
         public static int DefaultBufferSize = 1024 * 1024;
 
+        public static Action<IRequest, IResponse, IVirtualFile> ResponseFilter { get; set; }
+
         public StaticFileHandler()
         {
             BufferSize = DefaultBufferSize;
             RequestName = GetType().Name; //Always allow StaticFileHandlers
+        }
+
+        public StaticFileHandler(IVirtualFile virtualFile) : this()
+        {
+            VirtualNode = virtualFile;
+        }
+
+        public StaticFileHandler(IVirtualDirectory virtualDir) : this()
+        {
+            VirtualNode = virtualDir;
         }
 
         public override void ProcessRequest(HttpContextBase context)
@@ -57,21 +70,22 @@ namespace ServiceStack.Host.Handlers
         }
 
         public int BufferSize { get; set; }
-        private DateTime DefaultFileModified { get; set; }
-        private string DefaultFilePath { get; set; }
-        private byte[] DefaultFileContents { get; set; }
+        private static DateTime DefaultFileModified { get; set; }
+        private static string DefaultFilePath { get; set; }
+        private static byte[] DefaultFileContents { get; set; }
+        public IVirtualNode VirtualNode { get; set; }
 
         /// <summary>
         /// Keep default file contents in-memory
         /// </summary>
         /// <param name="defaultFilePath"></param>
-        public void SetDefaultFile(string defaultFilePath, byte[] defaultFileContents, DateTime defaultFileModified)
+        public static void SetDefaultFile(string defaultFilePath, byte[] defaultFileContents, DateTime defaultFileModified)
         {
             try
             {
-                this.DefaultFilePath = defaultFilePath;
-                this.DefaultFileContents = defaultFileContents;
-                this.DefaultFileModified = defaultFileModified;
+                DefaultFilePath = defaultFilePath;
+                DefaultFileContents = defaultFileContents;
+                DefaultFileModified = defaultFileModified;
             }
             catch (Exception ex)
             {
@@ -84,9 +98,9 @@ namespace ServiceStack.Host.Handlers
             HostContext.ApplyCustomHandlerRequestFilters(request, response);
             if (response.IsClosed) return;
 
-            response.EndHttpHandlerRequest(skipClose: true, afterHeaders: r =>
+            response.EndHttpHandlerRequest(afterHeaders: r =>
             {
-                var node = request.GetVirtualNode();
+                var node = this.VirtualNode ?? request.GetVirtualNode();
                 var file = node as IVirtualFile;
                 if (file == null)
                 {
@@ -110,13 +124,13 @@ namespace ServiceStack.Host.Handlers
                         {
                             //Create a case-insensitive file index of all host files
                             if (allFiles == null)
-                                allFiles = CreateFileIndex(HostContext.VirtualPathProvider.RootDirectory.RealPath);
+                                allFiles = CreateFileIndex(HostContext.VirtualFileSources.RootDirectory.RealPath);
                             if (allDirs == null)
-                                allDirs = CreateDirIndex(HostContext.VirtualPathProvider.RootDirectory.RealPath);
+                                allDirs = CreateDirIndex(HostContext.VirtualFileSources.RootDirectory.RealPath);
 
                             if (allFiles.TryGetValue(fileName.ToLower(), out fileName))
                             {
-                                file = HostContext.VirtualPathProvider.GetFile(fileName);
+                                file = HostContext.VirtualFileSources.GetFile(fileName);
                             }
                         }
 
@@ -124,10 +138,14 @@ namespace ServiceStack.Host.Handlers
                         {
                             var msg = ErrorMessages.FileNotExistsFmt.Fmt(request.PathInfo);
                             log.WarnFormat("{0} in path: {1}", msg, originalFileName);
-                            throw HttpError.NotFound(msg);
+                            response.StatusCode = 404;
+                            response.StatusDescription = msg;
+                            return;
                         }
                     }
                 }
+
+                file.Refresh(); //refresh FileInfo, DateModified, Length
 
                 TimeSpan maxAge;
                 if (r.ContentType != null && HostContext.Config.AddMaxAgeForStaticMimeTypes.TryGetValue(r.ContentType, out maxAge))
@@ -138,7 +156,8 @@ namespace ServiceStack.Host.Handlers
                 if (request.HasNotModifiedSince(file.LastModified))
                 {
                     r.ContentType = MimeTypes.GetMimeType(file.Name);
-                    r.StatusCode = 304;
+                    r.StatusCode = (int)HttpStatusCode.NotModified;
+                    r.StatusDescription = HttpStatusCode.NotModified.ToString();
                     return;
                 }
 
@@ -147,12 +166,20 @@ namespace ServiceStack.Host.Handlers
                     r.AddHeaderLastModified(file.LastModified);
                     r.ContentType = MimeTypes.GetMimeType(file.Name);
 
-                    if (file.VirtualPath.EqualsIgnoreCase(this.DefaultFilePath))
+                    if (ResponseFilter != null)
                     {
-                        if (file.LastModified > this.DefaultFileModified)
-                            SetDefaultFile(this.DefaultFilePath, file.ReadAllBytes(), file.LastModified); //reload
+                        ResponseFilter(request, r, file);
 
-                        r.OutputStream.Write(this.DefaultFileContents, 0, this.DefaultFileContents.Length);
+                        if (r.IsClosed)
+                            return;
+                    }
+
+                    if (file.VirtualPath.EqualsIgnoreCase(DefaultFilePath))
+                    {
+                        if (file.LastModified > DefaultFileModified)
+                            SetDefaultFile(DefaultFilePath, file.ReadAllBytes(), file.LastModified); //reload
+
+                        r.OutputStream.Write(DefaultFileContents, 0, DefaultFileContents.Length);
                         r.Close();
                         return;
                     }

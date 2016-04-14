@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Runtime.Serialization;
+using System.Web.Script.Serialization;
 using NUnit.Framework;
 using ServiceStack.Text.Tests.DynamicModels;
 
@@ -30,6 +31,11 @@ namespace ServiceStack.Text.Tests
     {
         public string Name { get; set; }
         public int Age { get; set; }
+    }
+
+    public class SubCar : Car
+    {
+        public string Custom { get; set; }
     }
 
     public class UserDto
@@ -549,6 +555,9 @@ namespace ServiceStack.Text.Tests
 
             [JsonIgnore]
             public int JsonIgnoreId { get; set; }
+
+            [ScriptIgnore]
+            public int ScriptIgnoreId { get; set; }
         }
 
         //Matches JSON.NET's [JsonIgnore] by name
@@ -557,13 +566,63 @@ namespace ServiceStack.Text.Tests
         [Test]
         public void Can_change_ignored_properties()
         {
-            var dto = new IgnoredModel();
+            JsConfig.IgnoreAttributesNamed = JsConfig.IgnoreAttributesNamed.NewArray(
+                with: typeof(ScriptIgnoreAttribute).Name,
+                without: typeof(JsonIgnoreAttribute).Name);
 
-            JsConfig.IgnoreAttributesNamed = new[] {
-                typeof(IgnoreDataMemberAttribute).Name //i.e. Remove [JsonIgnore] 
-            };
+            var dto = new IgnoredModel { JsonIgnoreId = 1, ScriptIgnoreId = 2 };
 
-            Assert.That(dto.ToJson(), Is.EqualTo("{\"Id\":0,\"JsonIgnoreId\":0}"));
+            Assert.That(dto.ToJson(), Is.EqualTo("{\"Id\":0,\"JsonIgnoreId\":1}"));
+        }
+
+        [Test]
+        public void Does_convert_to_ValueType()
+        {
+            Assert.That("1".ConvertTo(typeof(int)), Is.EqualTo(1));
+            Assert.That("1".ConvertTo(typeof(long)), Is.EqualTo(1L));
+            Assert.That("1.1".ConvertTo(typeof(float)), Is.EqualTo(1.1f));
+            Assert.That("1.1".ConvertTo(typeof(double)), Is.EqualTo(1.1d));
+            Assert.That("1.1".ConvertTo(typeof(decimal)), Is.EqualTo(1.1M));
+
+            Assert.That("2001-01-01".ConvertTo<DateTime>(), Is.EqualTo(new DateTime(2001, 01, 01)));
+            Assert.That("98ece8400be4452eb6ad7c3a4404f119".ConvertTo<Guid>(), Is.EqualTo(new Guid("98ece8400be4452eb6ad7c3a4404f119")));
+        }
+
+        [Test]
+        public void Does_convert_from_ValueType_to_strings()
+        {
+            Assert.That(1.ConvertTo(typeof(string)), Is.EqualTo("1"));
+            Assert.That(1L.ConvertTo(typeof(string)), Is.EqualTo("1"));
+            Assert.That(1.1f.ConvertTo(typeof(string)), Is.EqualTo("1.1"));
+            Assert.That(1.1d.ConvertTo(typeof(string)), Is.EqualTo("1.1"));
+            Assert.That(1.1M.ConvertTo(typeof(string)), Is.EqualTo("1.1"));
+            
+            Assert.That(new DateTime(2001, 01, 01).ConvertTo<string>(), Is.EqualTo("2001-01-01"));
+            Assert.That(new Guid("98ECE840-0BE4-452E-B6AD-7C3A4404F119").ConvertTo<string>(), Is.EqualTo("98ece8400be4452eb6ad7c3a4404f119"));
+        }
+
+        [Test]
+        public void Can_convert_from_List_object()
+        {
+            var from = 3.Times(i => (object)new Car { Age = i, Name = "Name" + i });
+            var to = (List<Car>)TranslateListWithElements.TryTranslateCollections(
+                typeof(List<object>), typeof(List<Car>), from);
+
+            Assert.That(to.Count, Is.EqualTo(3));
+            Assert.That(to[0].Age, Is.EqualTo(0));
+            Assert.That(to[0].Name, Is.EqualTo("Name0"));
+        }
+
+        [Test]
+        public void Can_convert_from_List_SubType()
+        {
+            var from = 3.Times(i => new SubCar { Age = i, Name = "Name" + i });
+            var to = (List<Car>)TranslateListWithElements.TryTranslateCollections(
+                typeof(List<SubCar>), typeof(List<Car>), from);
+
+            Assert.That(to.Count, Is.EqualTo(3));
+            Assert.That(to[0].Age, Is.EqualTo(0));
+            Assert.That(to[0].Name, Is.EqualTo("Name0"));
         }
     }
 

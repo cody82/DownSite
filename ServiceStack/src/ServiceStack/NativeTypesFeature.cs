@@ -10,73 +10,13 @@ namespace ServiceStack
     {
         public MetadataTypesConfig MetadataTypesConfig { get; set; }
 
+        public static bool DisableTokenVerification { get; set; }
+
         public NativeTypesFeature()
         {
             MetadataTypesConfig = new MetadataTypesConfig
             {
                 AddDefaultXmlNamespace = HostConfig.DefaultWsdlNamespace,
-                CSharpTypeAlias = new Dictionary<string, string> 
-                {
-                    { "String", "string" },    
-                    { "Boolean", "bool" },    
-                    { "Byte", "byte" },    
-                    { "Int16", "short" },    
-                    { "Int32", "int" },    
-                    { "Int64", "long" },    
-                    { "UInt16", "ushort" },    
-                    { "UInt32", "uint" },    
-                    { "UInt64", "ulong" },    
-                    { "Single", "float" },    
-                    { "Double", "double" },    
-                    { "Decimal", "decimal" },    
-                },
-                FSharpTypeAlias = new Dictionary<string, string>
-                {
-                },
-                VbNetTypeAlias = new Dictionary<string, string>
-                {
-                    { "Int16", "Short" },    
-                    { "Int32", "Integer" },    
-                    { "Int64", "Long" },    
-                    { "DateTime", "Date" },    
-                },
-                VbNetKeyWords = new HashSet<string>
-                {
-                    "Default",
-                    "Dim",
-                    "Catch",
-                    "Byte",
-                    "Short",
-                    "Integer",
-                    "Long",
-                    "UShort",
-                    "ULong",
-                    "Double",
-                    "Decimal",
-                    "String",
-                    "Object",
-                    "Each",
-                    "Error",
-                    "Finally",
-                    "Function",
-                    "Global",
-                    "If",
-                    "Imports",
-                    "Inherits",
-                    "Not",
-                    "IsNot",
-                    "Module",
-                    "MyBase",
-                    "Option",
-                    "Out",
-                    "Protected",
-                    "Return",
-                    "Shadows",
-                    "Static",
-                    "Then",
-                    "With",
-                    "When",
-                },
                 ExportAttributes = new HashSet<Type>
                 {
                     typeof(FlagsAttribute),
@@ -84,26 +24,44 @@ namespace ServiceStack
                     typeof(ApiResponseAttribute),
                     typeof(ApiMemberAttribute),
                     typeof(StringLengthAttribute),
-                    typeof(DefaultAttribute),
                     typeof(IgnoreAttribute),
                     typeof(IgnoreDataMemberAttribute),
                     typeof(MetaAttribute),
                     typeof(RequiredAttribute),
                     typeof(ReferencesAttribute),
                     typeof(StringLengthAttribute),
+                    typeof(AutoQueryViewerAttribute),
+                    typeof(AutoQueryViewerFieldAttribute),
+                },
+                ExportTypes = new HashSet<Type>
+                {
+                    typeof(IGet),                    
+                    typeof(IPost),                    
+                    typeof(IPut),                    
+                    typeof(IDelete),                    
+                    typeof(IPatch),
                 },
                 IgnoreTypes = new HashSet<Type>
                 {
                 },
                 IgnoreTypesInNamespaces = new List<string>
                 {
-                    "ServiceStack",    
+                    "ServiceStack",
                     "ServiceStack.Auth",
+                    "ServiceStack.Caching",
+                    "ServiceStack.Configuration",
+                    "ServiceStack.Data",
+                    "ServiceStack.IO",
+                    "ServiceStack.Logging",
+                    "ServiceStack.Messaging",
+                    "ServiceStack.Model",
+                    "ServiceStack.Redis",
+                    "ServiceStack.Web",
                     "ServiceStack.Admin",
-                    "ServiceStack.NativeTypes",    
-                    "ServiceStack.Api.Swagger",    
+                    "ServiceStack.NativeTypes",
+                    "ServiceStack.Api.Swagger",
                 },
-                DefaultNamespaces = new List<string> 
+                DefaultNamespaces = new List<string>
                 {
                     "System",
                     "System.Collections",
@@ -111,7 +69,7 @@ namespace ServiceStack
                     "System.Runtime.Serialization",
                     "ServiceStack",
                     "ServiceStack.DataAnnotations",
-                }
+                },
             };
         }
 

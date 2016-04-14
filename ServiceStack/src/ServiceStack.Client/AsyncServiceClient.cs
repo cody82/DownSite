@@ -7,6 +7,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using ServiceStack.Logging;
+using ServiceStack.Text;
 using ServiceStack.Web;
 
 #if NETFX_CORE
@@ -20,11 +21,12 @@ namespace ServiceStack
      * http://msdn.microsoft.com/en-us/library/86wf6409(VS.71).aspx
      */
 
-    public partial class AsyncServiceClient
+    public partial class AsyncServiceClient : IHasSessionId, IHasVersion
     {
         private static readonly ILog Log = LogManager.GetLogger(typeof(AsyncServiceClient));
         private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(60);
         //private HttpWebRequest webRequest = null;
+        private AuthenticationInfo authInfo = null;
 
         /// <summary>
         /// The request filter is called before any request.
@@ -70,6 +72,16 @@ namespace ServiceStack
         /// </summary>
         public Action<HttpWebResponse> ResponseFilter { get; set; }
 
+        /// <summary>
+        /// The ResultsFilter is called before the Request is sent allowing you to return a cached response.
+        /// </summary>
+        public ResultsFilterDelegate ResultsFilter { get; set; }
+
+        /// <summary>
+        /// The ResultsFilterResponse is called before returning the response allowing responses to be cached.
+        /// </summary>
+        public ResultsFilterResponseDelegate ResultsFilterResponse { get; set; }
+
         public string BaseUri { get; set; }
         public bool DisableAutoCompression { get; set; }
 
@@ -105,6 +117,9 @@ namespace ServiceStack
 
         public bool ShareCookiesWithBrowser { get; set; }
 
+        public int Version { get; set; }
+        public string SessionId { get; set; }
+
         internal Action CancelAsyncFn;
 
         public void CancelAsync()
@@ -122,24 +137,52 @@ namespace ServiceStack
         {
             var tcs = new TaskCompletionSource<TResponse>();
 
-            SendWebRequest<TResponse>(httpMethod, absoluteUrl, request,
-                tcs.SetResult,
-                (response, exc) => tcs.SetException(exc)
-            );
+            if (ResultsFilter != null)
+            {
+                var response = ResultsFilter(typeof(TResponse), httpMethod, absoluteUrl, request);
+                if (response is TResponse)
+                {
+                    tcs.SetResult((TResponse)response);
+                    return tcs.Task;
+                }
+            }
+
+            if (ResultsFilterResponse != null)
+            {
+                WebResponse webRes = null;
+
+                SendWebRequest<TResponse>(httpMethod, absoluteUrl, request,
+                    r => {
+                        ResultsFilterResponse(webRes, r, httpMethod, absoluteUrl, request);
+                        tcs.SetResult(r);
+                    },
+                    (response, exc) => tcs.SetException(exc),
+                    wr => webRes = wr
+                );
+            }
+            else
+            {
+                SendWebRequest<TResponse>(httpMethod, absoluteUrl, request,
+                    tcs.SetResult,
+                    (response, exc) => tcs.SetException(exc)
+                );
+            }
 
             return tcs.Task;
         }
 
         public void SendAsync<TResponse>(string httpMethod, string absoluteUrl, object request,
-            Action<TResponse> onSuccess, Action<TResponse, Exception> onError)
+            Action<TResponse> onSuccess, Action<object, Exception> onError)
         {
             SendWebRequest(httpMethod, absoluteUrl, request, onSuccess, onError);
         }
 
         private void SendWebRequest<TResponse>(string httpMethod, string absoluteUrl, object request, 
-            Action<TResponse> onSuccess, Action<TResponse, Exception> onError)
+            Action<TResponse> onSuccess, Action<object, Exception> onError, Action<WebResponse> onResponseInit = null)
         {
             if (httpMethod == null) throw new ArgumentNullException("httpMethod");
+
+            this.PopulateRequestMetadata(request);
 
             var requestUri = absoluteUrl;
             var hasQueryString = request != null && !httpMethod.HasRequestBody();
@@ -160,6 +203,7 @@ namespace ServiceStack
                 Url = requestUri,
                 WebRequest = webRequest,
                 Request = request,
+                OnResponseInit = onResponseInit,
                 OnSuccess = onSuccess,
                 OnError = onError,
                 UseSynchronizationContext = CaptureSynchronizationContext ? SynchronizationContext.Current : null,
@@ -171,38 +215,41 @@ namespace ServiceStack
         }
 
         private void SendWebRequestAsync<TResponse>(string httpMethod, object request,
-            AsyncState<TResponse> state, HttpWebRequest webRequest)
+            AsyncState<TResponse> state, HttpWebRequest client)
         {
-            webRequest.Accept = string.Format("{0}, */*", ContentType);
+            client.Accept = ContentType;
 
             if (this.EmulateHttpViaPost)
             {
-                webRequest.Method = "POST";
-                webRequest.Headers[HttpHeaders.XHttpMethodOverride] = httpMethod;
+                client.Method = "POST";
+                client.Headers[HttpHeaders.XHttpMethodOverride] = httpMethod;
             }
             else
             {
-                webRequest.Method = httpMethod;
+                client.Method = httpMethod;
             }
 
-            PclExportClient.Instance.AddHeader(webRequest, Headers);
+            PclExportClient.Instance.AddHeader(client, Headers);
 
             //EmulateHttpViaPost is also forced for SL5 clients sending non GET/POST requests
-            PclExport.Instance.Config(webRequest, userAgent: UserAgent);
+            PclExport.Instance.Config(client, userAgent: UserAgent);
 
             if (this.Credentials != null) 
-                webRequest.Credentials = this.Credentials;
-            if (this.AlwaysSendBasicAuthHeader) 
-                webRequest.AddBasicAuth(this.UserName, this.Password);
+                client.Credentials = this.Credentials;
 
-            ApplyWebRequestFilters(webRequest);
+            if (this.authInfo != null)
+                client.AddAuthInfo(this.UserName, this.Password, authInfo);
+            else if (this.AlwaysSendBasicAuthHeader)
+                client.AddBasicAuth(this.UserName, this.Password);
+
+            ApplyWebRequestFilters(client);
 
             try
             {
-                if (webRequest.Method.HasRequestBody())
+                if (client.Method.HasRequestBody())
                 {
-                    webRequest.ContentType = ContentType;
-                    webRequest.BeginGetRequestStream(RequestCallback<TResponse>, state);
+                    client.ContentType = ContentType;
+                    client.BeginGetRequestStream(RequestCallback<TResponse>, state);
                 }
                 else
                 {
@@ -230,7 +277,7 @@ namespace ServiceStack
                     StreamSerializer(null, requestState.Request, stream);
                 }
 
-                stream.EndWriteStream();
+                PclExportClient.Instance.CloseWriteStream(stream);
 
                 requestState.WebRequest.BeginGetResponse(ResponseCallback<T>, requestState);
             }
@@ -248,6 +295,11 @@ namespace ServiceStack
                 var webRequest = requestState.WebRequest;
 
                 requestState.WebResponse = (HttpWebResponse)webRequest.EndGetResponse(asyncResult);
+
+                if (requestState.OnResponseInit != null)
+                {
+                    requestState.OnResponseInit(requestState.WebResponse);
+                }
 
                 if (requestState.ResponseContentLength == default(long))
                 {
@@ -279,16 +331,12 @@ namespace ServiceStack
                         requestState.WebRequest = (HttpWebRequest)WebRequest.Create(requestState.Url);
 
                         if (StoreCookies)
-                        {
                             requestState.WebRequest.CookieContainer = CookieContainer;
-                        }
 
-                        requestState.WebRequest.AddBasicAuth(this.UserName, this.Password);
+                        HandleAuthException(ex, requestState.WebRequest);
 
                         if (OnAuthenticationRequired != null)
-                        {
                             OnAuthenticationRequired(requestState.WebRequest);
-                        }
 
                         SendWebRequestAsync(
                             requestState.HttpMethod, requestState.Request,
@@ -302,6 +350,27 @@ namespace ServiceStack
                 }
 
                 HandleResponseError(ex, requestState);
+            }
+        }
+
+        private void HandleAuthException(Exception ex, WebRequest client)
+        {
+            var webEx = ex as WebException;
+            if (webEx != null && webEx.Response != null)
+            {
+                var headers = ((HttpWebResponse)webEx.Response).Headers;
+                var doAuthHeader = PclExportClient.Instance.GetHeader(headers,
+                    HttpHeaders.WwwAuthenticate, x => x.Contains("realm"));
+
+                if (doAuthHeader == null)
+                {
+                    client.AddBasicAuth(this.UserName, this.Password);
+                }
+                else
+                {
+                    this.authInfo = new AuthenticationInfo(doAuthHeader);
+                    client.AddAuthInfo(this.UserName, this.Password, authInfo);
+                }
             }
         }
 
@@ -342,7 +411,8 @@ namespace ServiceStack
                         }
                         else
                         {
-                            using (var reader = requestState.BytesData)
+                            var reader = requestState.BytesData;
+                            try
                             {
                                 if (typeof(T) == typeof(string))
                                 {
@@ -360,6 +430,11 @@ namespace ServiceStack
                                     response = (T)this.StreamDeserializer(typeof(T), reader);
                                 }
                             }
+                            finally
+                            {
+                                if (reader.CanRead)
+                                    reader.Dispose(); // Not yet disposed, but could've been.
+                            }
                         }
 
                         PclExportClient.Instance.SynchronizeCookies(this);
@@ -373,7 +448,7 @@ namespace ServiceStack
                     }
                     finally
                     {
-                        responseStream.EndReadStream();
+                        PclExportClient.Instance.CloseReadStream(responseStream);
 
                         CancelAsyncFn = null;
                     }
@@ -388,17 +463,21 @@ namespace ServiceStack
         private void HandleResponseError<TResponse>(Exception exception, AsyncState<TResponse> state)
         {
             var webEx = exception as WebException;
-            if (webEx.IsWebException())
+            if (PclExportClient.Instance.IsWebException(webEx))
             {
                 var errorResponse = ((HttpWebResponse)webEx.Response);
                 Log.Error(webEx);
-                Log.DebugFormat("Status Code : {0}", errorResponse.StatusCode);
-                Log.DebugFormat("Status Description : {0}", errorResponse.StatusDescription);
+                if (Log.IsDebugEnabled)
+                {
+                    Log.DebugFormat("Status Code : {0}", errorResponse.StatusCode);
+                    Log.DebugFormat("Status Description : {0}", errorResponse.StatusDescription);
+                }
 
                 var serviceEx = new WebServiceException(errorResponse.StatusDescription)
                 {
                     StatusCode = (int)errorResponse.StatusCode,
                     StatusDescription = errorResponse.StatusDescription,
+                    ResponseHeaders = errorResponse.Headers
                 };
 
                 try
@@ -407,20 +486,21 @@ namespace ServiceStack
                     {
                         var bytes = stream.ReadFully();
                         serviceEx.ResponseBody = bytes.FromUtf8Bytes();
+                        var errorResponseType = WebRequestUtils.GetErrorResponseDtoType<TResponse>(state.Request);
 
                         if (stream.CanSeek)
                         {
                             PclExport.Instance.ResetStream(stream);
-                            serviceEx.ResponseDto = this.StreamDeserializer(typeof(TResponse), stream);
+                            serviceEx.ResponseDto = this.StreamDeserializer(errorResponseType, stream);
                         }
                         else //Android
                         {
-                            using (var ms = new MemoryStream(bytes))
+                            using (var ms = MemoryStreamFactory.GetStream(bytes))
                             {
-                                serviceEx.ResponseDto = this.StreamDeserializer(typeof(TResponse), ms);
+                                serviceEx.ResponseDto = this.StreamDeserializer(errorResponseType, ms);
                             }
                         }
-                        state.HandleError((TResponse)serviceEx.ResponseDto, serviceEx);
+                        state.HandleError(serviceEx.ResponseDto, serviceEx);
                     }
                 }
                 catch (Exception innerEx)
@@ -430,6 +510,7 @@ namespace ServiceStack
                     state.HandleError(default(TResponse), new WebServiceException(errorResponse.StatusDescription, innerEx) {
                         StatusCode = (int)errorResponse.StatusCode,
                         StatusDescription = errorResponse.StatusDescription,
+                        ResponseHeaders = errorResponse.Headers
                     });
                 }
                 return;

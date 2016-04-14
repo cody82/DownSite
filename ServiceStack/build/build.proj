@@ -80,7 +80,7 @@
       </RegexTransform>
       <!--Update Min Dependency Version -->
       <RegexTransform Include="$(NuGetPackageDir)/**/*.nuspec">
-        <Find>version="4\.0[^"]*"</Find>
+        <Find>version="4\.0(\.\d+)?"</Find>
         <ReplaceWith>version="$(PackageVersion)"</ReplaceWith>
       </RegexTransform>
     </ItemGroup>
@@ -99,6 +99,7 @@
       <ServiceStackFiles Include="$(SrcDir)/ServiceStack/bin/$(Configuration)/ServiceStack.xml"></ServiceStackFiles>
 
       <ServerFiles Include="$(SrcDir)/ServiceStack.Server/bin/$(Configuration)/ServiceStack.Server.*"></ServerFiles>
+      <ServerFilesV45 Include="$(SrcDir)/ServiceStack.ServerV45/bin/$(Configuration)/ServiceStack.Server.*"></ServerFilesV45>
       <RabbitMqFiles Include="$(SrcDir)/ServiceStack.RabbitMq/bin/$(Configuration)/ServiceStack.RabbitMq.*"></RabbitMqFiles>
 
       <RazorFiles Include="$(SrcDir)/ServiceStack.Razor/bin/$(Configuration)/ServiceStack.Razor.*"></RazorFiles>
@@ -112,9 +113,11 @@
 
       <ClientFiles Include="$(SrcDir)/ServiceStack.Client/bin/$(Configuration)/ServiceStack.Client.*"></ClientFiles>
 
+      <HttpClientFiles Include="$(SrcDir)/ServiceStack.HttpClient/bin/$(Configuration)/ServiceStack.HttpClient.*"></HttpClientFiles>
+
       <CommonFiles Include="$(SrcDir)/ServiceStack.Common/bin/$(Configuration)/ServiceStack.Common.*"></CommonFiles>
 
-      <InterfacesFiles Include="$(SrcDir)/ServiceStack.Interfaces/bin/$(Configuration)/ServiceStack.Interfaces.*"></InterfacesFiles>
+      <InterfacesFiles Include="$(SrcDir)/ServiceStack.Interfaces/bin/Pcl/ServiceStack.Interfaces.*"></InterfacesFiles>
       <InterfacesFilesSL5 Include="$(SrcDir)/ServiceStack.Interfaces/bin/SL5/ServiceStack.Interfaces.*"></InterfacesFilesSL5>
 
       <MvcFiles Include="$(SrcDir)/ServiceStack.Mvc/bin/$(Configuration)/ServiceStack.Mvc.*"></MvcFiles>
@@ -125,6 +128,7 @@
       <AuthenticationMongoDBFiles Include="$(SrcDir)/ServiceStack.Authentication.MongoDB/bin/$(Configuration)/ServiceStack.Authentication.MongoDB.*"></AuthenticationMongoDBFiles>
       <AuthenticationNHibernateFiles Include="$(SrcDir)/ServiceStack.Authentication.NHibernate/bin/$(Configuration)/ServiceStack.Authentication.NHibernate.*"></AuthenticationNHibernateFiles>
       <AuthenticationRavenDbFiles Include="$(SrcDir)/ServiceStack.Authentication.RavenDb/bin/$(Configuration)/ServiceStack.Authentication.RavenDb.*"></AuthenticationRavenDbFiles>
+      <AuthenticationRavenDbFilesV45 Include="$(SrcDir)/ServiceStack.Authentication.RavenDbV45/bin/$(Configuration)/ServiceStack.Authentication.RavenDb.*"></AuthenticationRavenDbFilesV45>
 
       <CachingAwsDynamoDbFiles Include="$(SrcDir)/ServiceStack.Caching.AwsDynamoDb/bin/$(Configuration)/ServiceStack.Caching.AwsDynamoDb.*"></CachingAwsDynamoDbFiles>
       <CachingAzureFiles Include="$(SrcDir)/ServiceStack.Caching.Azure/bin/$(Configuration)/ServiceStack.Caching.Azure.*"></CachingAzureFiles>
@@ -150,10 +154,10 @@
              Targets="Build"
              Properties="Version=$(PackageVersion);Configuration=$(Configuration)" />
 
-    <MakeDir Directories="$(NuGetPackageDir)/ServiceStack.Interfaces/lib/portable-wp80+sl5+net40+win8+monotouch+monoandroid" Condition="!Exists('$(NuGetPackageDir)/ServiceStack.Interfaces/lib/portable-wp80+sl5+net40+win8+monotouch+monoandroid')" />
-    <Copy SourceFiles="%(InterfacesFiles.Identity)" DestinationFolder="$(NuGetPackageDir)/ServiceStack.Interfaces/lib/portable-wp80+sl5+net40+win8+monotouch+monoandroid" />
+    <MakeDir Directories="$(NuGetPackageDir)/ServiceStack.Interfaces/lib/portable-wp80+sl5+net40+win8+monotouch+monoandroid+xamarin.ios10" Condition="!Exists('$(NuGetPackageDir)/ServiceStack.Interfaces/lib/portable-wp80+sl5+net40+win8+monotouch+monoandroid+xamarin.ios10')" />
+    <Copy SourceFiles="%(InterfacesFiles.Identity)" DestinationFolder="$(NuGetPackageDir)/ServiceStack.Interfaces/lib/portable-wp80+sl5+net40+win8+monotouch+monoandroid+xamarin.ios10" />
 
-    <MakeDir Directories="$(BuildSolutionDir)/NuGet.Pcl/ServiceStack.Interfaces.Pcl/lib/portable-wp80+sl5+net40+win8+monotouch+monoandroid" Condition="!Exists('$(BuildSolutionDir)/NuGet.Pcl/ServiceStack.Interfaces.Pcl/lib/portable-wp80+sl5+net40+win8+monotouch+monoandroid')" />
+    <MakeDir Directories="$(BuildSolutionDir)/NuGet.Pcl/ServiceStack.Interfaces.Pcl/lib/portable-wp80+sl5+net40+win8+monotouch+monoandroid+xamarin.ios10" Condition="!Exists('$(BuildSolutionDir)/NuGet.Pcl/ServiceStack.Interfaces.Pcl/lib/portable-wp80+sl5+net40+win8+monotouch+monoandroid+xamarin.ios10')" />
     <Copy SourceFiles="%(InterfacesFiles.Identity)" DestinationFolder="$(BuildSolutionDir)/NuGet.Pcl/ServiceStack.Interfaces.Pcl/lib/portable-wp80+sl5+net40+win8+monotouch+monoandroid" />
 
     <!--<MakeDir Directories="$(NuGetPackageDir)/ServiceStack.Interfaces/lib/net40" Condition="!Exists('$(NuGetPackageDir)/ServiceStack.Interfaces/lib/net40')" />
@@ -232,8 +236,16 @@
     <MakeDir Directories="$(NuGetPackageDir)/ServiceStack.Authentication.RavenDb/lib/net40" Condition="!Exists('$(NuGetPackageDir)/ServiceStack.Authentication.RavenDb/lib/net40')" />
     <Copy SourceFiles="%(AuthenticationRavenDbFiles.Identity)" DestinationFolder="$(NuGetPackageDir)/ServiceStack.Authentication.RavenDb/lib/net40" />
 
+    <!-- ServiceStack.Authentication.RavenDb .NET 4.5 -->
+    <MSBuild Projects="$(SrcDir)/ServiceStack.Authentication.RavenDbV45/ServiceStack.Authentication.RavenDbV45.csproj"
+            Targets="Build"
+            Properties="Version=$(PackageVersion);Configuration=$(Configuration)" />
+
+    <MakeDir Directories="$(NuGetPackageDir)/ServiceStack.Authentication.RavenDb/lib/net45" Condition="!Exists('$(NuGetPackageDir)/ServiceStack.Authentication.RavenDb/lib/net45')" />
+    <Copy SourceFiles="%(AuthenticationRavenDbFilesV45.Identity)" DestinationFolder="$(NuGetPackageDir)/ServiceStack.Authentication.RavenDb/lib/net45" />
+
     <Exec Command="&quot;$(NuGetPath)&quot; pack &quot;$(NuGetPackageDir)/ServiceStack.Authentication.RavenDb/servicestack.authentication.ravendb.nuspec&quot; -OutputDirectory &quot;$(NuGetPackageDir)&quot; -Version $(PackageVersion) -Symbols"
-            LogStandardErrorAsError="true" />
+        LogStandardErrorAsError="true" />
 
     <!-- ServiceStack.Caching.AwsDynamoDb -->
 
@@ -430,6 +442,18 @@
     <Exec Command="&quot;$(NuGetPath)&quot; pack &quot;$(NuGetPackageDir)/ServiceStack.Client/servicestack.client.nuspec&quot; -OutputDirectory &quot;$(NuGetPackageDir)&quot; -Version $(PackageVersion) -Symbols"
             LogStandardErrorAsError="true" />
 
+    <!-- ServiceStack.HttpClient -->
+
+    <MSBuild Projects="$(SrcDir)/ServiceStack.HttpClient/ServiceStack.HttpClient.csproj"
+            Targets="Build"
+            Properties="Version=$(PackageVersion);Configuration=$(Configuration)" />
+
+    <MakeDir Directories="$(NuGetPackageDir)/ServiceStack.HttpClient/lib/net45" Condition="!Exists('$(NuGetPackageDir)/ServiceStack.HttpClient/lib/net45')" />
+    <Copy SourceFiles="%(HttpClientFiles.Identity)" DestinationFolder="$(NuGetPackageDir)/ServiceStack.HttpClient/lib/net45" />
+
+    <Exec Command="&quot;$(NuGetPath)&quot; pack &quot;$(NuGetPackageDir)/ServiceStack.HttpClient/servicestack.httpclient.nuspec&quot; -OutputDirectory &quot;$(NuGetPackageDir)&quot; -Version $(PackageVersion) -Symbols"
+            LogStandardErrorAsError="true" />
+
     <!-- ServiceStack.Common -->
 
     <MSBuild Projects="$(SrcDir)/ServiceStack.Common/ServiceStack.Common.csproj"
@@ -450,6 +474,14 @@
 
     <MakeDir Directories="$(NuGetPackageDir)/ServiceStack.Server/lib/net40" Condition="!Exists('$(NuGetPackageDir)/ServiceStack.Server/lib/net40')" />
     <Copy SourceFiles="%(ServerFiles.Identity)" DestinationFolder="$(NuGetPackageDir)/ServiceStack.Server/lib/net40" />
+
+    <!-- ServiceStack.Server .NET 4.5 -->
+    <MSBuild Projects="$(SrcDir)/ServiceStack.ServerV45/ServiceStack.ServerV45.csproj"
+             Targets="Build"
+             Properties="Version=$(PackageVersion);Configuration=$(Configuration)" />
+
+    <MakeDir Directories="$(NuGetPackageDir)/ServiceStack.Server/lib/net45" Condition="!Exists('$(NuGetPackageDir)/ServiceStack.Server/lib/net45')" />
+    <Copy SourceFiles="%(ServerFilesV45.Identity)" DestinationFolder="$(NuGetPackageDir)/ServiceStack.Server/lib/net45" />
 
     <Exec Command="&quot;$(NuGetPath)&quot; pack &quot;$(NuGetPackageDir)/ServiceStack.Server/servicestack.server.nuspec&quot; -OutputDirectory &quot;$(NuGetPackageDir)&quot; -Version $(PackageVersion) -Symbols"
             LogStandardErrorAsError="true" />

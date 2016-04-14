@@ -4,6 +4,7 @@ using ServiceStack.Auth;
 using ServiceStack.Caching;
 using ServiceStack.Configuration;
 using ServiceStack.Data;
+using ServiceStack.IO;
 using ServiceStack.Messaging;
 using ServiceStack.Redis;
 using ServiceStack.Web;
@@ -39,12 +40,7 @@ namespace ServiceStack
         public virtual T ResolveService<T>()
         {
             var service = TryResolve<T>();
-            var requiresContext = service as IRequiresRequest;
-            if (requiresContext != null)
-            {
-                requiresContext.Request = this.Request;
-            }
-            return service;
+            return HostContext.ResolveService(this.Request, service);
         }
 
         public object ExecuteRequest(object requestDto)
@@ -59,46 +55,78 @@ namespace ServiceStack
             get { return Request != null ? Request.Response : null; }
         }
 
+
+        [Obsolete("Db instance now resolved from AppHost.GetDbConnection(). This will be removed in future - declare own property if needed")]
+        public virtual IDbConnectionFactory DbFactory
+        {
+            get { return TryResolve<IDbConnectionFactory>(); }
+        }
+
+        [Obsolete("Redis instance now resolved from AppHost.GetCacheClient(). This will be removed in future - declare own property if needed")]
+        public virtual IRedisClientsManager RedisManager
+        {
+            get { return TryResolve<IRedisClientsManager>(); }
+        }
+
+        [Obsolete("MessageProducer instance now resolved from AppHost.GetMessageProducer(). This will be removed in future - declare own property if needed")]
+        private IMessageFactory messageFactory;
+        public virtual IMessageFactory MessageFactory
+        {
+            get { return messageFactory ?? (messageFactory = TryResolve<IMessageFactory>()); }
+        }
+
+
         private ICacheClient cache;
         public virtual ICacheClient Cache
         {
-            get
-            {
-                return cache ??
-                    (cache = TryResolve<ICacheClient>()) ??
-                    (cache = (TryResolve<IRedisClientsManager>() != null ? TryResolve<IRedisClientsManager>().GetCacheClient() : null));
-            }
+            get { return cache ?? (cache = HostContext.AppHost.GetCacheClient(Request)); }
+        }
+
+        private MemoryCacheClient localCache;
+        public virtual MemoryCacheClient LocalCache
+        {
+            get { return localCache ?? (localCache = HostContext.AppHost.GetMemoryCacheClient(Request)); }
         }
 
         private IDbConnection db;
         public virtual IDbConnection Db
         {
-            get { return db ?? (db = TryResolve<IDbConnectionFactory>().OpenDbConnection()); }
+            get { return db ?? (db = HostContext.AppHost.GetDbConnection(Request)); }
         }
 
         private IRedisClient redis;
         public virtual IRedisClient Redis
         {
-            get { return redis ?? (redis = TryResolve<IRedisClientsManager>().GetClient()); }
-        }
-
-        private IMessageFactory messageFactory;
-        public virtual IMessageFactory MessageFactory
-        {
-            get { return messageFactory ?? (messageFactory = TryResolve<IMessageFactory>()); }
-            set { messageFactory = value; }
+            get { return redis ?? (redis = HostContext.AppHost.GetRedisClient(Request)); }
         }
 
         private IMessageProducer messageProducer;
         public virtual IMessageProducer MessageProducer
         {
-            get { return messageProducer ?? (messageProducer = MessageFactory.CreateMessageProducer()); }
+            get { return messageProducer ?? (messageProducer = HostContext.AppHost.GetMessageProducer(Request)); }
         }
+
 
         private ISessionFactory sessionFactory;
         public virtual ISessionFactory SessionFactory
         {
             get { return sessionFactory ?? (sessionFactory = TryResolve<ISessionFactory>()) ?? new SessionFactory(Cache); }
+        }
+
+        /// <summary>
+        /// Cascading collection of virtual file sources, inc. Embedded Resources, File System, In Memory, S3
+        /// </summary>
+        public IVirtualPathProvider VirtualFileSources
+        {
+            get { return HostContext.VirtualFileSources; }
+        }
+
+        /// <summary>
+        /// Read/Write Virtual FileSystem. Defaults to FileSystemVirtualPathProvider
+        /// </summary>
+        public IVirtualFiles VirtualFiles
+        {
+            get { return HostContext.VirtualFiles; }
         }
 
         /// <summary>
@@ -113,7 +141,7 @@ namespace ServiceStack
                     ?? SessionFactory.GetOrCreateSession(Request, Response));
             }
         }
-        
+
         public virtual IAuthSession GetSession(bool reload = false)
         {
             var req = this.Request;
@@ -129,8 +157,8 @@ namespace ServiceStack
         {
             var ret = TryResolve<TUserSession>();
             return !Equals(ret, default(TUserSession))
-                ? ret 
-                : Cache.SessionAs<TUserSession>(Request, Response);
+                ? ret
+                : SessionFeature.GetOrCreateSession<TUserSession>(Cache, Request, Response);
         }
 
         public virtual bool IsAuthenticated
@@ -154,6 +182,10 @@ namespace ServiceStack
                 redis.Dispose();
             if (messageProducer != null)
                 messageProducer.Dispose();
+
+            RequestContext.Instance.ReleaseDisposables();
+
+            Request.ReleaseIfInProcessRequest();
         }
     }
 

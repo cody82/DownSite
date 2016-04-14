@@ -13,12 +13,14 @@ namespace ServiceStack.Auth
     public class FacebookAuthProvider : OAuthProvider
     {
         public const string Name = "facebook";
-        public static string Realm = "https://graph.facebook.com/";
+        public static string Realm = "https://graph.facebook.com/v2.0/";
         public static string PreAuthUrl = "https://www.facebook.com/dialog/oauth";
+        public static string[] DefaultFields = new [] { "id", "name", "first_name", "last_name", "email" };
 
         public string AppId { get; set; }
         public string AppSecret { get; set; }
         public string[] Permissions { get; set; }
+        public string[] Fields { get; set; }
 
         public FacebookAuthProvider(IAppSettings appSettings)
             : base(appSettings, Realm, Name, "AppId", "AppSecret")
@@ -26,6 +28,7 @@ namespace ServiceStack.Auth
             this.AppId = appSettings.GetString("oauth.facebook.AppId");
             this.AppSecret = appSettings.GetString("oauth.facebook.AppSecret");
             this.Permissions = appSettings.Get("oauth.facebook.Permissions", new string[0]);
+            this.Fields = appSettings.Get("oauth.facebook.Fields", DefaultFields);
         }
 
         public override object Authenticate(IServiceBase authService, IAuthSession session, Authenticate request)
@@ -42,7 +45,7 @@ namespace ServiceStack.Auth
             if (hasError)
             {
                 Log.Error("Facebook error callback. {0}".Fmt(httpRequest.QueryString));
-                return authService.Redirect(session.ReferrerUrl);
+                return authService.Redirect(FailedRedirectUrlFilter(this, session.ReferrerUrl.SetParam("f", error)));
             }             
         
             var code = httpRequest.QueryString["code"];
@@ -53,7 +56,7 @@ namespace ServiceStack.Auth
                     .Fmt(AppId, this.CallbackUrl.UrlEncode(), string.Join(",", Permissions));
 
                 authService.SaveSession(session, SessionExpiry);
-                return authService.Redirect(preAuthUrl);
+                return authService.Redirect(PreAuthUrlFilter(this, preAuthUrl));
             }
 
             var accessTokenUrl = this.AccessTokenUrl + "?client_id={0}&redirect_uri={1}&client_secret={2}&code={3}"
@@ -61,33 +64,33 @@ namespace ServiceStack.Auth
 
             try
             {
-                var contents = accessTokenUrl.GetStringFromUrl();
+                var contents = AccessTokenUrlFilter(this, accessTokenUrl).GetStringFromUrl();
                 var authInfo = HttpUtility.ParseQueryString(contents);
                 tokens.AccessTokenSecret = authInfo["access_token"];
 
                 session.IsAuthenticated = true;
                 
                 return OnAuthenticated(authService, session, tokens, authInfo.ToDictionary())
-                    ?? authService.Redirect(session.ReferrerUrl.AddHashParam("s", "1")); //Haz access!
+                    ?? authService.Redirect(SuccessRedirectUrlFilter(this, session.ReferrerUrl.SetParam("s", "1"))); //Haz access!
             }
             catch (WebException we)
             {
                 var statusCode = ((HttpWebResponse)we.Response).StatusCode;
                 if (statusCode == HttpStatusCode.BadRequest)
                 {
-                    return authService.Redirect(session.ReferrerUrl.AddHashParam("f", "AccessTokenFailed"));
+                    return authService.Redirect(FailedRedirectUrlFilter(this, session.ReferrerUrl.SetParam("f", "AccessTokenFailed")));
                 }
             }
 
             //Shouldn't get here
-            return authService.Redirect(session.ReferrerUrl.AddHashParam("f", "Unknown"));
+            return authService.Redirect(FailedRedirectUrlFilter(this, session.ReferrerUrl.SetParam("f", "Unknown")));
         }
 
         protected override void LoadUserAuthInfo(AuthUserSession userSession, IAuthTokens tokens, System.Collections.Generic.Dictionary<string, string> authInfo)
         {
             try
             {
-                var json = AuthHttpGateway.DownloadFacebookUserInfo(tokens.AccessTokenSecret);
+                var json = AuthHttpGateway.DownloadFacebookUserInfo(tokens.AccessTokenSecret, Fields);
                 var obj = JsonObject.Parse(json);
                 tokens.UserId = obj.Get("id");
                 tokens.UserName = obj.Get("username");
@@ -109,7 +112,7 @@ namespace ServiceStack.Auth
                 {
                     string profileUrl;
                     if (data.TryGetValue("url", out profileUrl))
-                        tokens.Items[AuthMetadataProvider.ProfileUrlKey] = profileUrl;
+                        tokens.Items[AuthMetadataProvider.ProfileUrlKey] = profileUrl.SanitizeOAuthUrl();
                 }
             }
             catch (Exception ex)

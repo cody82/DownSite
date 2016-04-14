@@ -2,10 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using ServiceStack.Auth;
 using ServiceStack.DataAnnotations;
 using ServiceStack.NativeTypes;
 using ServiceStack.NativeTypes.CSharp;
-using ServiceStack.Text;
 using ServiceStack.Web;
 
 namespace ServiceStack.Host
@@ -44,23 +44,40 @@ namespace ServiceStack.Host
             var restrictTo = requestType.FirstAttribute<RestrictAttribute>()
                           ?? serviceType.FirstAttribute<RestrictAttribute>();
 
-            var operation = new Operation {
+
+            var reqFilterAttrs = new[] { requestType, serviceType }
+                .SelectMany(x => x.AllAttributes<IHasRequestFilter>()).ToList();
+            var resFilterAttrs = (responseType != null ? new[] { responseType, serviceType } : new[] { serviceType })
+                .SelectMany(x => x.AllAttributes<IHasResponseFilter>()).ToList();
+
+            var authAttrs = reqFilterAttrs.OfType<AuthenticateAttribute>().ToList();
+            var actions = GetImplementedActions(serviceType, requestType);
+            authAttrs.AddRange(actions.SelectMany(x => x.AllAttributes<AuthenticateAttribute>()));
+
+            var operation = new Operation
+            {
                 ServiceType = serviceType,
                 RequestType = requestType,
                 ResponseType = responseType,
                 RestrictTo = restrictTo,
-                Actions = GetImplementedActions(serviceType, requestType),
+                Actions = actions.Map(x => x.Name.ToUpper()),
                 Routes = new List<RestPath>(),
+                RequestFilterAttributes = reqFilterAttrs,
+                ResponseFilterAttributes = resFilterAttrs,
+                RequiresAuthentication = authAttrs.Count > 0,
+                RequiredRoles = authAttrs.OfType<RequiredRoleAttribute>().SelectMany(x => x.RequiredRoles).ToList(),
+                RequiresAnyRole = authAttrs.OfType<RequiresAnyRoleAttribute>().SelectMany(x => x.RequiredRoles).ToList(),
+                RequiredPermissions = authAttrs.OfType<RequiredPermissionAttribute>().SelectMany(x => x.RequiredPermissions).ToList(),
+                RequiresAnyPermission = authAttrs.OfType<RequiresAnyPermissionAttribute>().SelectMany(x => x.RequiredPermissions).ToList(),
             };
 
-			this.OperationsMap[requestType] = operation;
-			this.OperationNamesMap[operation.Name.ToLower()] = operation;
-			//this.OperationNamesMap[requestType.Name.ToLower()] = operation;
-			if (responseType != null)
-			{
-				this.ResponseTypes.Add(responseType);
-				this.OperationsResponseMap[responseType] = operation;
-			}
+            this.OperationsMap[requestType] = operation;
+            this.OperationNamesMap[operation.Name.ToLower()] = operation;
+            if (responseType != null)
+            {
+                this.ResponseTypes.Add(responseType);
+                this.OperationsResponseMap[responseType] = operation;
+            }
 
             //Only count non-core ServiceStack Services, i.e. defined outside of ServiceStack.dll or Swagger
             var nonCoreServicesCount = OperationsMap.Values
@@ -117,21 +134,32 @@ namespace ServiceStack.Host
             return op;
         }
 
-        public List<string> GetImplementedActions(Type serviceType, Type requestType)
+        public List<MethodInfo> GetImplementedActions(Type serviceType, Type requestType)
         {
             if (!typeof(IService).IsAssignableFrom(serviceType))
                 throw new NotSupportedException("All Services must implement IService");
 
             return serviceType.GetActions()
                 .Where(x => x.GetParameters()[0].ParameterType == requestType)
-                .Select(x => x.Name.ToUpper())
                 .ToList();
         }
 
         public Type GetOperationType(string operationTypeName)
         {
             Operation operation;
-            OperationNamesMap.TryGetValue(operationTypeName.ToLower(), out operation);
+            var opName = operationTypeName.ToLower();
+            if (!OperationNamesMap.TryGetValue(opName, out operation))
+            {
+                var arrayPos = opName.LastIndexOf('[');
+                if (arrayPos >= 0)
+                {
+                    opName = opName.Substring(0, arrayPos);
+                    OperationNamesMap.TryGetValue(opName, out operation);
+                    return operation != null
+                        ? operation.RequestType.MakeArrayType()
+                        : null;
+                }
+            }
             return operation != null ? operation.RequestType : null;
         }
 
@@ -156,7 +184,7 @@ namespace ServiceStack.Host
             return operation != null ? operation.ResponseType : null;
         }
 
-        public List<Type> GetAllTypes()
+        public List<Type> GetAllOperationTypes()
         {
             var allTypes = new List<Type>(RequestTypes);
             foreach (var responseType in ResponseTypes)
@@ -164,6 +192,13 @@ namespace ServiceStack.Host
                 allTypes.AddIfNotExists(responseType);
             }
             return allTypes;
+        }
+
+        public List<Type> GetAllSoapOperationTypes()
+        {
+            var operationTypes = GetAllOperationTypes();
+            var soapTypes = HostContext.AppHost.ExportSoapOperationTypes(operationTypes);
+            return soapTypes;
         }
 
         public List<string> GetAllOperationNames()
@@ -181,10 +216,36 @@ namespace ServiceStack.Host
             return GetAllOperationNames();
         }
 
+        public bool IsAuthorized(Operation operation, IRequest req, IAuthSession session)
+        {
+            if (HostContext.HasValidAuthSecret(req))
+                return true;
+
+            if (operation.RequiresAuthentication && !session.IsAuthenticated)
+                return false;
+
+            if (!operation.RequiredRoles.IsEmpty() && !operation.RequiredRoles.All(session.HasRole))
+                return false;
+
+            if (!operation.RequiredPermissions.IsEmpty() && !operation.RequiredPermissions.All(session.HasPermission))
+                return false;
+
+            if (!operation.RequiresAnyRole.IsEmpty() && !operation.RequiresAnyRole.Any(session.HasRole))
+                return false;
+
+            if (!operation.RequiresAnyPermission.IsEmpty() && !operation.RequiresAnyPermission.Any(session.HasPermission))
+                return false;
+
+            return true;
+        }
+
         public bool IsVisible(IRequest httpReq, Operation operation)
         {
             if (HostContext.Config != null && !HostContext.Config.EnableAccessRestrictions)
                 return true;
+
+            if (operation.RequestType.ExcludesFeature(Feature.Metadata))
+                return false;
 
             if (operation.RestrictTo == null) return true;
 
@@ -211,6 +272,8 @@ namespace ServiceStack.Host
             Operation operation;
             OperationNamesMap.TryGetValue(operationName.ToLowerInvariant(), out operation);
             if (operation == null) return false;
+
+            if (operation.RequestType.ExcludesFeature(Feature.Metadata)) return false;
 
             var canCall = HasImplementation(operation, format);
             if (!canCall) return false;
@@ -296,9 +359,17 @@ namespace ServiceStack.Host
         {
             var typeMetadata = HostContext.TryResolve<INativeTypesMetadata>();
 
+            var typesConfig = HostContext.AppHost.GetTypesConfigForMetadata(httpReq);
+
+            if (HostContext.GetPlugin<MetadataFeature>().ShowResponseStatusInMetadataPages)
+            {
+                typesConfig.IgnoreTypes.Remove(typeof(ResponseStatus));
+                typesConfig.IgnoreTypes.Remove(typeof(ResponseError));
+            }
+
             var metadataTypes = typeMetadata != null
-                ? typeMetadata.GetMetadataTypes(httpReq)
-                : new MetadataTypesGenerator(this, new NativeTypesFeature().MetadataTypesConfig)
+                ? typeMetadata.GetMetadataTypes(httpReq, typesConfig)
+                : new MetadataTypesGenerator(this, typesConfig)
                     .GetMetadataTypes(httpReq);
 
             var types = new List<MetadataType>();
@@ -319,7 +390,7 @@ namespace ServiceStack.Host
                 AddReferencedTypes(resType, metadataTypes, types);
             }
 
-            var generator = new CSharpGenerator(new NativeTypesFeature().MetadataTypesConfig);
+            var generator = new CSharpGenerator(typesConfig);
             types.Each(x =>
             {
                 x.DisplayType = x.DisplayType ?? generator.Type(x.Name, x.GenericArgs);
@@ -336,7 +407,10 @@ namespace ServiceStack.Host
             {
                 var type = FindMetadataType(metadataTypes, metadataType.Inherits.Name, metadataType.Inherits.Namespace);
                 if (type != null && !types.Contains(type))
+                {
                     types.Add(type);
+                    AddReferencedTypes(type, metadataTypes, types);
+                }
 
                 if (!metadataType.Inherits.GenericArgs.IsEmpty())
                 {
@@ -344,7 +418,10 @@ namespace ServiceStack.Host
                     {
                         type = FindMetadataType(metadataTypes, arg);
                         if (type != null && !types.Contains(type))
+                        {
                             types.Add(type);
+                            AddReferencedTypes(type, metadataTypes, types);
+                        }
                     }
                 }
             }
@@ -355,7 +432,10 @@ namespace ServiceStack.Host
                 {
                     var type = FindMetadataType(metadataTypes, p.Type, p.TypeNamespace);
                     if (type != null && !types.Contains(type))
+                    {
                         types.Add(type);
+                        AddReferencedTypes(type, metadataTypes, types);
+                    }
 
                     if (!p.GenericArgs.IsEmpty())
                     {
@@ -363,7 +443,10 @@ namespace ServiceStack.Host
                         {
                             type = FindMetadataType(metadataTypes, arg);
                             if (type != null && !types.Contains(type))
-                                types.Add(type);     
+                            {
+                                types.Add(type);
+                                AddReferencedTypes(type, metadataTypes, types);
+                            }
                         }
                     }
                     else if (p.IsArray())
@@ -371,7 +454,10 @@ namespace ServiceStack.Host
                         var elType = p.Type.SplitOnFirst('[')[0];
                         type = FindMetadataType(metadataTypes, elType);
                         if (type != null && !types.Contains(type))
+                        {
                             types.Add(type);
+                            AddReferencedTypes(type, metadataTypes, types);
+                        }
                     }
                 }
             }
@@ -384,7 +470,9 @@ namespace ServiceStack.Host
 
         static MetadataType FindMetadataType(MetadataTypes metadataTypes, string name, string @namespace = null)
         {
-            if (@namespace != null && @namespace.StartsWith("System"))
+            if (@namespace != null 
+                && @namespace.StartsWith("System") 
+                && metadataTypes.Config.ExportTypes.All(x => x.Name != name))
                 return null;
 
             var reqType = metadataTypes.Operations.FirstOrDefault(x => x.Request.Name == name);
@@ -397,20 +485,22 @@ namespace ServiceStack.Host
             if (resType != null)
                 return resType.Response;
 
-            return metadataTypes.Types.FirstOrDefault(x => x.Name == name
+            var type = metadataTypes.Types.FirstOrDefault(x => x.Name == name
                 && (@namespace == null || x.Namespace == @namespace));
+
+            return type;
         }
     }
 
     public class Operation
     {
-    	public string Name
-    	{
-    		get 
-			{
-				return RequestType.GetOperationName(); 
-			}
-    	}
+        public string Name
+        {
+            get
+            {
+                return RequestType.GetOperationName();
+            }
+        }
 
         public Type RequestType { get; set; }
         public Type ServiceType { get; set; }
@@ -419,6 +509,13 @@ namespace ServiceStack.Host
         public List<string> Actions { get; set; }
         public List<RestPath> Routes { get; set; }
         public bool IsOneWay { get { return ResponseType == null; } }
+        public List<IHasRequestFilter> RequestFilterAttributes { get; set; }
+        public List<IHasResponseFilter> ResponseFilterAttributes { get; set; }
+        public bool RequiresAuthentication { get; set; }
+        public List<string> RequiredRoles { get; set; }
+        public List<string> RequiresAnyRole { get; set; }
+        public List<string> RequiredPermissions { get; set; }
+        public List<string> RequiresAnyPermission { get; set; }
     }
 
     public class OperationDto
@@ -443,35 +540,24 @@ namespace ServiceStack.Host
             Flash = flash;
         }
 
-        public List<Type> GetAllTypes()
+        public List<string> GetReplyOperationNames(Format format, HashSet<Type> soapTypes)
         {
-            var allTypes = new List<Type>(Metadata.RequestTypes);
-            allTypes.AddRange(Metadata.ResponseTypes);
-            return allTypes;
-        }
-
-        public List<string> GetReplyOperationNames(Format format)
-        {
-            var feature = format.ToFeature();
             return Metadata.OperationsMap.Values
                 .Where(x => HostContext.Config != null
                     && HostContext.MetadataPagesConfig.CanAccess(format, x.Name))
                 .Where(x => !x.IsOneWay)
-                .Where(x => !x.RequestType.AllAttributes<ExcludeAttribute>()
-                    .Any(attr => attr.Feature.HasFlag(feature)))
+                .Where(x => soapTypes.Contains(x.RequestType))
                 .Select(x => x.RequestType.GetOperationName())
                 .ToList();
         }
 
-        public List<string> GetOneWayOperationNames(Format format)
+        public List<string> GetOneWayOperationNames(Format format, HashSet<Type> soapTypes)
         {
-            var feature = format.ToFeature();
             return Metadata.OperationsMap.Values
                 .Where(x => HostContext.Config != null
                     && HostContext.MetadataPagesConfig.CanAccess(format, x.Name))
                 .Where(x => x.IsOneWay)
-                .Where(x => !x.RequestType.AllAttributes<ExcludeAttribute>()
-                    .Any(attr => attr.Feature.HasFlag(feature)))
+                .Where(x => soapTypes.Contains(x.RequestType))
                 .Select(x => x.RequestType.GetOperationName())
                 .ToList();
         }
@@ -503,14 +589,15 @@ namespace ServiceStack.Host
     {
         public static OperationDto ToOperationDto(this Operation operation)
         {
-            var to = new OperationDto {
+            var to = new OperationDto
+            {
                 Name = operation.Name,
                 ResponseName = operation.IsOneWay ? null : operation.ResponseType.GetOperationName(),
                 ServiceName = operation.ServiceType.GetOperationName(),
                 Actions = operation.Actions,
                 Routes = operation.Routes.Map(x => x.Path),
             };
-            
+
             if (operation.RestrictTo != null)
             {
                 to.RestrictTo = operation.RestrictTo.AccessibleToAny.ToList().ConvertAll(x => x.ToString());
@@ -556,7 +643,7 @@ namespace ServiceStack.Host
 
             var isRequest = type.Name == op.RequestType.Name;
 
-            return !isRequest ? "body" : GetRequestParamType(op, prop.Name);
+            return !isRequest ? "form" : GetRequestParamType(op, prop.Name);
         }
 
         public static string GetParamType(this ApiMemberAttribute attr, Type type, string verb)
@@ -568,13 +655,13 @@ namespace ServiceStack.Host
             var isRequestType = op != null;
 
             var defaultType = verb == HttpMethods.Post || verb == HttpMethods.Put
-                ? "body"
+                ? "form"
                 : "query";
 
             return !isRequestType ? defaultType : GetRequestParamType(op, attr.Name, defaultType);
         }
 
-        private static string GetRequestParamType(Operation op, string name, string defaultType="body")
+        private static string GetRequestParamType(Operation op, string name, string defaultType = "body")
         {
             if (op.Routes.Any(x => x.IsVariable(name)))
                 return "path";
@@ -600,7 +687,24 @@ namespace ServiceStack.Host
 
         public static bool IsArray(this MetadataPropertyType prop)
         {
-            return prop.Type.SplitOnFirst('[').Length > 1;
+            return prop.Type.IndexOf('[') >= 0;
+        }
+
+        public static bool IsInterface(this MetadataType type)
+        {
+            return type != null && type.IsInterface.GetValueOrDefault();
+        }
+
+        public static bool IsAbstract(this MetadataType type)
+        {
+            return type.IsAbstract.GetValueOrDefault()
+                || type.Name == typeof(AuthUserSession).Name; //not abstract but treat it as so
+        }
+
+        public static bool ExcludesFeature(this Type type, Feature feature)
+        {
+            var excludeAttr = type.FirstAttribute<ExcludeAttribute>();
+            return excludeAttr != null && excludeAttr.Feature.HasFlag(feature);
         }
     }
 }

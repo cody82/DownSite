@@ -1,20 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Net;
-using System.Web;
+using System.Linq;
 using Check.ServiceInterface;
 using Check.ServiceModel;
+using Check.ServiceModel.Types;
 using Funq;
 using ServiceStack;
 using ServiceStack.Api.Swagger;
 using ServiceStack.Data;
+using ServiceStack.Html;
+using ServiceStack.IO;
 using ServiceStack.MiniProfiler;
+using ServiceStack.MiniProfiler.Data;
 using ServiceStack.OrmLite;
 using ServiceStack.Razor;
 using ServiceStack.Text;
 using ServiceStack.Validation;
-using ServiceStack.Web;
+using ServiceStack.VirtualPath;
 
 namespace CheckWeb
 {
@@ -32,12 +34,16 @@ namespace CheckWeb
         /// <param name="container">The container.</param>
         public override void Configure(Container container)
         {
-            this.CustomErrorHttpHandlers[HttpStatusCode.NotFound] = null;
+            var nativeTypes = this.GetPlugin<NativeTypesFeature>();
+            nativeTypes.MetadataTypesConfig.ExportTypes.Add(typeof(DayOfWeek));
+            nativeTypes.MetadataTypesConfig.IgnoreTypes.Add(typeof(IgnoreInMetadataConfig));
 
             // Change ServiceStack configuration
             this.SetConfig(new HostConfig
             {
+                //UseHttpsLinks = true,
                 AppendUtf8CharsetOnContentTypes = new HashSet<string> { MimeTypes.Html },
+                //AllowJsConfig = false,
 
                 // Set to return JSON if no request content type is defined
                 // e.g. text/html or application/json
@@ -73,7 +79,7 @@ namespace CheckWeb
 
             Plugins.Add(new AutoQueryFeature());
             Plugins.Add(new PostmanFeature());
-
+            Plugins.Add(new CorsFeature(allowedMethods: "GET, POST, PUT, DELETE, PATCH, OPTIONS"));
 
             container.Register<IDbConnectionFactory>(
                 new OrmLiteConnectionFactory(":memory:", SqliteDialect.Provider));
@@ -84,13 +90,19 @@ namespace CheckWeb
                 db.InsertAll(SeedRockstars);
             }
 
-            //this.GlobalResponseFilters.Add((req, res, dto) =>
-            //{
-            //    if (req.ResponseContentType.Matches(MimeTypes.Json) && !(dto is IHttpResult))
-            //    {
-            //        res.Write(")]}',\n");
-            //    }
-            //});
+            var dbFactory = (OrmLiteConnectionFactory)container.Resolve<IDbConnectionFactory>();
+
+            dbFactory.RegisterConnection("SqlServer", 
+                new OrmLiteConnectionFactory(
+                    "Server=localhost;Database=test;User Id=test;Password=test;",
+                    SqlServerDialect.Provider) {
+                        ConnectionFilter = x => new ProfiledDbConnection(x, Profiler.Current)
+                    });
+
+
+            this.GlobalHtmlErrorHttpHandler = new RazorHandler("GlobalErrorHandler.cshtml");
+
+            //JavaGenerator.AddGsonImport = true;
         }
 
         public static Rockstar[] SeedRockstars = new[] {
@@ -111,7 +123,8 @@ namespace CheckWeb
         private void ConfigureSerialization(Container container)
         {
             // Set JSON web services to return idiomatic JSON camelCase properties
-            JsConfig.EmitCamelCaseNames = true;
+            //JsConfig.EmitCamelCaseNames = true;
+            //JsConfig.EmitLowercaseUnderscoreNames = true;
 
             // Set JSON web services to return ISO8601 date format
             JsConfig.DateHandler = DateHandler.ISO8601;
@@ -157,7 +170,11 @@ namespace CheckWeb
         private void ConfigureView(Container container)
         {
             // Enable ServiceStack Razor
-            Plugins.Add(new RazorFormat());
+            Plugins.Add(new RazorFormat
+            {
+                //MinifyHtml = true,
+                //UseAdvancedCompression = true,
+            });
 
             // Enable support for Swagger API browser
             Plugins.Add(new SwaggerFeature
@@ -166,6 +183,51 @@ namespace CheckWeb
                 LogoUrl = "//lh6.googleusercontent.com/-lh7Gk4ZoVAM/AAAAAAAAAAI/AAAAAAAAAAA/_0CgCb4s1e0/s32-c/photo.jpg"
             });
             //Plugins.Add(new CorsFeature()); // Uncomment if the services to be available from external sites
+        }
+
+        public override List<IVirtualPathProvider> GetVirtualFileSources()
+        {
+            var existingProviders = base.GetVirtualFileSources();
+            var memFs = new InMemoryVirtualPathProvider(this);
+
+            //Get FileSystem Provider
+            var fs = existingProviders.First(x => x is FileSystemVirtualPathProvider);
+
+            //Process all .html files:
+            foreach (var file in fs.GetAllMatchingFiles("*.html"))
+            {
+                var contents = Minifiers.HtmlAdvanced.Compress(file.ReadAllText());
+                memFs.WriteFile(file.VirtualPath, contents);
+            }
+
+            //Process all .css files:
+            foreach (var file in fs.GetAllMatchingFiles("*.css")
+                .Where(file => !file.VirtualPath.EndsWith(".min.css")))
+            {
+                var contents = Minifiers.Css.Compress(file.ReadAllText());
+                memFs.WriteFile(file.VirtualPath, contents);
+            }
+
+            //Process all .js files
+            foreach (var file in fs.GetAllMatchingFiles("*.js")
+                .Where(file => !file.VirtualPath.EndsWith(".min.js")))
+            {
+                try
+                {
+                    var js = file.ReadAllText();
+                    var contents = Minifiers.JavaScript.Compress(js);
+                    memFs.WriteFile(file.VirtualPath, contents);
+                }
+                catch (Exception ex)
+                {
+                    //Report any errors in StartUpErrors collection on ?debug=requestinfo
+                    base.OnStartupException(new Exception("JSMin Error in {0}: {1}".Fmt(file.VirtualPath, ex.Message)));
+                }
+            }
+
+            //Give new Memory FS highest priority
+            existingProviders.Insert(0, memFs);
+            return existingProviders;
         }
     }
 

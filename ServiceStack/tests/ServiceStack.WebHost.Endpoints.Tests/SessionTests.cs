@@ -3,9 +3,18 @@
 
 
 using System;
+using System.Collections.Generic;
+using System.Net;
+using System.Runtime.CompilerServices;
 using Funq;
 using NUnit.Framework;
 using ServiceStack.Auth;
+using ServiceStack.Caching;
+using ServiceStack.Data;
+using ServiceStack.Host;
+using ServiceStack.OrmLite;
+using ServiceStack.Testing;
+using ServiceStack.Text;
 
 namespace ServiceStack.WebHost.Endpoints.Tests
 {
@@ -26,7 +35,7 @@ namespace ServiceStack.WebHost.Endpoints.Tests
         public int Qty { get; set; }
     }
 
-    public class SessionTypedIncr : IReturn<AuthUserSession> {}
+    public class SessionTypedIncr : IReturn<AuthUserSession> { }
 
     public class SessionService : Service
     {
@@ -85,11 +94,27 @@ namespace ServiceStack.WebHost.Endpoints.Tests
 
         public class SessionAppHost : AppHostHttpListenerBase
         {
-            public SessionAppHost() : base(typeof(SessionTests).Name, typeof(SessionTests).Assembly) {}
+            public SessionAppHost() : base(typeof(SessionTests).Name, typeof(SessionTests).Assembly) { }
 
             public override void Configure(Container container)
             {
                 Plugins.Add(new SessionFeature());
+
+                SetConfig(new HostConfig
+                {
+                    AllowSessionIdsInHttpParams = true,
+                });
+
+                const bool UseOrmLiteCache = false;
+                if (UseOrmLiteCache)
+                {
+                    container.Register<IDbConnectionFactory>(c =>
+                        new OrmLiteConnectionFactory(":memory:", SqliteDialect.Provider));
+
+                    container.RegisterAs<OrmLiteCacheClient, ICacheClient>();
+
+                    container.Resolve<ICacheClient>().InitSchema();
+                }
             }
         }
 
@@ -135,13 +160,19 @@ namespace ServiceStack.WebHost.Endpoints.Tests
             Assert.That(altClient.Get(request).Qty, Is.EqualTo(1));
         }
 
+        public static T Log<T>(T item, [CallerMemberName] string caller = null)
+        {
+            "{0}: {1}".Print(caller, item.Dump());
+            return item;
+        }
+
         [Test]
         public void Can_increment_typed_session_tag()
         {
             var client = new JsonServiceClient(Config.AbsoluteBaseUri);
 
-            Assert.That(client.Get(new SessionTypedIncr()).Tag, Is.EqualTo(1));
-            Assert.That(client.Get(new SessionTypedIncr()).Tag, Is.EqualTo(2));
+            Assert.That(Log(client.Get(new SessionTypedIncr())).Tag, Is.EqualTo(1));
+            Assert.That(Log(client.Get(new SessionTypedIncr())).Tag, Is.EqualTo(2));
         }
 
         [Test]
@@ -150,9 +181,135 @@ namespace ServiceStack.WebHost.Endpoints.Tests
             var client = new JsonServiceClient(Config.AbsoluteBaseUri);
             var altClient = new JsonServiceClient(Config.AbsoluteBaseUri);
 
-            Assert.That(client.Get(new SessionTypedIncr()).Tag, Is.EqualTo(1));
-            Assert.That(client.Get(new SessionTypedIncr()).Tag, Is.EqualTo(2));
-            Assert.That(altClient.Get(new SessionTypedIncr()).Tag, Is.EqualTo(1));
+            Assert.That(Log(client.Get(new SessionTypedIncr())).Tag, Is.EqualTo(1));
+            Assert.That(Log(client.Get(new SessionTypedIncr())).Tag, Is.EqualTo(2));
+            Assert.That(Log(altClient.Get(new SessionTypedIncr())).Tag, Is.EqualTo(1));
+            Assert.That(Log(altClient.Get(new SessionTypedIncr())).Tag, Is.EqualTo(2));
+
+            Assert.That(client.Get(new SessionTypedIncr()).Tag, Is.EqualTo(3));
+            Assert.That(altClient.Get(new SessionTypedIncr()).Tag, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void Can_access_session_with_HTTP_Headers()
+        {
+            var client = new JsonServiceClient(Config.AbsoluteBaseUri);
+            Assert.That(Log(client.Get(new SessionTypedIncr())).Tag, Is.EqualTo(1));
+
+            var cookies = client.GetCookieValues();
+            var sessionId = cookies["ss-id"];
+            sessionId.Print();
+
+            var altClient = new JsonServiceClient(Config.AbsoluteBaseUri)
+            {
+                Headers = {
+                    { "X-ss-id", sessionId }
+                }
+            };
+
+            Assert.That(Log(altClient.Get(new SessionTypedIncr())).Tag, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void Can_access_session_with_QueryString()
+        {
+            var client = new JsonServiceClient(Config.AbsoluteBaseUri);
+            Assert.That(Log(client.Get(new SessionTypedIncr())).Tag, Is.EqualTo(1));
+
+            var cookies = client.GetCookieValues();
+            var sessionId = cookies["ss-id"];
+
+            var response = Config.AbsoluteBaseUri
+                .CombineWith(new SessionTypedIncr().ToGetUrl())
+                .AddQueryParam("ss-id", sessionId)
+                .GetJsonFromUrl()
+                .FromJson<AuthUserSession>();
+
+            Assert.That(response.Tag, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void Can_override_existing_session_with_QueryString()
+        {
+            var client = new JsonServiceClient(Config.AbsoluteBaseUri);
+            Assert.That(Log(client.Get(new SessionTypedIncr())).Tag, Is.EqualTo(1));
+
+            var cookies = client.GetCookieValues();
+            var sessionId = cookies["ss-id"];
+
+            var cookieContainer = new CookieContainer();
+            cookieContainer.Add(new Cookie
+            {
+                Name = "ss-id",
+                Value = "some-other-id",
+                Domain = new Uri(Config.AbsoluteBaseUri).Host,
+            });
+
+            var response = Config.AbsoluteBaseUri
+                .CombineWith(new SessionTypedIncr().ToGetUrl())
+                .AddQueryParam("ss-id", sessionId)
+                .GetJsonFromUrl(req => req.CookieContainer = cookieContainer)
+                .FromJson<AuthUserSession>();
+
+            Assert.That(response.Tag, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void Can_mock_IntegrationTest_Session_with_Request()
+        {
+            var mockRequest = new MockHttpRequest();
+            mockRequest.Items[SessionFeature.RequestItemsSessionKey] = new AuthUserSession
+            {
+                UserName = "Mocked",
+            };
+            using (var service = HostContext.ResolveService<SessionService>(mockRequest))
+            {
+                Assert.That(service.GetSession().UserName, Is.EqualTo("Mocked"));
+            }
+        }
+    }
+
+    public class MockSessionTests
+    {
+        [Test]
+        public void Can_mock_UnitTest_Session_with_IOC()
+        {
+            var appHost = new BasicAppHost
+            {
+                TestMode = true,
+                ConfigureContainer = container =>
+                {
+                    container.Register<IAuthSession>(c => new AuthUserSession
+                    {
+                        UserName = "Mocked",
+                    });
+                }
+            }.Init();
+
+            var service = new SessionService {
+                Request = new MockHttpRequest()
+            };
+            Assert.That(service.GetSession().UserName, Is.EqualTo("Mocked"));
+
+            appHost.Dispose();
+        }
+
+        [Test]
+        public void Can_mock_IntegrationTest_Session_with_Request()
+        {
+            using (new BasicAppHost(typeof(SessionService).Assembly).Init())
+            {
+                var req = new MockHttpRequest();
+                req.Items[SessionFeature.RequestItemsSessionKey] = 
+                    new AuthUserSession {
+                        UserName = "Mocked",
+                    };
+
+                using (var service = HostContext.ResolveService<SessionService>(req))
+                {
+                    Assert.That(service.GetSession().UserName, Is.EqualTo("Mocked"));
+                }
+            }
         }
     }
 }

@@ -2,6 +2,7 @@
 //License: https://raw.github.com/ServiceStack/ServiceStack/master/license.txt
 
 using System;
+using System.Collections.Generic;
 using ServiceStack.Redis;
 
 namespace ServiceStack.Messaging
@@ -79,6 +80,15 @@ namespace ServiceStack.Messaging
             Publish(queueName, MessageFactory.Create(requestDto));
         }
 
+        public void SendAllOneWay(IEnumerable<object> requests)
+        {
+            if (requests == null) return;
+            foreach (var request in requests)
+            {
+                SendOneWay(request);
+            }
+        }
+
         public void Publish(string queueName, IMessage message)
         {
             using (__requestAccess())
@@ -109,7 +119,7 @@ namespace ServiceStack.Messaging
         {
             using (__requestAccess())
             {
-                var unblockingKeyAndValue = this.ReadOnlyClient.BRPop(queueName, (int)timeOut.GetValueOrDefault().TotalSeconds);
+                var unblockingKeyAndValue = this.ReadWriteClient.BRPop(queueName, (int)timeOut.GetValueOrDefault().TotalSeconds);
                 var messageBytes = unblockingKeyAndValue.Length != 2
                     ? null
                     : unblockingKeyAndValue[1];
@@ -122,7 +132,7 @@ namespace ServiceStack.Messaging
         {
             using (__requestAccess())
             {
-                var messageBytes = this.ReadOnlyClient.RPop(queueName);
+                var messageBytes = this.ReadWriteClient.RPop(queueName);
                 return messageBytes.ToMessage<T>();
             }
         }

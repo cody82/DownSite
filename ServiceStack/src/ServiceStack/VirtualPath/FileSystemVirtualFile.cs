@@ -41,5 +41,10 @@ namespace ServiceStack.VirtualPath
         {
             return BackingFile.OpenRead();
         }
+
+        public override void Refresh()
+        {
+            BackingFile.Refresh();
+        }
     }
 }

@@ -143,8 +143,8 @@ namespace ServiceStack
             return (webEx != null
                     && webEx.Response != null
                     && ((HttpWebResponse)webEx.Response).StatusCode == HttpStatusCode.Unauthorized
-                    && !String.IsNullOrEmpty(userName)
-                    && !String.IsNullOrEmpty(password));
+                    && !string.IsNullOrEmpty(userName)
+                    && !string.IsNullOrEmpty(password));
         }
 
         internal static void AddBasicAuth(this WebRequest client, string userName, string password)
@@ -197,7 +197,6 @@ namespace ServiceStack
 
         internal static void AddAuthInfo(this WebRequest client, string userName, string password, AuthenticationInfo authInfo)
         {
-
             if ("basic".Equals(authInfo.method))
             {
                 client.AddBasicAuth(userName, password); // FIXME AddBasicAuth ignores the server provided Realm property. Potential Bug.
@@ -231,7 +230,6 @@ namespace ServiceStack
             string md5rraw = ha1 + ":" + authInfo.nonce + ":" + ncUse + ":" + authInfo.cnonce + ":" + authInfo.qop + ":" + ha2;
             string response = CalculateMD5Hash(md5rraw);
 
-
             string header =
                 "Digest username=\"" + userName + "\", realm=\"" + authInfo.realm + "\", nonce=\"" + authInfo.nonce + "\", uri=\"" +
                     client.RequestUri.PathAndQuery + "\", cnonce=\"" + authInfo.cnonce + "\", nc=" + ncUse + ", qop=\"" + authInfo.qop + "\", response=\"" + response +
@@ -256,6 +254,10 @@ namespace ServiceStack
 
         public static Type GetErrorResponseDtoType<TResponse>(object request)
         {
+            var batchRequest = request as object[];
+            if (batchRequest != null && batchRequest.Length > 0)
+                request = batchRequest[0]; 
+
             var hasResponseStatus = typeof(TResponse) is IHasResponseStatus
                 || typeof(TResponse).GetPropertyInfo("ResponseStatus") != null;
 
@@ -306,6 +308,10 @@ namespace ServiceStack
             if (response == null)
                 return null;
 
+            var status = response as ResponseStatus;
+            if (status != null)
+                return status;
+
             var hasResponseStatus = response as IHasResponseStatus;
             if (hasResponseStatus != null)
                 return hasResponseStatus.ResponseStatus;
@@ -316,7 +322,5 @@ namespace ServiceStack
 
             return propertyInfo.GetProperty(response) as ResponseStatus;
         }
-
     }
-
 }

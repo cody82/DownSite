@@ -17,12 +17,12 @@
     <iconUrl>https://servicestack.net/img/logo-32.png</iconUrl>
     <tags>ServiceStack Authentication Authorization NHibernate SQLServer Sqlite Oracle MySql PostgreSQL POCO Code-First</tags>
     <language>en-US</language> 
-    <copyright>ServiceStack 2014 and contributors</copyright>
+    <copyright>Copyright 2016 Service Stack</copyright>
     <dependencies>
       <dependency id="ServiceStack" version="4.0" />
-      <dependency id="NHibernate" version="3.3.3.4001" />
-      <dependency id="Iesi.Collections" version="3.3.3.4001" />
-      <dependency id="FluentNHibernate" version="1.4.0.0" />
+      <dependency id="NHibernate" version="4.0.4.4000" />
+      <dependency id="Iesi.Collections" version="4.0.1.4000" />
+      <dependency id="FluentNHibernate" version="2.0.1.0" />
     </dependencies>
   </metadata>
   <files>

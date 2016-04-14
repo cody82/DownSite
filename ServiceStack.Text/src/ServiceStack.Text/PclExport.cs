@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -12,7 +11,7 @@ using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Xml;
+using System.Threading.Tasks;
 using ServiceStack.Text;
 using ServiceStack.Text.Common;
 
@@ -24,7 +23,8 @@ namespace ServiceStack
         {
             public const string WindowsStore = "WindowsStore";
             public const string Android = "Android";
-            public const string IOS = "IOS";
+			public const string IOS = "IOS";
+            public const string Mac = "MAC";
             public const string Silverlight5 = "Silverlight5";
             public const string WindowsPhone = "WindowsPhone";
         }
@@ -42,8 +42,12 @@ namespace ServiceStack
           = new XboxPclExport()
 #elif __IOS__
           = new IosPclExport()
+#elif __MAC__
+          = new MacPclExport()
 #elif ANDROID
           = new AndroidPclExport()
+#elif NET45
+          = new Net45PclExport()
 #else
           = new Net40PclExport()
 #endif
@@ -59,6 +63,8 @@ namespace ServiceStack
                 if (ConfigureProvider("ServiceStack.IosPclExportClient, ServiceStack.Pcl.iOS"))
                     return;
                 if (ConfigureProvider("ServiceStack.AndroidPclExportClient, ServiceStack.Pcl.Android"))
+                    return;
+                if (ConfigureProvider("ServiceStack.MacPclExportClient, ServiceStack.Pcl.Mac20"))
                     return;
                 if (ConfigureProvider("ServiceStack.WinStorePclExportClient, ServiceStack.Pcl.WinStore"))
                     return;
@@ -86,7 +92,16 @@ namespace ServiceStack
         public static void Configure(PclExport instance)
         {
             Instance = instance ?? Instance;
+
+            if (Instance != null && Instance.EmptyTask == null)
+            {
+                var tcs = new TaskCompletionSource<object>();
+                tcs.SetResult(null);
+                Instance.EmptyTask = tcs.Task;
+            }
         }
+
+        public Task EmptyTask;
 
         public bool SupportsExpression;
 
@@ -164,6 +179,16 @@ namespace ServiceStack
             return null;
         }
 
+        public virtual string[] GetFileNames(string dirPath, string searchPattern = null)
+        {
+            return new string[0];
+        }
+
+        public virtual string[] GetDirectoryNames(string dirPath, string searchPattern = null)
+        {
+            return new string[0];
+        }
+
         public virtual void WriteLine(string line)
         {
         }
@@ -214,8 +239,7 @@ namespace ServiceStack
         public virtual bool IsDebugBuild(Assembly assembly)
         {
             return assembly.AllAttributes()
-                .OfType<DebuggableAttribute>()
-                .Any();
+                .Any(x => x.GetType().Name == "DebuggableAttribute");
         }
 
         public virtual string MapAbsolutePath(string relativePath, string appendPartialPathModifier)
@@ -288,6 +312,9 @@ namespace ServiceStack
             if (propertyInfo.CanWrite)
             {
                 var setMethodInfo = propertyInfo.SetMethod();
+                if (setMethodInfo.IsStatic)
+                    return (instance, value) => setMethodInfo.Invoke(null, new[] { value });
+                
                 return (instance, value) => setMethodInfo.Invoke(instance, new[] { value });
             }
             if (fieldInfo == null) return null;
@@ -340,26 +367,35 @@ namespace ServiceStack
 
         public virtual string ToXsdDateTimeString(DateTime dateTime)
         {
-            return XmlConvert.ToString(dateTime.ToStableUniversalTime(), DateTimeSerializer.XsdDateTimeFormat);
+#if !PCL
+            return System.Xml.XmlConvert.ToString(dateTime.ToStableUniversalTime(), DateTimeSerializer.XsdDateTimeFormat);
+#else
+            return dateTime.ToStableUniversalTime().ToString(DateTimeSerializer.XsdDateTimeFormat);
+#endif
         }
 
         public virtual string ToLocalXsdDateTimeString(DateTime dateTime)
         {
-            return XmlConvert.ToString(dateTime, DateTimeSerializer.XsdDateTimeFormat);
+#if !PCL
+            return System.Xml.XmlConvert.ToString(dateTime, DateTimeSerializer.XsdDateTimeFormat);
+#else
+            return dateTime.ToString(DateTimeSerializer.XsdDateTimeFormat);
+#endif
         }
 
         public virtual DateTime ParseXsdDateTime(string dateTimeStr)
         {
-            return XmlConvert.ToDateTimeOffset(dateTimeStr).DateTime;
+#if !PCL
+            return System.Xml.XmlConvert.ToDateTimeOffset(dateTimeStr).DateTime;
+#else
+            return DateTime.ParseExact(dateTimeStr, DateTimeSerializer.XsdDateTimeFormat, CultureInfo.InvariantCulture);
+#endif
         }
 
         public virtual DateTime ParseXsdDateTimeAsUtc(string dateTimeStr)
         {
-            var knownDateTime = DateTimeSerializer.ParseManual(dateTimeStr);
-            if (knownDateTime == null)
-                throw new ArgumentException("Unable to parse unknown format: {0}".Fmt(dateTimeStr));
-
-            return knownDateTime.Value;
+            return DateTimeSerializer.ParseManual(dateTimeStr, DateTimeKind.Utc)
+                ?? DateTime.ParseExact(dateTimeStr, DateTimeSerializer.XsdDateTimeFormat, CultureInfo.InvariantCulture);
         }
 
         public virtual DateTime ToStableUniversalTime(DateTime dateTime)
@@ -384,18 +420,13 @@ namespace ServiceStack
             where TSerializer : ITypeSerializer
         {
 #if !PCL
-            if (type.AssignableFrom(typeof(System.Dynamic.IDynamicMetaObjectProvider)) ||
-                type.HasInterface(typeof(System.Dynamic.IDynamicMetaObjectProvider)))
-            {
-	            return DeserializeDynamic<TSerializer>.Parse;
-            }
+            //if (type.AssignableFrom(typeof(System.Dynamic.IDynamicMetaObjectProvider)) ||
+            //    type.HasInterface(typeof(System.Dynamic.IDynamicMetaObjectProvider)))
+            //{
+            //    return DeserializeDynamic<TSerializer>.Parse;
+            //}
 #endif
-	        return null;
-        }
-
-        public virtual XmlSerializer NewXmlSerializer()
-        {
-            return new XmlSerializer();
+            return null;
         }
 
         public virtual void InitHttpWebRequest(HttpWebRequest httpReq,
@@ -447,6 +478,18 @@ namespace ServiceStack
 
         public virtual void RegisterForAot()
         {            
+        }
+
+        public virtual string GetStackTrace()
+        {
+            return null;
+        }
+
+        public virtual Task WriteAndFlushAsync(Stream stream, byte[] bytes)
+        {
+            stream.Write(bytes, 0, bytes.Length);
+            stream.Flush();
+            return EmptyTask;
         }
     }
 

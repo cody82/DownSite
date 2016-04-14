@@ -1,4 +1,12 @@
-(function ($) {
+;(function (root, f) {
+    if (typeof define === "function" && define.amd) {
+        define(["jquery"], f);
+    } else if (typeof exports === "object") {
+        module.exports = f(require("jquery"));
+    } else {
+        f(root.jQuery);
+    }
+})(this, function ($) {
 
     if (!$.ss) $.ss = {};
     $.ss.handlers = {};
@@ -17,12 +25,12 @@
                 : errorMsg || splitCase(errorCode);
         }
     };
-    $.ss.clearAdjacentError = function() {
+    $.ss.clearAdjacentError = function () {
         $(this).removeClass("error");
         $(this).prev(".help-inline,.help-block").removeClass("error").html("");
         $(this).next(".help-inline,.help-block").removeClass("error").html("");
     };
-    $.ss.todate = function(s) { return new Date(parseFloat(/Date\(([^)]+)\)/.exec(s)[1])); };
+    $.ss.todate = function (s) { return new Date(parseFloat(/Date\(([^)]+)\)/.exec(s)[1])); };
     $.ss.todfmt = function (s) { return $.ss.dfmt($.ss.todate(s)); };
     function pad(d) { return d < 10 ? '0' + d : d; };
     $.ss.dfmt = function (d) { return d.getFullYear() + '/' + pad(d.getMonth() + 1) + '/' + pad(d.getDate()); };
@@ -36,7 +44,25 @@
             : document.selection && document.selection.type != "Control"
                 ? document.selection.createRange().text : "";
     };
-    $.ss.queryString = function(url) {
+    $.ss.combinePaths = function() {
+        var parts = [], i, l;
+        for (i = 0, l = arguments.length; i < l; i++) {
+            var arg = arguments[i];
+            parts = arg.indexOf("://") === -1
+                ? parts.concat(arg.split("/"))
+                : parts.concat(arg.lastIndexOf("/") === arg.length-1 ? arg.substring(0, arg.length-1) : arg);
+        }
+        var paths = [];
+        for (i = 0, l = parts.length; i < l; i++) {
+            var part = parts[i];
+            if (!part || part === ".") continue;
+            if (part === "..") paths.pop();
+            else paths.push(part);
+        }
+        if (parts[0] === "") paths.unshift("");
+        return paths.join("/") || (paths.length ? "/" : ".");
+    };
+    $.ss.queryString = function (url) {
         if (!url) return {};
         var pairs = $.ss.splitOnFirst(url, '?')[1].split('&');
         var map = {};
@@ -48,16 +74,70 @@
         }
         return map;
     };
-
-    function splitCase(t) {
-        return typeof t != 'string' ? t : t.replace( /([A-Z]|[0-9]+)/g , ' $1').replace( /_/g , ' ');
+    $.ss.bindAll = function (o) {
+        for (var k in o) {
+            if (typeof o[k] == 'function')
+                o[k] = o[k].bind(o);
+        }
+        return o;
     };
-    $.ss.humanize = function(s) { return !s || s.indexOf(' ') >= 0 ? s : splitCase(s); };
+    $.ss.createPath = function (route, args) {
+        var argKeys = {};
+        for (var k in args) {
+            argKeys[k.toLowerCase()] = k;
+        }
+        var parts = route.split('/');
+        var url = '';
+        for (var i = 0; i < parts.length; i++) {
+            var p = parts[i];
+            if (p == null) p = '';
+            if (p[0] == '{' && p[p.length - 1] == '}') {
+                var key = argKeys[p.substring(1, p.length - 1).toLowerCase()];
+                if (key) {
+                    p = args[key];
+                    delete args[key];
+                }
+            }
+            if (url.length > 0) url += '/';
+            url += p;
+        }
+        return url;
+    };
+    $.ss.createUrl = function(route, args) {
+        var url = $.ss.createPath(route, args);
+        for (var k in args) {
+            url += url.indexOf('?') >= 0 ? '&' : '?';
+            url += k + "=" + encodeURIComponent(args[k]);
+        }
+        return url;
+    };
+    function splitCase(t) {
+        return typeof t != 'string' ? t : t.replace(/([A-Z]|[0-9]+)/g, ' $1').replace(/_/g, ' ');
+    };
+    $.ss.humanize = function (s) { return !s || s.indexOf(' ') >= 0 ? s : splitCase(s); };
 
     function toCamelCase(key) {
         return !key ? key : key.charAt(0).toLowerCase() + key.substring(1);
     }
-
+    $.ss.normalizeKey = function (key) {
+        return typeof key == "string" ? key.toLowerCase().replace(/_/g, '') : key;
+    };
+    $.ss.normalize = function (dto, deep) {
+        if ($.isArray(dto)) {
+            if (!deep) return dto;
+            var to = [];
+            for (var i = 0; i < dto.length; i++) {
+                to[i] = $.ss.normalize(dto[i], deep);
+            }
+            return to;
+        }
+        if (typeof dto != "object") return dto;
+        var o = {};
+        for (var k in dto) {
+            o[$.ss.normalizeKey(k)] = deep ? $.ss.normalize(dto[k], deep) : dto[k];
+        }
+        return o;
+    };
     function sanitize(status) {
         if (status["errors"])
             return status;
@@ -65,7 +145,7 @@
         for (var k in status)
             to[toCamelCase(k)] = status[k];
         to.errors = [];
-        $.each(status.Errors || [], function(i, o) {
+        $.each(status.Errors || [], function (i, o) {
             var err = {};
             for (var k in o)
                 err[toCamelCase(k)] = o[k];
@@ -73,8 +153,26 @@
         });
         return to;
     }
+    $.ss.parseResponseStatus = function (json, defaultMsg) {
+        try {
+            var err = JSON.parse(json);
+            return sanitize(err.ResponseStatus || err.responseStatus);
+        } catch (e) {
+            return {
+                message: defaultMsg,
+                __error: { error: e, json: json }
+            };
+        }
+    };
+    $.ss.postJSON = function (url, data, success, error) {
+        return $.ajax({
+            type: "POST", url: url, dataType: "json", contentType: "application/json",
+            data: typeof data == "string" ? data : JSON.stringify(data),
+            success: success, error: error
+        });
+    };
 
-    $.fn.setFieldError = function(name, msg) {
+    $.fn.setFieldError = function (name, msg) {
         $(this).applyErrors({
             errors: [{
                 fieldName: name,
@@ -82,15 +180,13 @@
             }]
         });
     };
-
-    $.fn.serializeMap = function() {
+    $.fn.serializeMap = function () {
         var o = {};
-        $.each($(this).serializeArray(), function(i, e) {
+        $.each($(this).serializeArray(), function (i, e) {
             o[e.name] = e.value;
         });
         return o;
     };
-
     $.fn.applyErrors = function (status, opt) {
         this.clearErrors();
         if (!status) return this;
@@ -104,17 +200,17 @@
             $.extend(o.messages, $.ss.validation.messages);
         }
 
-        var filter = $.proxy(o.errorFilter, o), 
+        var filter = $.proxy(o.errorFilter, o),
             errors = status.errors;
 
         if (errors && errors.length) {
-            var fieldMap = { }, fieldLabelMap = {};
-            this.find("input,textarea,select,button").each(function() {
+            var fieldMap = {}, fieldLabelMap = {};
+            this.find("input,textarea,select,button").each(function () {
                 var $el = $(this);
                 var $prev = $el.prev(), $next = $el.next();
                 var fieldId = this.id || $el.attr("name");
                 if (!fieldId) return;
-                
+
                 var key = (fieldId).toLowerCase();
 
                 fieldMap[key] = $el;
@@ -124,7 +220,7 @@
                     fieldLabelMap[key] = $next;
                 }
             });
-            this.find(".help-inline[data-for],.help-block[data-for]").each(function() {
+            this.find(".help-inline[data-for],.help-block[data-for]").each(function () {
                 var $el = $(this);
                 var key = $el.data("for").toLowerCase();
                 fieldLabelMap[key] = $el;
@@ -150,8 +246,7 @@
         }
         return this;
     };
-
-    $.fn.clearErrors = function() {
+    $.fn.clearErrors = function () {
         this.removeClass("has-errors");
         this.find(".error-summary").html("").hide();
         this.find(".help-inline.error, .help-block.error").each(function () {
@@ -164,71 +259,78 @@
             $(this).removeClass("has-error");
         });
     };
-    
     $.fn.bindForm = function (orig) {
         return this.each(function () {
-            orig = orig || {};
-            if (orig.validation) {
-                $.extend($.ss.validation, orig.validation);
-            }
-            
             var f = $(this);
             f.submit(function (e) {
                 e.preventDefault();
-                f.clearErrors();
-                try {
-                    if (orig.validate && orig.validate.call(f) === false)
-                        return false;
-                } catch (e) { return false; }
-                f.addClass("loading");
-                var $disable = $(orig.onSubmitDisable || $.ss.onSubmitDisable, f);
-                $disable.attr("disabled", "disabled");
-                var opt = $.extend({}, orig, {
-                    type: f.attr('method') || "POST",
-                    url: f.attr('action'),
-                    data: f.serialize(),
-                    accept: "application/json",
-                    error: function (jq, jqStatus, statusText) {
-                        var err, errMsg = "The request failed with " + statusText;
-                        try {
-                            err = JSON.parse(jq.responseText);
-                        } catch (e) { }
-                        if (!err) {
-                            f.addClass("has-errors");
-                            f.find(".error-summary").html(errMsg);
-                        } else {
-                            f.applyErrors(err.ResponseStatus || err.responseStatus);
-                        }
-                        if (orig.error) {
-                            orig.error.apply(this, arguments);
-                        }
-                    },
-                    complete: function (jq) {
-                        f.removeClass("loading");
-                        $disable.removeAttr("disabled");
-                        if (orig.complete) {
-                            orig.complete.apply(this, arguments);
-                        }
-                        var loc = jq.getResponseHeader("X-Location");
-                        if (loc) {
-                            location.href = loc;
-                        }
-                        var evt = jq.getResponseHeader("X-Trigger");
-                        if (evt) {
-                            var pos = attr.indexOf(':');
-                            var cmd = pos >= 0 ? evt.substring(0, pos) : evt;
-                            var data = pos >= 0 ? evt.substring(pos + 1) : null;
-                            f.trigger(cmd, data ? [data] : []);
-                        }
-                    },
-                    dataType: "json",
-                });
-                $.ajax(opt);
-                return false;
+                return $(f).ajaxSubmit(orig);
             });
         });
     };
+    $.fn.ajaxSubmit = function (orig) {
+        orig = orig || {};
+        if (orig.validation) {
+            $.extend($.ss.validation, orig.validation);
+        }
 
+        return this.each(function () {
+            var f = $(this);
+            f.clearErrors();
+            try {
+                if (orig.validate && orig.validate.call(f) === false)
+                    return false;
+            } catch (e) {
+                return false;
+            }
+            f.addClass("loading");
+            var $disable = $(orig.onSubmitDisable || $.ss.onSubmitDisable, f);
+            $disable.attr("disabled", "disabled");
+            var opt = $.extend({}, orig, {
+                type: f.attr('method') || "POST",
+                url: f.attr('action'),
+                data: f.serialize(),
+                accept: "application/json",
+                error: function (jq, jqStatus, statusText) {
+                    var err, errMsg = "The request failed with " + statusText;
+                    try {
+                        err = JSON.parse(jq.responseText);
+                    } catch (e) {
+                    }
+                    if (!err) {
+                        f.addClass("has-errors");
+                        f.find(".error-summary").html(errMsg);
+                    } else {
+                        f.applyErrors(err.ResponseStatus || err.responseStatus);
+                    }
+                    if (orig.error) {
+                        orig.error.apply(this, arguments);
+                    }
+                },
+                complete: function (jq) {
+                    f.removeClass("loading");
+                    $disable.removeAttr("disabled");
+                    if (orig.complete) {
+                        orig.complete.apply(this, arguments);
+                    }
+                    var loc = jq.getResponseHeader("X-Location");
+                    if (loc) {
+                        location.href = loc;
+                    }
+                    var evt = jq.getResponseHeader("X-Trigger");
+                    if (evt) {
+                        var pos = attr.indexOf(':');
+                        var cmd = pos >= 0 ? evt.substring(0, pos) : evt;
+                        var data = pos >= 0 ? evt.substring(pos + 1) : null;
+                        f.trigger(cmd, data ? [data] : []);
+                    }
+                },
+                dataType: "json",
+            });
+            $.ajax(opt);
+            return false;
+        });
+    };
     $.fn.applyValues = function (map) {
         return this.each(function () {
             var $el = $(this);
@@ -282,7 +384,7 @@
             $el.on($.ss.listenOn, $.ss.__call);
         });
     };
-    
+
     $.fn.setActiveLinks = function () {
         var url = window.location.href;
         return this.each(function () {
@@ -295,10 +397,66 @@
     };
 
     $.ss.eventReceivers = {};
-    $.ss.reconnectServerEvents = function(opt) {
+    $.ss.eventChannels = [];
+    $.ss.eventSourceUrl = null;
+    $.ss.updateSubscriberUrl = null;
+    $.ss.updateChannels = function(channels) {
+        $.ss.eventChannels = channels;
+        if (!$.ss.eventSource) return;
+        var url = $.ss.eventSource.url;
+        $.ss.eventSourceUrl = url.substring(0, Math.min(url.indexOf('?'), url.length)) + "?channels=" + channels.join(',');
+    };
+    $.ss.updateSubscriberInfo = function (subscribe, unsubscribe) {
+        var sub = typeof subscribe == "string" ? subscribe.split(',') : subscribe;
+        var unsub = typeof unsubscribe == "string" ? unsubscribe.split(',') : unsubscribe;
+        var channels = [];
+        for (var i in $.ss.eventChannels) {
+            var c = $.ss.eventChannels[i];
+            if (unsub == null || $.inArray(c, unsub) === -1) {
+                channels.push(c);
+            }
+        }
+        if (sub) {
+            for (var i in sub) {
+                var c = sub[i];
+                if ($.inArray(c, channels) === -1) {
+                    channels.push(c);
+                }
+            }
+        }
+        $.ss.updateChannels(channels);
+    };
+    $.ss.subscribeToChannels = function (channels, cb, cbError) {
+        return $.ss.updateSubscriber({ SubscribeChannels: channels.join(',') }, cb, cbError);
+    };
+    $.ss.unsubscribeFromChannels = function (channels, cb, cbError) {
+        return $.ss.updateSubscriber({ UnsubscribeChannels: channels.join(',') }, cb, cbError);
+    };
+    $.ss.updateSubscriber = function (data, cb, cbError) {
+        if (!$.ss.updateSubscriberUrl)
+            throw new Error("updateSubscriberUrl was not populated");
+        return $.ajax({
+            type: "POST",
+            url: $.ss.updateSubscriberUrl,
+            data: data,
+            dataType: "json",
+            success: function (r) {
+                $.ss.updateSubscriberInfo(data.SubscribeChannels, data.UnsubscribeChannels);
+                r.channels = $.ss.eventChannels;
+                if (cb != null)
+                    cb(r);
+            },
+            error: function (e) {
+                $.ss.reconnectServerEvents({ errorArgs: arguments });
+                if (cbError != null)
+                    cbError(e);
+            }
+        });
+    };
+    $.ss.reconnectServerEvents = function (opt) {
         opt = opt || {};
         var hold = $.ss.eventSource;
-        var es = new EventSource(opt.url || hold.url);
+        var es = new EventSource(opt.url || $.ss.eventSourceUrl || hold.url);
         es.onerror = opt.onerror || hold.onerror;
         es.onmessage = opt.onmessage || hold.onmessage;
         var fn = $.ss.handlers["onReconnect"];
@@ -306,6 +464,15 @@
             fn.apply(es, opt.errorArgs);
         hold.close();
         return $.ss.eventSource = es;
+    };
+    $.ss.invokeReceiver = function (r, cmd, el, msg, e, name) {
+        if (r) {
+            if (typeof (r[cmd]) == "function") {
+                r[cmd].call(el || r[cmd], msg, e);
+            } else {
+                r[cmd] = msg;
+            }
+        }
     };
     $.fn.handleServerEvents = function (opt) {
         $.ss.eventSource = this[0];
@@ -316,17 +483,25 @@
         function onMessage(e) {
             var parts = $.ss.splitOnFirst(e.data, ' ');
             var selector = parts[0];
+            var selParts = $.ss.splitOnFirst(selector, '@');
+            if (selParts.length > 1) {
+                e.channel = selParts[0];
+                selector = selParts[1];
+            }
             var json = parts[1];
             var msg = json ? JSON.parse(json) : null;
 
             parts = $.ss.splitOnFirst(selector, '.');
+            if (parts.length <= 1)
+                throw "invalid selector format: " + selector;
+
             var op = parts[0],
-                target = parts[1].replace(new RegExp("%20",'g')," ");
+                target = parts[1].replace(new RegExp("%20", 'g'), " ");
 
             if (opt.validate && opt.validate(op, target, msg, json) === false)
                 return;
 
-            var tokens = $.ss.splitOnFirst(target, '$'), 
+            var tokens = $.ss.splitOnFirst(target, '$'),
                 cmd = tokens[0], cssSel = tokens[1],
                 $els = cssSel && $(cssSel), el = $els && $els[0];
             if (op == "cmd") {
@@ -337,22 +512,33 @@
                             window.clearInterval(opt.heartbeat);
                         }
                         opt.heartbeat = window.setInterval(function () {
+                            if ($.ss.eventSource.readyState == 2) //CLOSED
+                            {
+                                window.clearInterval(opt.heartbeat);
+                                var stopFn = $.ss.handlers["onStop"];
+                                if (stopFn != null)
+                                    stopFn.apply($.ss.eventSource);
+                                return;
+                            }
                             $.ajax({
                                 type: "POST",
                                 url: opt.heartbeatUrl,
                                 data: null,
+                                dataType: "text",
                                 success: function (r) { },
                                 error: function () {
-                                    $.ss.reconnectServerEvents({errorArgs:arguments});
+                                    $.ss.reconnectServerEvents({ errorArgs: arguments });
                                 }
                             });
                         }, parseInt(opt.heartbeatIntervalMs) || 10000);
                     }
                     if (opt.unRegisterUrl) {
                         $(window).unload(function () {
-                            $.post(opt.unRegisterUrl, null, function(r) {});
+                            $.post(opt.unRegisterUrl, null, function (r) { });
                         });
                     }
+                    $.ss.updateSubscriberUrl = opt.updateSubscriberUrl;
+                    $.ss.updateChannels((opt.channels || "").split(','));
                 }
                 var fn = $.ss.handlers[cmd];
                 if (fn) {
@@ -367,13 +553,7 @@
             }
             else {
                 var r = opt.receivers && opt.receivers[op] || $.ss.eventReceivers[op];
-                if (r) {
-                    if (typeof (r[cmd]) == "function") {
-                        r[cmd].call(el || r[cmd], msg, e);
-                    } else {
-                        r[cmd] = msg;
-                    }
-                }
+                $.ss.invokeReceiver(r, cmd, el, msg, e, op);
             }
 
             if (opt.success) {
@@ -382,5 +562,4 @@
         }
         $.ss.eventSource.onmessage = onMessage;
     };
-
-})(window.jQuery);
+});

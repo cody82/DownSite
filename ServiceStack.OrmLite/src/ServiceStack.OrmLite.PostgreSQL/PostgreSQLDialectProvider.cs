@@ -2,54 +2,67 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using Npgsql;
+using NpgsqlTypes;
+using ServiceStack.OrmLite.Converters;
+using ServiceStack.OrmLite.PostgreSQL.Converters;
+using ServiceStack.OrmLite.Support;
 using ServiceStack.Text;
 
 namespace ServiceStack.OrmLite.PostgreSQL
 {
-    public class PostgreSQLDialectProvider : OrmLiteDialectProviderBase<PostgreSQLDialectProvider>
-    {
-        public static PostgreSQLDialectProvider Instance = new PostgreSQLDialectProvider();
-        const string textColumnDefinition = "text";
+    [Obsolete("Use PostgreSqlDialectProvider")]
+    public class PostgreSQLDialectProvider : PostgreSqlDialectProvider { }
 
-        public PostgreSQLDialectProvider()
+    public class PostgreSqlDialectProvider : OrmLiteDialectProviderBase<PostgreSqlDialectProvider>
+    {
+        public static PostgreSqlDialectProvider Instance = new PostgreSqlDialectProvider();
+
+        public bool UseReturningForLastInsertId { get; set; }
+
+        public PostgreSqlDialectProvider()
         {
             base.AutoIncrementDefinition = "";
-            base.IntColumnDefinition = "integer";
-            base.BoolColumnDefinition = "boolean";
-            base.TimeColumnDefinition = "time";
-            base.DateTimeColumnDefinition = "timestamp";
-            base.DateTimeOffsetColumnDefinition = "timestamp";
-            base.DecimalColumnDefinition = "numeric(38,6)";
-            base.GuidColumnDefinition = "uuid";
             base.ParamString = ":";
-            base.BlobColumnDefinition = "bytea";
-            base.RealColumnDefinition = "double precision";
-            base.StringLengthColumnDefinitionFormat = textColumnDefinition;
-            //there is no "n"varchar in postgres. All strings are either unicode or non-unicode, inherited from the database.
-            base.StringLengthUnicodeColumnDefinitionFormat = "character varying({0})";
-            base.StringLengthNonUnicodeColumnDefinitionFormat = "character varying({0})";
-            base.MaxStringColumnDefinition = "TEXT";
-            base.InitColumnTypeMap();
             base.SelectIdentitySql = "SELECT LASTVAL()";
+            this.UseReturningForLastInsertId = true;
             this.NamingStrategy = new PostgreSqlNamingStrategy();
             this.StringSerializer = new JsonStringSerializer();
-        }
 
-        public override void OnAfterInitColumnTypeMap()
-        {
-            DbTypeMap.Set<TimeSpan>(DbType.Time, "interval");
-            DbTypeMap.Set<TimeSpan?>(DbType.Time, "interval");
-            DbTypeMap.Set<DateTimeOffset>(DbType.DateTimeOffset, DateTimeOffsetColumnDefinition);
-            DbTypeMap.Set<DateTimeOffset?>(DbType.DateTimeOffset, DateTimeOffsetColumnDefinition);
+            base.InitColumnTypeMap();
 
-            //throws unknown type exceptions in parameterized queries, e.g: p.DbType = DbType.SByte
-            DbTypeMap.Set<sbyte>(DbType.Byte, IntColumnDefinition);
-            DbTypeMap.Set<ushort>(DbType.Int16, IntColumnDefinition);
-            DbTypeMap.Set<uint>(DbType.Int32, IntColumnDefinition);
-            DbTypeMap.Set<ulong>(DbType.Int64, LongColumnDefinition);
+            RegisterConverter<string>(new PostgreSqlStringConverter());
+            RegisterConverter<char[]>(new PostgreSqlCharArrayConverter());
 
-            base.OnAfterInitColumnTypeMap();
+            RegisterConverter<bool>(new PostgreSqlBoolConverter());
+            RegisterConverter<Guid>(new PostgreSqlGuidConverter());
+
+            RegisterConverter<DateTime>(new PostgreSqlDateTimeConverter());
+            RegisterConverter<DateTimeOffset>(new PostgreSqlDateTimeOffsetConverter());
+
+
+            RegisterConverter<sbyte>(new PostrgreSqlSByteConverter());
+            RegisterConverter<ushort>(new PostrgreSqlUInt16Converter());
+            RegisterConverter<uint>(new PostrgreSqlUInt32Converter());
+            RegisterConverter<ulong>(new PostrgreSqlUInt64Converter());
+
+            RegisterConverter<float>(new PostrgreSqlFloatConverter());
+            RegisterConverter<double>(new PostrgreSqlDoubleConverter());
+            RegisterConverter<decimal>(new PostrgreSqlDecimalConverter());
+
+            RegisterConverter<byte[]>(new PostrgreSqlByteArrayConverter());
+
+            //TODO provide support for pgsql native datastructures:
+            //RegisterConverter<string[]>(new PostgreSqlStringArrayConverter());
+            //RegisterConverter<int[]>(new PostgreSqlIntArrayConverter());
+            //RegisterConverter<long[]>(new PostgreSqlLongArrayConverter());
+
+            this.Variables = new Dictionary<string, string>
+            {
+                { OrmLiteVariables.SystemUtc, "now() at time zone 'utc'" },
+            };
         }
 
         public override string GetColumnDefinition(
@@ -72,14 +85,6 @@ namespace ServiceStack.OrmLite.PostgreSQL
             {
                 fieldDefinition = customFieldDefinition;
             }
-            else if (fieldType == typeof(string))
-            {
-                fieldDefinition = fieldLength == int.MaxValue
-                    ? MaxStringColumnDefinition
-                    : fieldLength != null ?
-                        string.Format(StringLengthColumnDefinitionFormat, fieldLength) :
-                        textColumnDefinition;
-            }
             else
             {
                 if (autoIncrement)
@@ -91,7 +96,7 @@ namespace ServiceStack.OrmLite.PostgreSQL
                 }
                 else
                 {
-                    fieldDefinition = GetColumnTypeDefinition(fieldType);
+                    fieldDefinition = GetColumnTypeDefinition(fieldType, fieldLength, scale);
                 }
             }
 
@@ -119,7 +124,9 @@ namespace ServiceStack.OrmLite.PostgreSQL
                 sql.AppendFormat(DefaultValueFormat, defaultValue);
             }
 
-            return sql.ToString();
+            var definition = sql.ToString();
+
+            return definition;
         }
 
         //Convert xmin into an integer so it can be used in comparisons
@@ -154,77 +161,36 @@ namespace ServiceStack.OrmLite.PostgreSQL
             return new NpgsqlConnection(connectionString);
         }
 
-        public override string GetQuotedValue(object value, Type fieldType)
-        {
-            if (value == null) return "NULL";
-
-            if (fieldType == typeof(DateTime))
-            {
-                var dateValue = (DateTime)value;
-                const string iso8601Format = "yyyy-MM-dd HH:mm:ss.fff";
-                return base.GetQuotedValue(dateValue.ToString(iso8601Format), typeof(string));
-            }
-            if (fieldType == typeof(DateTimeOffset))
-            {
-                var dateValue = (DateTimeOffset)value;
-                const string iso8601Format = "yyyy-MM-dd HH:mm:ss.fff zzz";
-                return base.GetQuotedValue(dateValue.ToString(iso8601Format), typeof(string));
-            }
-            if (fieldType == typeof(Guid))
-            {
-                var guidValue = (Guid)value;
-                return base.GetQuotedValue(guidValue.ToString("N"), typeof(string));
-            }
-            if (fieldType == typeof(byte[]))
-            {
-                return "E'" + ToBinary(value) + "'";
-            }
-            if (fieldType.IsArray && typeof(string).IsAssignableFrom(fieldType.GetElementType()))
-            {
-                var stringArray = (string[])value;
-                return ToArray(stringArray);
-            }
-            if (fieldType.IsArray && typeof(int).IsAssignableFrom(fieldType.GetElementType()))
-            {
-                var integerArray = (int[])value;
-                return ToArray(integerArray);
-            }
-            if (fieldType.IsArray && typeof(long).IsAssignableFrom(fieldType.GetElementType()))
-            {
-                var longArray = (long[])value;
-                return ToArray(longArray);
-            }
-
-            return base.GetQuotedValue(value, fieldType);
-        }
-
-        public override object ConvertDbValue(object value, Type type)
-        {
-            if (value == null || value is DBNull) return null;
-
-            if (type == typeof(byte[])) { return value; }
-
-            return base.ConvertDbValue(value, type);
-        }
-
         public override SqlExpression<T> SqlExpression<T>()
         {
-            return new PostgreSqlExpression<T>(this);
+            return !OrmLiteConfig.UseParameterizeSqlExpressions
+                ? new PostgreSqlExpression<T>(this)
+                : (SqlExpression<T>)new PostgreSqlParameterizedSqlExpression<T>(this);
         }
 
-        public override bool DoesTableExist(IDbCommand dbCmd, string tableName)
+        public override IDbDataParameter CreateParam()
+        {
+            return new NpgsqlParameter();
+        }
+
+        public override bool DoesTableExist(IDbCommand dbCmd, string tableName, string schema = null)
         {
             var sql = "SELECT COUNT(*) FROM pg_class WHERE relname = {0}"
                 .SqlFmt(tableName);
+
             var conn = dbCmd.Connection;
             if (conn != null)
             {
                 var builder = new NpgsqlConnectionStringBuilder(conn.ConnectionString);
+                if (schema == null)
+                    schema = builder.SearchPath;
+                
                 // If a search path (schema) is specified, and there is only one, then assume the CREATE TABLE directive should apply to that schema.
-                if (!String.IsNullOrEmpty(builder.SearchPath) && !builder.SearchPath.Contains(","))
+                if (!string.IsNullOrEmpty(schema) && !schema.Contains(","))
                     sql = "SELECT COUNT(*) FROM pg_class JOIN pg_catalog.pg_namespace n ON n.oid = pg_class.relnamespace WHERE relname = {0} AND nspname = {1}"
-                          .SqlFmt(tableName, builder.SearchPath);
+                          .SqlFmt(tableName, schema);
             }
+
             dbCmd.CommandText = sql;
             var result = dbCmd.LongScalar();
 
@@ -270,37 +236,191 @@ namespace ServiceStack.OrmLite.PostgreSQL
             return string.Format("\"{0}\".\"{1}\"", escapedSchema, base.NamingStrategy.GetTableName(modelDef.ModelName));
         }
 
-        /// <summary>
-        /// based on Npgsql2's source: Npgsql2\src\NpgsqlTypes\NpgsqlTypeConverters.cs
-        /// </summary>
-        /// <param name="TypeInfo"></param>
-        /// <param name="NativeData"></param>
-        /// <param name="ForExtendedQuery"></param>
-        /// <returns></returns>
-        internal static String ToBinary(Object NativeData)
+        public override long InsertAndGetLastInsertId<T>(IDbCommand dbCmd)
         {
-            var byteArray = (Byte[])NativeData;
-            var res = new StringBuilder(byteArray.Length * 5);
-            foreach (byte b in byteArray)
-                if (b >= 0x20 && b < 0x7F && b != 0x27 && b != 0x5C)
-                    res.Append((char)b);
-                else
-                    res.Append("\\\\")
-                        .Append((char)('0' + (7 & (b >> 6))))
-                        .Append((char)('0' + (7 & (b >> 3))))
-                        .Append((char)('0' + (7 & b)));
-            return res.ToString();
+            if (SelectIdentitySql == null)
+                throw new NotImplementedException("Returning last inserted identity is not implemented on this DB Provider.");
+
+            if (UseReturningForLastInsertId)
+            {
+                var modelDef = GetModel(typeof(T));
+                var pkName = NamingStrategy.GetColumnName(modelDef.PrimaryKey.FieldName);
+                dbCmd.CommandText += " RETURNING \"{0}\"".Fmt(pkName);                
+            }
+            else
+            {
+                dbCmd.CommandText += "; " + SelectIdentitySql;
+            }
+
+            return dbCmd.ExecLongScalar();
         }
 
-        internal string ToArray<T>(T[] source)
+        public override void SetParameter(FieldDefinition fieldDef, IDbDataParameter p)
         {
-            var values = new StringBuilder();
-            foreach (var value in source)
+            if (fieldDef.CustomFieldDefinition == "json")
             {
-                if (values.Length > 0) values.Append(",");
-                values.Append(base.GetQuotedValue(value, typeof(T)));
+                p.ParameterName = this.GetParam(SanitizeFieldNameForParamName(fieldDef.FieldName));
+                ((NpgsqlParameter) p).NpgsqlDbType = NpgsqlDbType.Json;
+                return;
             }
-            return "ARRAY[" + values + "]";
+            if (fieldDef.CustomFieldDefinition == "jsonb")
+            {
+                p.ParameterName = this.GetParam(SanitizeFieldNameForParamName(fieldDef.FieldName));
+                ((NpgsqlParameter)p).NpgsqlDbType = NpgsqlDbType.Jsonb;
+                return;
+            }
+            if (fieldDef.CustomFieldDefinition == "hstore")
+            {
+                p.ParameterName = this.GetParam(SanitizeFieldNameForParamName(fieldDef.FieldName));
+                ((NpgsqlParameter)p).NpgsqlDbType = NpgsqlDbType.Hstore;
+                return;
+            }
+            if (fieldDef.CustomFieldDefinition == "text[]")
+            {
+                p.ParameterName = this.GetParam(SanitizeFieldNameForParamName(fieldDef.FieldName));
+                ((NpgsqlParameter)p).NpgsqlDbType = NpgsqlDbType.Array | NpgsqlDbType.Text;
+                return;
+            }
+            if (fieldDef.CustomFieldDefinition == "integer[]")
+            {
+                p.ParameterName = this.GetParam(SanitizeFieldNameForParamName(fieldDef.FieldName));
+                ((NpgsqlParameter) p).NpgsqlDbType = NpgsqlDbType.Array | NpgsqlDbType.Integer;
+                return;
+            }
+            if (fieldDef.CustomFieldDefinition == "bigint[]")
+            {
+                p.ParameterName = this.GetParam(SanitizeFieldNameForParamName(fieldDef.FieldName));
+                ((NpgsqlParameter) p).NpgsqlDbType = NpgsqlDbType.Array | NpgsqlDbType.Bigint;
+                return;
+            }
+            base.SetParameter(fieldDef, p);
         }
+
+        protected override object GetValue<T>(FieldDefinition fieldDef, object obj)
+        {
+            if (fieldDef.CustomFieldDefinition == "text[]")
+            {
+                return fieldDef.GetValue(obj);
+            }
+            if (fieldDef.CustomFieldDefinition == "integer[]")
+            {
+                return fieldDef.GetValue(obj);
+            }
+            if (fieldDef.CustomFieldDefinition == "bigint[]")
+            {
+                return fieldDef.GetValue(obj);
+            }
+            return base.GetValue<T>(fieldDef, obj);
+        }
+
+        public override void PrepareStoredProcedureStatement<T>(IDbCommand cmd, T obj)
+        {
+            var tableType = obj.GetType();
+            var modelDef = GetModel(tableType);
+
+            cmd.CommandText = GetQuotedTableName(modelDef);
+            cmd.CommandType = CommandType.StoredProcedure;
+
+            foreach (var fieldDef in modelDef.FieldDefinitions)
+            {
+                var p = cmd.CreateParameter();
+                SetParameter(fieldDef, p);
+                cmd.Parameters.Add(p);
+            }
+
+            SetParameterValues<T>(cmd, obj);
+        }
+
+
+        protected NpgsqlConnection Unwrap(IDbConnection db)
+        {
+            return (NpgsqlConnection)db.ToDbConnection();
+        }
+
+        protected NpgsqlCommand Unwrap(IDbCommand cmd)
+        {
+            return (NpgsqlCommand)cmd.ToDbCommand();
+        }
+
+        protected NpgsqlDataReader Unwrap(IDataReader reader)
+        {
+            return (NpgsqlDataReader)reader;
+        }
+
+#if NET45
+        public override Task OpenAsync(IDbConnection db, CancellationToken token)
+        {
+            return Unwrap(db).OpenAsync(token);
+        }
+
+        public override Task<IDataReader> ExecuteReaderAsync(IDbCommand cmd, CancellationToken token)
+        {
+            return Unwrap(cmd).ExecuteReaderAsync(token).Then(x => (IDataReader)x);
+        }
+
+        public override Task<int> ExecuteNonQueryAsync(IDbCommand cmd, CancellationToken token)
+        {
+            return Unwrap(cmd).ExecuteNonQueryAsync(token);
+        }
+
+        public override Task<object> ExecuteScalarAsync(IDbCommand cmd, CancellationToken token)
+        {
+            return Unwrap(cmd).ExecuteScalarAsync(token);
+        }
+
+        public override Task<bool> ReadAsync(IDataReader reader, CancellationToken token)
+        {
+            return Unwrap(reader).ReadAsync(token);
+        }
+
+        public override async Task<List<T>> ReaderEach<T>(IDataReader reader, Func<T> fn, CancellationToken token)
+        {
+            try
+            {
+                var to = new List<T>();
+                while (await ReadAsync(reader, token).ConfigureAwait(false))
+                {
+                    var row = fn();
+                    to.Add(row);
+                }
+                return to;
+            }
+            finally
+            {
+                reader.Dispose();
+            }
+        }
+
+        public override async Task<Return> ReaderEach<Return>(IDataReader reader, Action fn, Return source, CancellationToken token)
+        {
+            try
+            {
+                while (await ReadAsync(reader, token).ConfigureAwait(false))
+                {
+                    fn();
+                }
+                return source;
+            }
+            finally
+            {
+                reader.Dispose();
+            }
+        }
+
+        public override async Task<T> ReaderRead<T>(IDataReader reader, Func<T> fn, CancellationToken token)
+        {
+            try
+            {
+                if (await ReadAsync(reader, token).ConfigureAwait(false))
+                    return fn();
+
+                return default(T);
+            }
+            finally
+            {
+                reader.Dispose();
+            }
+        }
+#endif
     }
 }

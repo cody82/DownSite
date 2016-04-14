@@ -44,10 +44,12 @@ namespace ServiceStack.RabbitMq
             get { return totalMessagesProcessed; }
         }
 
-        private int msgNotificationsReceived;
+        // TODO: RabbitMqWorker.MsgNotificationsReceived is never referenced and will always return zero.
+        //private int msgNotificationsReceived;
         public int MsgNotificationsReceived
         {
-            get { return msgNotificationsReceived; }
+            //get { return msgNotificationsReceived; }
+            get { return 0; }
         }
 
         public RabbitMqWorker(RabbitMqMessageFactory mqFactory,
@@ -62,7 +64,7 @@ namespace ServiceStack.RabbitMq
             this.AutoReconnect = autoConnect;
         }
 
-        public RabbitMqWorker Clone()
+        public virtual RabbitMqWorker Clone()
         {
             return new RabbitMqWorker(mqFactory, messageHandler, QueueName, errorHandler, AutoReconnect);
         }
@@ -86,7 +88,7 @@ namespace ServiceStack.RabbitMq
             return channel;
         }
 
-        public void Start()
+        public virtual void Start()
         {
             if (Interlocked.CompareExchange(ref status, 0, 0) == WorkerStatus.Started)
                 return;
@@ -109,7 +111,7 @@ namespace ServiceStack.RabbitMq
             }
         }
 
-        public void ForceRestart()
+        public virtual void ForceRestart()
         {
             KillBgThreadIfExists();
             Start();
@@ -218,7 +220,7 @@ namespace ServiceStack.RabbitMq
                 catch (Exception ex)
                 {
                     var waitMs = Math.Min(retries++ * 100, 10000);
-                    Log.Debug("Retrying to Reconnect after {0}ms...".Fmt(waitMs));
+                    Log.Debug("Retrying to Reconnect after {0}ms...".Fmt(waitMs), ex);
                     Thread.Sleep(waitMs);
                 }
             }
@@ -235,6 +237,12 @@ namespace ServiceStack.RabbitMq
                 try
                 {
                     var e = consumer.Queue.Dequeue();
+
+                    if (mqFactory.GetMessageFilter != null)
+                    {
+                        mqFactory.GetMessageFilter(QueueName, e);
+                    }
+
                     messageHandler.ProcessMessage(mqClient, e);
                 }
                 catch (Exception ex)
@@ -267,7 +275,7 @@ namespace ServiceStack.RabbitMq
                 catch (Exception ex)
                 {
                     var waitMs = Math.Min(retries++ * 100, 10000);
-                    Log.Debug("Retrying to Reconnect Subscription after {0}ms...".Fmt(waitMs));
+                    Log.Debug("Retrying to Reconnect Subscription after {0}ms...".Fmt(waitMs), ex);
                     Thread.Sleep(waitMs);
                 }
             }
@@ -281,7 +289,7 @@ namespace ServiceStack.RabbitMq
             return consumer;
         }
 
-        public void Stop()
+        public virtual void Stop()
         {
             if (Interlocked.CompareExchange(ref status, 0, 0) == WorkerStatus.Disposed)
                 return;
@@ -357,12 +365,12 @@ namespace ServiceStack.RabbitMq
             }
         }
 
-        public IMessageHandlerStats GetStats()
+        public virtual IMessageHandlerStats GetStats()
         {
             return messageHandler.GetStats();
         }
 
-        public string GetStatus()
+        public virtual string GetStatus()
         {
             return "[Worker: {0}, Status: {1}, ThreadStatus: {2}, LastMsgAt: {3}]"
                 .Fmt(QueueName, WorkerStatus.ToString(status), bgThread.ThreadState, LastMsgProcessed);

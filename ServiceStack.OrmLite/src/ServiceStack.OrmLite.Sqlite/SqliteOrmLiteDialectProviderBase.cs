@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Text;
-using ServiceStack.Text.Common;
+using ServiceStack.OrmLite.Sqlite.Converters;
 
 namespace ServiceStack.OrmLite.Sqlite
 {
@@ -13,21 +12,21 @@ namespace ServiceStack.OrmLite.Sqlite
     {
         protected SqliteOrmLiteDialectProviderBase()
         {
-            base.MaxStringColumnDefinition = "VARCHAR(1000000)"; //Default Max is really 1B
-            base.DateTimeColumnDefinition = base.StringColumnDefinition;
-            base.BoolColumnDefinition = base.IntColumnDefinition;
-            base.GuidColumnDefinition = "CHAR(36)";
             base.SelectIdentitySql = "SELECT last_insert_rowid()";
 
             base.InitColumnTypeMap();
-        }
 
-        public override void OnAfterInitColumnTypeMap()
-        {
-            DbTypeMap.Set<Guid>(DbType.String, GuidColumnDefinition);
-            DbTypeMap.Set<Guid?>(DbType.String, GuidColumnDefinition);
-            DbTypeMap.Set<DateTimeOffset>(DbType.DateTimeOffset, StringColumnDefinition);
-            DbTypeMap.Set<DateTimeOffset?>(DbType.DateTimeOffset, StringColumnDefinition);
+            base.RegisterConverter<string>(new SqliteStringConverter());
+            base.RegisterConverter<DateTime>(new SqliteDateTimeConverter());
+            base.RegisterConverter<DateTimeOffset>(new SqliteDateTimeOffsetConverter());
+            base.RegisterConverter<Guid>(new SqliteGuidConverter());
+            base.RegisterConverter<bool>(new SqliteBoolConverter());
+            base.RegisterConverter<byte[]>(new SqliteByteArrayConverter());
+
+            this.Variables = new Dictionary<string, string>
+            {
+                { OrmLiteVariables.SystemUtc, "CURRENT_TIMESTAMP" },
+            };
         }
 
         public static string Password { get; set; }
@@ -41,7 +40,7 @@ namespace ServiceStack.OrmLite.Sqlite
             if (modelDef.RowVersion != null)
             {
                 var triggerName = GetTriggerName(modelDef);
-                return "DROP TRIGGER IF EXISTS {0}".Fmt(GetQuotedTableName(triggerName));
+                return "DROP TRIGGER IF EXISTS {0}".Fmt(GetQuotedName(triggerName));
             }
 
             return null;
@@ -60,8 +59,8 @@ namespace ServiceStack.OrmLite.Sqlite
                 var tableName = GetTableName(modelDef);
                 var triggerBody = "UPDATE {0} SET {1} = OLD.{1} + 1 WHERE {2} = NEW.{2};".Fmt(
                     tableName, 
-                    modelDef.RowVersion.FieldName.SqlColumn(), 
-                    modelDef.PrimaryKey.FieldName.SqlColumn());
+                    modelDef.RowVersion.FieldName.SqlColumn(this), 
+                    modelDef.PrimaryKey.FieldName.SqlColumn(this));
 
                 var sql = "CREATE TRIGGER {0} BEFORE UPDATE ON {1} FOR EACH ROW BEGIN {2} END;".Fmt(
                     triggerName, tableName, triggerBody);
@@ -105,7 +104,6 @@ namespace ServiceStack.OrmLite.Sqlite
                     }
                 }
                 connString.AppendFormat(@"Data Source={0};Version=3;New=True;Compress=True;", connectionString.Trim());
-
             }
             else
             {
@@ -131,119 +129,33 @@ namespace ServiceStack.OrmLite.Sqlite
             return CreateConnection(connString.ToString());
         }
 
-
         protected abstract IDbConnection CreateConnection(string connectionString);
 
-        public virtual string GetTableName(ModelDefinition modelDef)
+        public override string GetTableName(string table, string schema=null)
         {
-            var tableName = NamingStrategy.GetTableName(modelDef.ModelName);
-            return !modelDef.IsInSchema 
-                ? tableName
-                : string.Format("{0}_{1}", modelDef.Schema, tableName);
+            return schema != null
+                ? string.Format("{0}_{1}", 
+                    NamingStrategy.GetSchemaName(schema),
+                    NamingStrategy.GetTableName(table))
+                : NamingStrategy.GetTableName(table);
         }
 
-        public override string GetQuotedTableName(ModelDefinition modelDef)
+        public override string GetQuotedTableName(string tableName, string schema = null)
         {
-            if (!modelDef.IsInSchema)
-                return base.GetQuotedTableName(modelDef);
-
-            return string.Format("\"{0}_{1}\"", modelDef.Schema, modelDef.ModelName);
-        }
-
-        public override object ConvertDbValue(object value, Type type)
-        {
-            if (value == null || value is DBNull) return null;
-
-            if (type == typeof(bool) && !(value is bool))
-            {
-                var intVal = int.Parse(value.ToString());
-                return intVal != 0; 
-            }
-
-            return base.ConvertDbValue(value, type);
-        }
-
-        public override void SetDbValue(FieldDefinition fieldDef, IDataReader reader, int colIndex, object instance)
-        {
-            if (HandledDbNullValue(fieldDef, reader, colIndex, instance)) return;
-
-            var fieldType = Nullable.GetUnderlyingType(fieldDef.FieldType) ?? fieldDef.FieldType;
-            if (fieldType == typeof(Guid))
-            {
-                var guidStr = reader.GetString(colIndex);
-                var guidValue = new Guid(guidStr);
-
-                fieldDef.SetValueFn(instance, guidValue);
-            }
-            else if (fieldType == typeof(DateTime))
-            {
-                try
-                {
-                    var dbValue = reader.GetDateTime(colIndex);
-
-                    fieldDef.SetValueFn(instance, dbValue);
-                }
-                catch (Exception)
-                {
-                    var dateStr = reader.GetString(colIndex);
-                    var dateValue = DateTimeSerializer.ParseShortestXsdDateTime(dateStr);
-                    fieldDef.SetValueFn(instance, dateValue);
-                }
-            }
-            else
-            {
-                base.SetDbValue(fieldDef, reader, colIndex, instance);
-            }
-        }
-
-        public override string GetQuotedValue(object value, Type fieldType)
-        {
-            if (value == null) return "NULL";
-
-            if (fieldType == typeof(DateTime))
-            {
-                var dateValue = (DateTime)value;
-                var dateStr = dateValue.ToSqliteDateString();
-                return base.GetQuotedValue(dateStr, typeof(string));
-            }
-
-            if (fieldType == typeof(bool))
-            {
-                var boolValue = (bool)value;
-                return base.GetQuotedValue(boolValue ? 1 : 0, typeof(int));
-            }
-
-            // output datetimeoffset as a string formatted for roundtripping.
-            if (fieldType == typeof (DateTimeOffset))
-            {
-                var dateTimeOffsetValue = (DateTimeOffset) value;
-                return base.GetQuotedValue(dateTimeOffsetValue.ToString("o"), typeof (string));
-            }
-
-            return base.GetQuotedValue(value, fieldType);
-        }
-
-        protected override object GetValueOrDbNull<T>(FieldDefinition fieldDef, object obj)
-        {
-            var value = GetValue<T>(fieldDef, obj);
-            if (fieldDef.FieldType == typeof(DateTimeOffset) && value != null)
-            {
-                var dateTimeOffsetValue = (DateTimeOffset)value;
-                return dateTimeOffsetValue.ToString("o");
-            }
-
-            return value ?? DBNull.Value;
+            return GetQuotedName(GetTableName(tableName, schema));
         }
 
         public override SqlExpression<T> SqlExpression<T>()
         {
-            return new SqliteExpression<T>(this);
+            return !OrmLiteConfig.UseParameterizeSqlExpressions
+                ? new SqliteExpression<T>(this)
+                : (SqlExpression<T>)new SqliteParameterizedSqlExpression<T>(this);
         }
 
-        public override bool DoesTableExist(IDbCommand dbCmd, string tableName)
+        public override bool DoesTableExist(IDbCommand dbCmd, string tableName, string schema = null)
         {
             var sql = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = {0}"
-                .SqlFmt(tableName);
+                .SqlFmt(GetTableName(tableName, schema));
 
             dbCmd.CommandText = sql;
             var result = dbCmd.LongScalar();
@@ -278,21 +190,6 @@ namespace ServiceStack.OrmLite.Sqlite
                 SqliteOrmLiteDialectProviderBase.UTF8Encoded = true;
 
             return provider;
-        }
-
-        public static string ToSqliteDateString(this DateTime dateTime)
-        {
-            //Not forcing co-ercsion into UTC for Sqlite
-            var dateStr = DateTimeSerializer.ToLocalXsdDateTimeString(dateTime);
-            dateStr = dateStr.Replace("T", " ");
-            const int tzPos = 6; //"-00:00".Length;
-            var timeZoneMod = dateStr.Substring(dateStr.Length - tzPos, 1);
-            if (timeZoneMod == "+" || timeZoneMod == "-")
-            {
-                dateStr = dateStr.Substring(0, dateStr.Length - tzPos);
-            }
-
-            return dateStr;
         }
     }
 }

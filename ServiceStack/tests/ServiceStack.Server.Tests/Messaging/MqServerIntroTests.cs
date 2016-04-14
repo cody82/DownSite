@@ -1,10 +1,14 @@
 ﻿using System;
+using System.Threading;
 using Funq;
 using NUnit.Framework;
+using ServiceStack.Auth;
+using ServiceStack.Host;
 using ServiceStack.Messaging;
 using ServiceStack.Messaging.Redis;
 using ServiceStack.RabbitMq;
 using ServiceStack.Redis;
+using ServiceStack.Server.Tests.Caching;
 using ServiceStack.Testing;
 using ServiceStack.Text;
 
@@ -34,7 +38,7 @@ namespace ServiceStack.Server.Tests.Messaging
         }
     }
 
-    public class HelloIntro
+    public class HelloIntro : IReturn<HelloIntroResponse>
     {
         public string Name { get; set; }
     }
@@ -52,6 +56,30 @@ namespace ServiceStack.Server.Tests.Messaging
         }
     }
 
+    public class MqAuthOnly : IReturn<MqAuthOnlyResponse>
+    {
+        public string Name { get; set; }
+        public string SessionId { get; set; }
+    }
+
+    public class MqAuthOnlyResponse
+    {
+        public string Result { get; set; }
+    }
+
+    public class MqAuthOnlyService : Service 
+    {
+        [Authenticate]
+        public object Any(MqAuthOnly request)
+        {
+            var session = base.SessionAs<AuthUserSession>();
+            return new MqAuthOnlyResponse {
+                Result = "Hello, {0}! Your UserName is {1}"
+                    .Fmt(request.Name, session.UserAuthName)
+            };
+        }
+    }
+
     public class AppHost : AppSelfHostBase
     {
         private readonly Func<IMessageService> createMqServerFn;
@@ -64,11 +92,34 @@ namespace ServiceStack.Server.Tests.Messaging
 
         public override void Configure(Container container)
         {
+            Plugins.Add(new AuthFeature(() => new AuthUserSession(), 
+                new IAuthProvider[] {
+                    new CredentialsAuthProvider(AppSettings), 
+                }));
+
+            container.Register<IUserAuthRepository>(c => new InMemoryAuthRepository());
+
+            var authRepo = container.Resolve<IUserAuthRepository>();
+
+            authRepo.CreateUserAuth(new UserAuth {
+                Id = 1,
+                UserName = "mythz",
+                FirstName = "First",
+                LastName = "Last",
+                DisplayName = "Display",
+            }, "p@55word");
+
             container.Register(c => createMqServerFn());
 
             var mqServer = container.Resolve<IMessageService>();
 
             mqServer.RegisterHandler<HelloIntro>(ServiceController.ExecuteMessage);
+            mqServer.RegisterHandler<MqAuthOnly>(m => {
+                var req = new BasicRequest { Verb = HttpMethods.Post };
+                req.Headers["X-ss-id"] = m.GetBody().SessionId;
+                var response = ServiceController.ExecuteMessage(m, req);
+                return response;
+            });
             mqServer.Start();
         }
     }
@@ -129,7 +180,7 @@ namespace ServiceStack.Server.Tests.Messaging
                 var called = 0;
                 mqServer.RegisterHandler<HelloIntro>(m =>
                 {
-                    called++;
+                    Interlocked.Increment(ref called);
                     throw new ArgumentException("Name");
                 });
                 mqServer.Start();
@@ -189,6 +240,65 @@ namespace ServiceStack.Server.Tests.Messaging
         }
 
         [Test]
+        public void Does_process_multi_messages_in_HttpListener_AppHost()
+        {
+            using (var appHost = new AppHost(() => CreateMqServer()).Init())
+            {
+                using (var mqClient = appHost.Resolve<IMessageService>().CreateMessageQueueClient())
+                {
+                    var requests = new[]
+                    {
+                        new HelloIntro { Name = "Foo" },
+                        new HelloIntro { Name = "Bar" },
+                    };
+
+                    var client = (IOneWayClient)mqClient;
+                    client.SendAllOneWay(requests);
+
+                    var responseMsg = mqClient.Get<HelloIntroResponse>(QueueNames<HelloIntroResponse>.In);
+                    mqClient.Ack(responseMsg);
+                    Assert.That(responseMsg.GetBody().Result, Is.EqualTo("Hello, Foo!"));
+
+                    responseMsg = mqClient.Get<HelloIntroResponse>(QueueNames<HelloIntroResponse>.In);
+                    mqClient.Ack(responseMsg);
+                    Assert.That(responseMsg.GetBody().Result, Is.EqualTo("Hello, Bar!"));
+                }
+            }
+        }
+
+        [Test]
+        public void Can_make_authenticated_requests_with_MQ()
+        {
+            using (var appHost = new AppHost(() => CreateMqServer()).Init())
+            {
+                appHost.Start(Config.ListeningOn);
+
+                var client = new JsonServiceClient(Config.ListeningOn);
+
+                var response = client.Post(new Authenticate {
+                    UserName = "mythz",
+                    Password = "p@55word"
+                });
+
+                var sessionId = response.SessionId;
+
+                using (var mqClient = appHost.Resolve<IMessageService>().CreateMessageQueueClient())
+                {
+
+                    mqClient.Publish(new MqAuthOnly {                        
+                        Name = "MQ Auth",
+                        SessionId = sessionId,
+                    });
+
+                    var responseMsg = mqClient.Get<MqAuthOnlyResponse>(QueueNames<MqAuthOnlyResponse>.In);
+                    mqClient.Ack(responseMsg);
+                    Assert.That(responseMsg.GetBody().Result,
+                        Is.EqualTo("Hello, MQ Auth! Your UserName is mythz"));
+                }
+            }
+        }
+
+        [Test]
         public void Does_process_messages_in_BasicAppHost()
         {
             using (var appHost = new BasicAppHost(typeof(HelloService).Assembly)
@@ -223,7 +333,7 @@ namespace ServiceStack.Server.Tests.Messaging
             return new RabbitMqServer
             {
                 RetryCount = retryCount,
-                ResponseFilter = r => { host.OnEndRequest(); return r; }
+                ResponseFilter = r => { host.OnEndRequest(null); return r; }
             };
         }
     }
@@ -235,7 +345,7 @@ namespace ServiceStack.Server.Tests.Messaging
             return new RedisMqServer(new BasicRedisClientManager())
             {
                 RetryCount = retryCount,
-                ResponseFilter = r => { host.OnEndRequest(); return r; }
+                ResponseFilter = r => { host.OnEndRequest(null); return r; }
             };
         }
     }
@@ -292,7 +402,7 @@ namespace ServiceStack.Server.Tests.Messaging
                     RequestContext.UseThreadStatic = true;
                     host.Container.Register<IDisposableDependency>(c => new DisposableDependency(() =>
                     {
-                        disposeCount++;
+                        Interlocked.Increment(ref disposeCount);
                     }))
                         .ReusedWithin(ReuseScope.Request);
                     host.Container.Register(c => CreateMqServer(host));

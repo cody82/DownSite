@@ -49,12 +49,12 @@ namespace ServiceStack
         [DataMember(Order = 32)] public string RequestTokenSecret { get; set; }
         [DataMember(Order = 33)] public DateTime CreatedAt { get; set; }
         [DataMember(Order = 34)] public DateTime LastModified { get; set; }
-        [DataMember(Order = 35)] public List<IAuthTokens> ProviderOAuthAccess { get; set; }
-        [DataMember(Order = 36)] public List<string> Roles { get; set; }
-        [DataMember(Order = 37)] public List<string> Permissions { get; set; }
-        [DataMember(Order = 38)] public virtual bool IsAuthenticated { get; set; }
-        [DataMember(Order = 39)] public virtual string Sequence { get; set; }
-        [DataMember(Order = 40)] public long Tag { get; set; }
+        [DataMember(Order = 35)] public List<string> Roles { get; set; }
+        [DataMember(Order = 36)] public List<string> Permissions { get; set; }
+        [DataMember(Order = 37)] public virtual bool IsAuthenticated { get; set; }
+        [DataMember(Order = 38)] public virtual string Sequence { get; set; }
+        [DataMember(Order = 39)] public long Tag { get; set; }
+        [DataMember(Order = 40)] public List<IAuthTokens> ProviderOAuthAccess { get; set; }
 
         public virtual bool IsAuthorized(string provider)
         {
@@ -84,8 +84,17 @@ namespace ServiceStack
             return this.Roles != null && this.Roles.Contains(role);
         }
 
-        public virtual void OnRegistered(IServiceBase registrationService) {}
-        public virtual void OnAuthenticated(IServiceBase authService, IAuthSession session, IAuthTokens tokens, Dictionary<string, string> authInfo) {}
+        [Obsolete("Use OnRegistered(IRequest httpReq, IAuthSession session, IServiceBase service)")]
+        public virtual void OnRegistered(IServiceBase service) { }
+
+        public virtual void OnRegistered(IRequest httpReq, IAuthSession session, IServiceBase service)
+        {
+#pragma warning disable 612, 618
+            OnRegistered(service);
+#pragma warning restore 612, 618
+        }
+
+        public virtual void OnAuthenticated(IServiceBase authService, IAuthSession session, IAuthTokens tokens, Dictionary<string, string> authInfo) { }
         public virtual void OnLogout(IServiceBase authService) {}
         public virtual void OnCreated(IRequest httpReq) {}
     }

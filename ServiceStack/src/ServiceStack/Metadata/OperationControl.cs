@@ -1,7 +1,6 @@
 using System.Web;
 using System.Web.UI;
 using ServiceStack.Templates;
-using ServiceStack.Text;
 using ServiceStack.Web;
 
 namespace ServiceStack.Metadata
@@ -14,7 +13,7 @@ namespace ServiceStack.Metadata
         {
             set
             {
-                this.ContentType = ServiceStack.ContentFormat.ToContentType(value);
+                this.ContentType = value.ToContentType();
                 this.ContentFormat = ServiceStack.ContentFormat.GetContentFormat(value);
             }
         }
@@ -44,15 +43,7 @@ namespace ServiceStack.Metadata
 
         public virtual void Render(HtmlTextWriter output)
         {
-            var baseUrl = HttpRequest.GetParentAbsolutePath().ToParentPath();
-            if (string.IsNullOrEmpty(baseUrl))
-                baseUrl = "/";
-            // use a fully qualified path if WebHostUrl is set
-            if (HostContext.Config.WebHostUrl != null)
-            {
-                baseUrl = HostContext.Config.WebHostUrl.CombineWith(baseUrl);
-            }
-
+            string baseUrl = HttpRequest.ResolveAbsoluteUrl("~/");
             var renderedTemplate = HtmlTemplates.Format(HtmlTemplates.GetOperationControlTemplate(),
                 Title,
                 baseUrl.CombineWith(MetadataConfig.DefaultMetadataUri),

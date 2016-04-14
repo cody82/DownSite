@@ -5,7 +5,7 @@
 // Authors:
 //   Demis Bellot (demis.bellot@gmail.com)
 //
-// Copyright 2014 Service Stack LLC. All Rights Reserved.
+// Copyright 2016 Service Stack LLC. All Rights Reserved.
 //
 // Licensed under the same terms of ServiceStack.
 //
@@ -59,6 +59,7 @@ namespace ServiceStack.Redis
 
         //Common key-value Redis operations
         byte[][] Keys(string pattern);
+        string Type(string key);
         long Exists(string key);
         long StrLen(string key);
         void Set(string key, byte[] value);
@@ -142,6 +143,7 @@ namespace ServiceStack.Redis
         long SAdd(string setId, byte[][] value);
         long SRem(string setId, byte[] value);
         byte[] SPop(string setId);
+        byte[][] SPop(string setId, int count);
         void SMove(string fromSetId, string toSetId, byte[] value);
         long SCard(string setId);
         long SIsMember(string setId, byte[] value);
@@ -212,12 +214,16 @@ namespace ServiceStack.Redis
         IRedisSubscription CreateSubscription();
 
         //Redis LUA support
+        RedisData EvalCommand(string luaBody, int numberKeysInArgs, params byte[][] keys);
+        RedisData EvalShaCommand(string sha1, int numberKeysInArgs, params byte[][] keys);
+
+        byte[][] Eval(string luaBody, int numberOfKeys, params byte[][] keysAndArgs);
+        byte[][] EvalSha(string sha1, int numberOfKeys, params byte[][] keysAndArgs);
+
         long EvalInt(string luaBody, int numberOfKeys, params byte[][] keysAndArgs);
         long EvalShaInt(string sha1, int numberOfKeys, params byte[][] keysAndArgs);
         string EvalStr(string luaBody, int numberOfKeys, params byte[][] keysAndArgs);
         string EvalShaStr(string sha1, int numberOfKeys, params byte[][] keysAndArgs);
-        byte[][] Eval(string luaBody, int numberOfKeys, params byte[][] keysAndArgs);
-        byte[][] EvalSha(string sha1, int numberOfKeys, params byte[][] keysAndArgs);
 
         string CalculateSha1(string luaBody);
         byte[][] ScriptExists(params byte[][] sha1Refs);

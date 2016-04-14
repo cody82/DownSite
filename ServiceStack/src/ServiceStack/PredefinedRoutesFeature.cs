@@ -61,16 +61,18 @@ namespace ServiceStack
                     string contentType;
                     if (HostContext.ContentTypes.ContentTypeFormats.TryGetValue(pathController, out contentType))
                     {
-                        var feature = ContentFormat.ToFeature(contentType);
+                        var feature = contentType.ToFeature();
                         if (feature == Feature.None) feature = Feature.CustomFormat;
 
                         if (isReply)
-                            return new GenericHandler(contentType, RequestAttributes.Reply, feature) {
-                                RequestName = requestName
+                            return new GenericHandler(contentType, RequestAttributes.Reply, feature)
+                            {
+                                RequestName = requestName,
                             };
                         if (isOneWay)
-                            return new GenericHandler(contentType, RequestAttributes.OneWay, feature) {
-                                RequestName = requestName
+                            return new GenericHandler(contentType, RequestAttributes.OneWay, feature)
+                            {
+                                RequestName = requestName,
                             };
                     }
                     break;

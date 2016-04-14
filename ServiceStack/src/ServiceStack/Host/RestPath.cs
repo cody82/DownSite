@@ -12,7 +12,6 @@ namespace ServiceStack.Host
     public class RestPath
         : IRestPath
     {
-        private const string IgnoreParam = "ignore";
         private const string WildCard = "*";
         private const char WildCardChar = '*';
         private const string PathSeperator = "/";
@@ -34,7 +33,7 @@ namespace ServiceStack.Host
         private readonly bool[] isWildcard = new bool[0];
         private readonly int wildcardCount = 0;
 
-        private int variableArgsCount;
+        public int VariableArgsCount { get; set; }
 
         /// <summary>
         /// The number of segments separated by '/' determinable by path.Split('/').Length
@@ -171,7 +170,7 @@ namespace ServiceStack.Host
                         variableName = variableName.Substring(0, variableName.Length - 1);
                     }
                     this.variablesNames[i] = variableName;
-                    this.variableArgsCount++;
+                    this.VariableArgsCount++;
                 }
                 else
                 {
@@ -248,8 +247,13 @@ namespace ServiceStack.Host
 
         private readonly Dictionary<string, string> propertyNamesMap = new Dictionary<string, string>();
 
+        public static Func<RestPath, string, string[], int> CalculateMatchScore { get; set; }
+
         public int MatchScore(string httpMethod, string[] withPathInfoParts)
         {
+            if (CalculateMatchScore != null)
+                return CalculateMatchScore(this, httpMethod, withPathInfoParts);
+
             int wildcardMatchCount;
             var isMatch = IsMatch(httpMethod, withPathInfoParts, out wildcardMatchCount);
             if (!isMatch) return -1;
@@ -257,10 +261,10 @@ namespace ServiceStack.Host
             var score = 0;
 
             //Routes with least wildcard matches get the highest score
-            score += Math.Max((10 - wildcardMatchCount), 1) * 1000;
+            score += Math.Max((100 - wildcardMatchCount), 1) * 1000;
 
             //Routes with less variable (and more literal) matches
-            score += Math.Max((10 - variableArgsCount), 1) * 100;
+            score += Math.Max((10 - VariableArgsCount), 1) * 100;
 
             //Exact verb match is better than ANY
             var exactVerb = httpMethod == AllowedVerbs;
@@ -407,7 +411,7 @@ namespace ServiceStack.Host
                 string propertyNameOnRequest;
                 if (!this.propertyNamesMap.TryGetValue(variableName.ToLower(), out propertyNameOnRequest))
                 {
-                    if (IgnoreParam.EqualsIgnoreCase(variableName))
+                    if (Keywords.Ignore.EqualsIgnoreCase(variableName))
                     {
                         pathIx++;
                         continue;                       

@@ -93,17 +93,20 @@ namespace ServiceStack.Host
                 var responseContentType = httpReq.ResponseContentType;
                 appHost.AssertContentType(responseContentType);
 
-                var request = CreateRequest(httpReq, restPath);
+                var request = httpReq.Dto = CreateRequest(httpReq, restPath);
+
                 if (appHost.ApplyRequestFilters(httpReq, httpRes, request)) 
                     return EmptyTask;
 
                 var rawResponse = GetResponse(httpReq, request);
                 return HandleResponse(rawResponse, response => 
                 {
+                    response = appHost.ApplyResponseConverters(httpReq, response);
+
                     if (appHost.ApplyResponseFilters(httpReq, httpRes, response)) 
                         return EmptyTask;
 
-                    if (responseContentType.Contains("jsv") && !string.IsNullOrEmpty(httpReq.QueryString["debug"]))
+                    if (responseContentType.Contains("jsv") && !string.IsNullOrEmpty(httpReq.QueryString[Keywords.Debug]))
                         return WriteDebugResponse(httpRes, response);
 
                     if (doJsonp && !(response is CompressedResult))
@@ -112,14 +115,14 @@ namespace ServiceStack.Host
                     return httpRes.WriteToResponse(httpReq, response);
                 },  
                 ex => !HostContext.Config.WriteErrorsToResponse 
-                    ? ex.AsTaskException() 
-                    : HandleException(httpReq, httpRes, operationName, ex));
+                    ? ex.ApplyResponseConverters(httpReq).AsTaskException()
+                    : HandleException(httpReq, httpRes, operationName, ex.ApplyResponseConverters(httpReq)));
             }
             catch (Exception ex)
             {
-                return !HostContext.Config.WriteErrorsToResponse 
-                    ? ex.AsTaskException() 
-                    : HandleException(httpReq, httpRes, operationName, ex);
+                return !HostContext.Config.WriteErrorsToResponse
+                    ? ex.ApplyResponseConverters(httpReq).AsTaskException()
+                    : HandleException(httpReq, httpRes, operationName, ex.ApplyResponseConverters(httpReq));
             }
         }
 
@@ -136,23 +139,13 @@ namespace ServiceStack.Host
         {
             using (Profiler.Current.Step("Deserialize Request"))
             {
-                try
-                {
-                    var dtoFromBinder = GetCustomRequestFromBinder(httpReq, restPath.RequestType);
-                    if (dtoFromBinder != null) 
-                        return dtoFromBinder;
+                var dtoFromBinder = GetCustomRequestFromBinder(httpReq, restPath.RequestType);
+                if (dtoFromBinder != null)
+                    return HostContext.AppHost.ApplyRequestConverters(httpReq, dtoFromBinder);
 
-                    var requestParams = httpReq.GetRequestParams();
-                    return CreateRequest(httpReq, restPath, requestParams);
-                }
-                catch (SerializationException e)
-                {
-                    throw new RequestBindingException("Unable to bind request", e);
-                }
-                catch (ArgumentException e)
-                {
-                    throw new RequestBindingException("Unable to bind request", e);
-                }
+                var requestParams = httpReq.GetFlattenedRequestParams();
+                return HostContext.AppHost.ApplyRequestConverters(httpReq,
+                    CreateRequest(httpReq, restPath, requestParams));
             }
         }
 
@@ -160,6 +153,11 @@ namespace ServiceStack.Host
         {
             var requestDto = CreateContentTypeRequest(httpReq, restPath.RequestType, httpReq.ContentType);
 
+            return CreateRequest(httpReq, restPath, requestParams, requestDto);
+        }
+
+        public static object CreateRequest(IRequest httpReq, IRestPath restPath, Dictionary<string, string> requestParams, object requestDto)
+        {
             string contentType;
             var pathInfo = !restPath.IsWildCardPath
                 ? GetSanitizedPathInfo(httpReq.PathInfo, out contentType)

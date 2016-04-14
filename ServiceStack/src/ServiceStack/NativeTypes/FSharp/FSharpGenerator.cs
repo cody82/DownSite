@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using ServiceStack.Host;
-using ServiceStack.NativeTypes.CSharp;
+using ServiceStack.Text;
 using ServiceStack.Web;
 
 namespace ServiceStack.NativeTypes.FSharp
@@ -17,21 +17,16 @@ namespace ServiceStack.NativeTypes.FSharp
             Config = config;
         }
 
-        class CreateTypeOptions
+        public static Dictionary<string, string> TypeAliases = new Dictionary<string, string> 
         {
-            public Func<string> ImplementsFn { get; set; }
-            public bool IsRequest { get; set; }
-            public bool IsResponse { get; set; }
-            public bool IsOperation { get { return IsRequest || IsResponse; } }
-            public bool IsType { get; set; }
-        }
+        };
 
         public string GetCode(MetadataTypes metadata, IRequest request)
         {
-            var namespaces = new HashSet<string>();
-            Config.DefaultNamespaces.Each(x => namespaces.Add(x));
+            var namespaces = Config.GetDefaultNamespaces(metadata);
 
             var typeNamespaces = new HashSet<string>();
+            metadata.RemoveIgnoredTypesForNet(Config);
             metadata.Types.Each(x => typeNamespaces.Add(x.Namespace));
             metadata.Operations.Each(x => typeNamespaces.Add(x.Request.Namespace));
 
@@ -47,42 +42,30 @@ namespace ServiceStack.NativeTypes.FSharp
             var sb = new StringBuilderWrapper(new StringBuilder());
             sb.AppendLine("(* Options:");
             sb.AppendLine("Date: {0}".Fmt(DateTime.Now.ToString("s").Replace("T", " ")));
-            sb.AppendLine("Version: {0}".Fmt(metadata.Version));
+            sb.AppendLine("Version: {0}".Fmt(Env.ServiceStackVersion));
+            sb.AppendLine("Tip: {0}".Fmt(HelpMessages.NativeTypesDtoOptionsTip.Fmt("//")));
             sb.AppendLine("BaseUrl: {0}".Fmt(Config.BaseUrl));
             sb.AppendLine();
+            sb.AppendLine("{0}GlobalNamespace: {1}".Fmt(defaultValue("GlobalNamespace"), Config.GlobalNamespace));
             sb.AppendLine("{0}MakeDataContractsExtensible: {1}".Fmt(defaultValue("MakeDataContractsExtensible"), Config.MakeDataContractsExtensible));
             sb.AppendLine("{0}AddReturnMarker: {1}".Fmt(defaultValue("AddReturnMarker"), Config.AddReturnMarker));
             sb.AppendLine("{0}AddDescriptionAsComments: {1}".Fmt(defaultValue("AddDescriptionAsComments"), Config.AddDescriptionAsComments));
             sb.AppendLine("{0}AddDataContractAttributes: {1}".Fmt(defaultValue("AddDataContractAttributes"), Config.AddDataContractAttributes));
             sb.AppendLine("{0}AddIndexesToDataMembers: {1}".Fmt(defaultValue("AddIndexesToDataMembers"), Config.AddIndexesToDataMembers));
+            sb.AppendLine("{0}AddGeneratedCodeAttributes: {1}".Fmt(defaultValue("AddGeneratedCodeAttributes"), Config.AddGeneratedCodeAttributes));
             sb.AppendLine("{0}AddResponseStatus: {1}".Fmt(defaultValue("AddResponseStatus"), Config.AddResponseStatus));
             sb.AppendLine("{0}AddImplicitVersion: {1}".Fmt(defaultValue("AddImplicitVersion"), Config.AddImplicitVersion));
+            sb.AppendLine("{0}IncludeTypes: {1}".Fmt(defaultValue("IncludeTypes"), Config.IncludeTypes.Safe().ToArray().Join(",")));
+            sb.AppendLine("{0}ExcludeTypes: {1}".Fmt(defaultValue("ExcludeTypes"), Config.ExcludeTypes.Safe().ToArray().Join(",")));
             sb.AppendLine("{0}InitializeCollections: {1}".Fmt(defaultValue("InitializeCollections"), Config.InitializeCollections));
             //sb.AppendLine("{0}AddDefaultXmlNamespace: {1}".Fmt(defaultValue("AddDefaultXmlNamespace"), Config.AddDefaultXmlNamespace));
             //sb.AppendLine("{0}DefaultNamespaces: {1}".Fmt(defaultValue("DefaultNamespaces"), Config.DefaultNamespaces.ToArray().Join(", ")));
             sb.AppendLine("*)");
             sb.AppendLine();
 
-            //if (Config.AddDataContractAttributes
-            //    && Config.AddDefaultXmlNamespace != null)
-            //{
-            //    sb.AppendLine();
-
-            //    var list = namespaces.Where(x => !Config.DefaultNamespaces.Contains(x)).ToList();
-            //    list.ForEach(x =>
-            //        sb.AppendLine("[<assembly: ContractNamespace(\"{0}\", ClrNamespace=\"{1}\")>]"
-            //            .Fmt(Config.AddDefaultXmlNamespace, x)));
-
-            //    if (list.Count > 0)
-            //    {
-            //        sb.AppendLine("do()"); //http://scottseely.com/2009/01/23/f-assembly-level-attributes-assemblyinfo-fs-and-do/
-            //    }
-            //}
-            //sb.AppendLine();
-
             string lastNS = null;
 
-            var existingOps = new HashSet<string>();
+            var existingTypes = new HashSet<string>();
 
             var requestTypes = metadata.Operations.Select(x => x.Request).ToHashSet();
             var requestTypesMap = metadata.Operations.ToSafeDictionary(x => x.Request);
@@ -100,17 +83,19 @@ namespace ServiceStack.NativeTypes.FSharp
 
             sb.AppendLine("namespace {0}".Fmt(globalNamespace.SafeToken()));
             sb.AppendLine();
-            foreach (var ns in namespaces)
+            foreach (var ns in namespaces.Where(x => !string.IsNullOrEmpty(x)))
             {
                 sb.AppendLine("open " + ns);
             }
+            if (Config.AddGeneratedCodeAttributes)
+                sb.AppendLine("open System.CodeDom.Compiler");
 
             foreach (var type in orderedTypes)
             {
                 var fullTypeName = type.GetFullName();
                 if (requestTypes.Contains(type))
                 {
-                    if (!existingOps.Contains(fullTypeName))
+                    if (!existingTypes.Contains(fullTypeName))
                     {
                         MetadataType response = null;
                         MetadataOperationType operation;
@@ -134,18 +119,18 @@ namespace ServiceStack.NativeTypes.FSharp
                                     if (type.ReturnMarkerTypeName != null)
                                         return Type("IReturn`1", new[] { Type(type.ReturnMarkerTypeName) });
                                     return response != null
-                                        ? Type("IReturn`1", new[] { Type(type.Name, type.GenericArgs) })
+                                        ? Type("IReturn`1", new[] { Type(response.Name, response.GenericArgs) })
                                         : null;
                                 },
                                 IsRequest = true,
                             });
 
-                        existingOps.Add(fullTypeName);
+                        existingTypes.Add(fullTypeName);
                     }
                 }
                 else if (responseTypes.Contains(type))
                 {
-                    if (!existingOps.Contains(fullTypeName)
+                    if (!existingTypes.Contains(fullTypeName)
                         && !Config.IgnoreTypesInNamespaces.Contains(type.Namespace))
                     {
                         lastNS = AppendType(ref sb, type, lastNS,
@@ -154,13 +139,15 @@ namespace ServiceStack.NativeTypes.FSharp
                                 IsResponse = true,
                             });
 
-                        existingOps.Add(fullTypeName);
+                        existingTypes.Add(fullTypeName);
                     }
                 }
-                else if (types.Contains(type) && !existingOps.Contains(fullTypeName))
+                else if (types.Contains(type) && !existingTypes.Contains(fullTypeName))
                 {
                     lastNS = AppendType(ref sb, type, lastNS,
                         new CreateTypeOptions { IsType = true });
+
+                    existingTypes.Add(fullTypeName);
                 }
             }
 
@@ -172,9 +159,6 @@ namespace ServiceStack.NativeTypes.FSharp
         private string AppendType(ref StringBuilderWrapper sb, MetadataType type, string lastNS,
             CreateTypeOptions options)
         {
-            if (type == null || (type.Namespace != null && type.Namespace.StartsWith("System")))
-                return lastNS;
-
             sb = sb.Indent();
 
             sb.AppendLine();
@@ -185,6 +169,10 @@ namespace ServiceStack.NativeTypes.FSharp
             }
             AppendAttributes(sb, type.Attributes);
             AppendDataContract(sb, type.DataContract);
+            if (Config.AddGeneratedCodeAttributes)
+            {
+                sb.AppendLine("[<GeneratedCode(\"AddServiceStackReference\", \"{0}\")>]".Fmt(Env.VersionString));
+            }
 
             if (type.IsEnum.GetValueOrDefault())
             {
@@ -206,8 +194,9 @@ namespace ServiceStack.NativeTypes.FSharp
             else
             {
                 //sb.AppendLine("[<CLIMutable>]"); // only for Record Types
+                var classCtor = type.IsInterface() ? "" : "()";
                 sb.AppendLine("[<AllowNullLiteral>]");
-                sb.AppendLine("type {0}() = ".Fmt(Type(type.Name, type.GenericArgs)));
+                sb.AppendLine("type {0}{1} = ".Fmt(Type(type.Name, type.GenericArgs), classCtor));
                 sb = sb.Indent();
                 var startLen = sb.Length;
 
@@ -222,24 +211,29 @@ namespace ServiceStack.NativeTypes.FSharp
                         sb.AppendLine("interface {0}".Fmt(implStr));
                 }
 
-                var makeExtensible = Config.MakeDataContractsExtensible && type.Inherits == null;
-                if (makeExtensible)
+                if (!type.IsInterface())
                 {
-                    sb.AppendLine("interface IExtensibleDataObject with");
-                    sb.AppendLine("    member val ExtensionData:ExtensionDataObject = null with get, set");
-                    sb.AppendLine("end");
+                    var makeExtensible = Config.MakeDataContractsExtensible && type.Inherits == null;
+                    if (makeExtensible)
+                    {
+                        sb.AppendLine("interface IExtensibleDataObject with");
+                        sb.AppendLine("    member val ExtensionData:ExtensionDataObject = null with get, set");
+                        sb.AppendLine("end");
+                    }
+
+                    var addVersionInfo = Config.AddImplicitVersion != null && options.IsRequest;
+                    if (addVersionInfo)
+                    {
+                        sb.AppendLine("member val Version:int = {0} with get, set".Fmt(Config.AddImplicitVersion));
+                    }
                 }
 
-                var addVersionInfo = Config.AddImplicitVersion != null && options.IsOperation;
-                if (addVersionInfo)
-                {
-                    sb.AppendLine("member val Version:int = {0} with get, set".Fmt(Config.AddImplicitVersion));
-                }
-
-                AddProperties(sb, type);
+                AddProperties(sb, type,
+                    includeResponseStatus: Config.AddResponseStatus && options.IsResponse
+                        && type.Properties.Safe().All(x => x.Name != typeof(ResponseStatus).Name));
 
                 if (sb.Length == startLen)
-                    sb.AppendLine("class end");
+                    sb.AppendLine(type.IsInterface() ? "interface end" : "class end");
 
                 sb = sb.UnIndent();
             }
@@ -248,7 +242,7 @@ namespace ServiceStack.NativeTypes.FSharp
             return lastNS;
         }
 
-        public void AddProperties(StringBuilderWrapper sb, MetadataType type)
+        public void AddProperties(StringBuilderWrapper sb, MetadataType type, bool includeResponseStatus)
         {
             var makeExtensible = Config.MakeDataContractsExtensible && type.Inherits == null;
 
@@ -264,13 +258,24 @@ namespace ServiceStack.NativeTypes.FSharp
                     var propType = Type(prop.Type, prop.GenericArgs);
                     wasAdded = AppendDataMember(sb, prop.DataMember, dataMemberIndex++);
                     wasAdded = AppendAttributes(sb, prop.Attributes) || wasAdded;
-                    sb.AppendLine("member val {1}:{0} = {2} with get,set".Fmt(propType, prop.Name.SafeToken(), GetDefaultLiteral(prop)));
+
+                    if (!type.IsInterface())
+                    {
+                        sb.AppendLine("member val {1}:{0} = {2} with get,set".Fmt(
+                            propType, prop.Name.SafeToken(), GetDefaultLiteral(prop)));
+                    }
+                    else
+                    {
+                        sb.AppendLine("abstract {1}:{0} with get,set".Fmt(
+                            propType, prop.Name.SafeToken()));                        
+                    }
                 }
             }
 
-            if (Config.AddResponseStatus
-                && (type.Properties == null
-                    || type.Properties.All(x => x.Name != "ResponseStatus")))
+            if (type.IsInterface())
+                return;
+
+            if (includeResponseStatus)
             {
                 if (wasAdded) sb.AppendLine();
                 wasAdded = true;
@@ -397,7 +402,7 @@ namespace ServiceStack.NativeTypes.FSharp
                 return "{0}[]".Fmt(TypeAlias(arrParts[0]));
 
             string typeAlias;
-            Config.FSharpTypeAlias.TryGetValue(type, out typeAlias);
+            TypeAliases.TryGetValue(type, out typeAlias);
 
             return typeAlias ?? NameOnly(type);
         }

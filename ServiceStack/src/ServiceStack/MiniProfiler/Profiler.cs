@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Web;
+using ServiceStack.DataAnnotations;
 using ServiceStack.MiniProfiler.Helpers;
 using ServiceStack.MiniProfiler.UI;
 using ServiceStack.Text;
@@ -16,6 +17,7 @@ namespace ServiceStack.MiniProfiler
     /// A single MiniProfiler can be used to represent any number of steps/levels in a call-graph, via Step()
     /// </summary>
     /// <remarks>Totally baller.</remarks>
+    [Exclude(Feature.Soap)]
     [DataContract]
     public partial class Profiler
     {
@@ -176,7 +178,6 @@ namespace ServiceStack.MiniProfiler
         /// <summary>
         /// Ticks since this MiniProfiler was started.
         /// </summary>
-		[DataMember(Order = 13)]
 		internal long ElapsedTicks { get { return _sw.ElapsedTicks; } }
 
         /// <summary>
@@ -185,7 +186,7 @@ namespace ServiceStack.MiniProfiler
         /// <remarks>
         /// Is used when storing the Profiler in SqlStorage
         /// </remarks>
-        [DataMember(Order = 14)]
+        [DataMember(Order = 13)]
         public string Json { get; set; }
 
         /// <summary>
@@ -458,6 +459,8 @@ namespace ServiceStack.MiniProfiler
     /// </summary>
     public static class MiniProfilerExtensions
     {
+        public static Func<Profiler, string, IDisposable> CustomStepFn { get; set; }
+
         /// <summary>
         /// Wraps <paramref name="selector"/> in a <see cref="Step"/> call and executes it, returning its result.
         /// </summary>
@@ -483,6 +486,9 @@ namespace ServiceStack.MiniProfiler
         /// <param name="level">This step's visibility level; allows filtering when <see cref="Profiler.Start"/> is called.</param>
         public static IDisposable Step(this Profiler profiler, string name, ProfileLevel level = ProfileLevel.Info)
         {
+            if (CustomStepFn != null)
+                return CustomStepFn(profiler, name);
+
             return profiler == null ? null : profiler.StepImpl(name, level);
         }
 

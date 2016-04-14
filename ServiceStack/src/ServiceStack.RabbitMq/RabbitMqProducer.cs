@@ -13,6 +13,8 @@ namespace ServiceStack.RabbitMq
         protected readonly RabbitMqMessageFactory msgFactory;
         public int RetryCount { get; set; }
         public Action OnPublishedCallback { get; set; }
+        public Action<string, IBasicProperties, IMessage> PublishMessageFilter { get; set; }
+        public Action<string, BasicGetResult> GetMessageFilter { get; set; }
 
         private IConnection connection;
         public IConnection Connection
@@ -48,7 +50,7 @@ namespace ServiceStack.RabbitMq
             this.msgFactory = msgFactory;
         }
 
-        public void Publish<T>(T messageBody)
+        public virtual void Publish<T>(T messageBody)
         {
             var message = messageBody as IMessage;
             if (message != null)
@@ -60,34 +62,48 @@ namespace ServiceStack.RabbitMq
                 Publish(new Message<T>(messageBody));
             }
         }
- 
-        public void Publish<T>(IMessage<T> message)
+
+        public virtual void Publish<T>(IMessage<T> message)
         {
             Publish(message.ToInQueueName(), message);
         }
 
-        public void Publish(string queueName, IMessage message)
+        public virtual void Publish(string queueName, IMessage message)
         {
             Publish(queueName, message, QueueNames.Exchange);
         }
 
-        public void SendOneWay(object requestDto)
+        public virtual void SendOneWay(object requestDto)
         {
             Publish(MessageFactory.Create(requestDto));
         }
 
-        public void SendOneWay(string queueName, object requestDto)
+        public virtual void SendOneWay(string queueName, object requestDto)
         {
             Publish(queueName, MessageFactory.Create(requestDto));
         }
 
-        public void Publish(string queueName, IMessage message, string exchange)
+        public virtual void SendAllOneWay(IEnumerable<object> requests)
+        {
+            if (requests == null) return;
+            foreach (var request in requests)
+            {
+                SendOneWay(request);
+            }
+        }
+
+        public virtual void Publish(string queueName, IMessage message, string exchange)
         {
             using (__requestAccess())
             {
                 var props = Channel.CreateBasicProperties();
-                props.SetPersistent(true);
+                props.Persistent = true;
                 props.PopulateFromMessage(message);
+
+                if (PublishMessageFilter != null)
+                {
+                    PublishMessageFilter(queueName, props, message);
+                }
 
                 var messageBytes = message.Body.ToJson().ToUtf8Bytes();
 
@@ -104,11 +120,12 @@ namespace ServiceStack.RabbitMq
 
         static HashSet<string> Queues = new HashSet<string>();
 
-        public void PublishMessage(string exchange, string routingKey, IBasicProperties basicProperties, byte[] body)
+        public virtual void PublishMessage(string exchange, string routingKey, IBasicProperties basicProperties, byte[] body)
         {
             try
             {
-                // In case of server named queues (client declared queue with channel.declare()), assume queue already exists (redeclaration would result in error anyway since queue was marked as exclusive) and publish to default exchange
+                // In case of server named queues (client declared queue with channel.declare()), assume queue already exists 
+                //(redeclaration would result in error anyway since queue was marked as exclusive) and publish to default exchange
                 if (routingKey.IsServerNamedQueue()) 
                 {
                     Channel.BasicPublish("", routingKey, basicProperties, body);
@@ -145,7 +162,7 @@ namespace ServiceStack.RabbitMq
             }
         }
 
-        public BasicGetResult GetMessage(string queueName, bool noAck)
+        public virtual BasicGetResult GetMessage(string queueName, bool noAck)
         {
             try
             {
@@ -155,7 +172,14 @@ namespace ServiceStack.RabbitMq
                     Queues = new HashSet<string>(Queues) { queueName };
                 }
 
-                return Channel.BasicGet(queueName, noAck: noAck);
+                var basicMsg = Channel.BasicGet(queueName, noAck: noAck);
+
+                if (GetMessageFilter != null)
+                {
+                    GetMessageFilter(queueName, basicMsg);
+                }
+
+                return basicMsg;
             }
             catch (OperationInterruptedException ex)
             {

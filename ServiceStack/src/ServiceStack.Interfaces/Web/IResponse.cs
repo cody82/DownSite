@@ -1,6 +1,7 @@
 //Copyright (c) Service Stack LLC. All Rights Reserved.
 //License: https://raw.github.com/ServiceStack/ServiceStack/master/license.txt
 
+using System.Collections.Generic;
 using System.IO;
 
 namespace ServiceStack.Web
@@ -14,6 +15,8 @@ namespace ServiceStack.Web
         /// The underlying ASP.NET or HttpListener HttpResponse
         /// </summary>
         object OriginalResponse { get; }
+
+        IRequest Request { get; }
 
         int StatusCode { get; set; }
 
@@ -68,5 +71,8 @@ namespace ServiceStack.Web
         void SetContentLength(long contentLength);
 
         bool KeepAlive { get; set; }
+
+        //Add Metadata to Response
+        Dictionary<string, object> Items { get; }
     }
 }

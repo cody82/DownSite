@@ -7,6 +7,7 @@ namespace ServiceStack.Text.Common
     public interface ITypeSerializer
     {
         bool IncludeNullValues { get; }
+        bool IncludeNullValuesInDictionaries { get; }
         string TypeAttrInObject { get; }
 
         WriteObjectDelegate GetWriteFn<T>();
@@ -44,7 +45,6 @@ namespace ServiceStack.Text.Common
         void WriteDecimal(TextWriter writer, object decimalValue);
         void WriteEnum(TextWriter writer, object enumValue);
         void WriteEnumFlags(TextWriter writer, object enumFlagValue);
-        void WriteLinqBinary(TextWriter writer, object linqBinaryValue);
 
         //object EncodeMapKey(object value);
 

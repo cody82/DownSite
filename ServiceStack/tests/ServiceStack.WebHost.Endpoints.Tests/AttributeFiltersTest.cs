@@ -66,6 +66,7 @@ namespace ServiceStack.WebHost.Endpoints.Tests
 
         public bool RequestFilterExecuted { get; set; }
         public bool ContextualRequestFilterExecuted { get; set; }
+        public bool InheritedRequestFilterExecuted { get; set; }
         public bool RequestFilterDependenyIsResolved { get; set; }
         public List<string> AttrsExecuted { get; set; }
     }
@@ -135,28 +136,94 @@ namespace ServiceStack.WebHost.Endpoints.Tests
     [ContextualResponseFilterTest(ApplyTo.Delete | ApplyTo.Put)]
     public class AttributeFilteredResponse
     {
+        public bool RequestFilterExecuted { get; set; }
+        public bool InheritedRequestFilterExecuted { get; set; }
+        public bool ContextualRequestFilterExecuted { get; set; }
+
         public bool ResponseFilterExecuted { get; set; }
         public bool ContextualResponseFilterExecuted { get; set; }
-
-        public bool RequestFilterExecuted { get; set; }
-        public bool ContextualRequestFilterExecuted { get; set; }
+        public bool InheritedResponseFilterExecuted { get; set; }
 
         public bool RequestFilterDependenyIsResolved { get; set; }
         public bool ResponseFilterDependencyIsResolved { get; set; }
+
     }
 
-    public class AttributeFilteredService : IService
+    [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
+    public class PriorityAttribute : RequestFilterAttribute
+    {
+        public string Name { get; set; }
+
+        public PriorityAttribute(int priority, string name)
+        {
+            Priority = priority;
+            Name = name;
+        }
+
+        public override void Execute(IRequest req, IResponse res, object requestDto)
+        {
+            var dto = (PriorityAttributeTest)requestDto;
+            dto.Names.Add(Name);
+        }
+    }
+
+    public class PriorityAttributeTest : IReturn<PriorityAttributeTest>
+    {
+        public PriorityAttributeTest()
+        {
+            this.Names = new List<string>();
+        }
+
+        public List<string> Names { get; set; }
+    }
+
+    public class PriortyAttributeService : Service
+    {
+        [Priority(3, "3rd")]
+        [Priority(2, "2nd")]
+        [Priority(1, "1st")]
+        public object Any(PriorityAttributeTest request)
+        {
+            return request;
+        }
+    }
+
+    [InheritedRequestFilter]
+    [InheritedResponseFilter]
+    public class AttributeFilteredServiceBase : IService { }
+
+    public class AttributeAttributeFilteredService : AttributeFilteredServiceBase
     {
         public object Any(AttributeFiltered request)
         {
-            return new AttributeFilteredResponse() {
+            return new AttributeFilteredResponse
+            {
                 ResponseFilterExecuted = false,
                 ContextualResponseFilterExecuted = false,
                 RequestFilterExecuted = request.RequestFilterExecuted,
+                InheritedRequestFilterExecuted = request.InheritedRequestFilterExecuted,
                 ContextualRequestFilterExecuted = request.ContextualRequestFilterExecuted,
                 RequestFilterDependenyIsResolved = request.RequestFilterDependenyIsResolved,
                 ResponseFilterDependencyIsResolved = false
             };
+        }
+    }
+
+    public class InheritedRequestFilterAttribute : RequestFilterAttribute
+    {
+        public override void Execute(IRequest req, IResponse res, object requestDto)
+        {
+            var dto = (AttributeFiltered)requestDto;
+            dto.InheritedRequestFilterExecuted = true;
+        }
+    }
+
+    public class InheritedResponseFilterAttribute : ResponseFilterAttribute
+    {
+        public override void Execute(IRequest req, IResponse res, object responseDto)
+        {
+            var dto = (AttributeFilteredResponse)responseDto;
+            dto.InheritedResponseFilterExecuted = true;
         }
     }
 
@@ -171,7 +238,8 @@ namespace ServiceStack.WebHost.Endpoints.Tests
         {
 
             public AttributeFiltersAppHostHttpListener()
-                : base("Attribute Filters Tests", typeof(AttributeFilteredService).Assembly) { }
+                : base("Attribute Filters Tests", typeof(AttributeAttributeFilteredService).Assembly)
+            { }
 
             public override void Configure(Funq.Container container)
             {
@@ -196,7 +264,12 @@ namespace ServiceStack.WebHost.Endpoints.Tests
             appHost.Dispose();
         }
 
-        static IServiceClient[] ServiceClients = 
+        public IServiceClient GetServiceClient()
+        {
+            return new JsonServiceClient(ServiceClientBaseUri);
+        }
+
+        static IServiceClient[] ServiceClients =
         {
             new JsonServiceClient(ServiceClientBaseUri),
             new XmlServiceClient(ServiceClientBaseUri),
@@ -213,13 +286,15 @@ namespace ServiceStack.WebHost.Endpoints.Tests
                 new AttributeFiltered { RequestFilterExecuted = false });
             Assert.IsTrue(response.RequestFilterExecuted);
             Assert.IsTrue(response.ResponseFilterExecuted);
+            Assert.IsTrue(response.InheritedRequestFilterExecuted);
+            Assert.IsTrue(response.InheritedResponseFilterExecuted);
             Assert.IsFalse(response.ContextualRequestFilterExecuted);
             Assert.IsFalse(response.ContextualResponseFilterExecuted);
             Assert.IsTrue(response.RequestFilterDependenyIsResolved);
             Assert.IsTrue(response.ResponseFilterDependencyIsResolved);
         }
 
-        static IRestClient[] RestClients = 
+        static IRestClient[] RestClients =
         {
             new JsonServiceClient(ServiceClientBaseUri),
             new XmlServiceClient(ServiceClientBaseUri),
@@ -279,6 +354,18 @@ namespace ServiceStack.WebHost.Endpoints.Tests
             Assert.IsTrue(response.ResponseFilterDependencyIsResolved);
         }
 
+        [Test]
+        public void Does_order_action_attributes_by_priority()
+        {
+            var client = GetServiceClient();
+
+            var response = client.Post(new PriorityAttributeTest());
+
+            response.PrintDump();
+
+            Assert.That(response.Names, Is.EqualTo(new[] { "1st", "2nd", "3rd" }));
+        }
+
         public class ExecutedFirstAttribute : RequestFilterAttribute
         {
             public ExecutedFirstAttribute()
@@ -303,11 +390,11 @@ namespace ServiceStack.WebHost.Endpoints.Tests
         [Test]
         public void RequestFilters_are_prioritized()
         {
-            appHost.Metadata.Add(typeof(AttributeFilteredService), typeof(DummyHolder), null);
+            appHost.Metadata.Add(typeof(AttributeAttributeFilteredService), typeof(DummyHolder), null);
 
             var attributes = FilterAttributeCache.GetRequestFilterAttributes(typeof(DummyHolder));
             var attrPriorities = attributes.ToList().ConvertAll(x => x.Priority);
-            Assert.That(attrPriorities, Is.EquivalentTo(new[] { int.MinValue, -100, -90, -80, 0 }));
+            Assert.That(attrPriorities, Is.EquivalentTo(new[] { int.MinValue, -100, -90, -80, 0, 0 }));
 
             var execOrder = new IHasRequestFilter[attributes.Length];
             var i = 0;
@@ -326,8 +413,7 @@ namespace ServiceStack.WebHost.Endpoints.Tests
             }
 
             var execOrderPriorities = execOrder.ToList().ConvertAll(x => x.Priority);
-            execOrderPriorities.PrintDump();
-            Assert.That(execOrderPriorities, Is.EquivalentTo(new[] { int.MinValue, -100, -90, -80, 0 }));
+            Assert.That(execOrderPriorities, Is.EquivalentTo(new[] { int.MinValue, -100, -90, -80, 0, 0 }));
         }
     }
 }

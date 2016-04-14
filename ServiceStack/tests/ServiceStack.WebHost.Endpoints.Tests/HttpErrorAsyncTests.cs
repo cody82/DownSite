@@ -1,15 +1,39 @@
 using System;
 using System.IO;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using ServiceStack.Text;
 using ServiceStack.WebHost.Endpoints.Tests.Support.Host;
 using ServiceStack.WebHost.Endpoints.Tests.Support.Services;
 
 namespace ServiceStack.WebHost.Endpoints.Tests
 {
-    [TestFixture]
-    public class HttpErrorAsyncTests
+    public class HttpErrorAsyncJsonServiceClientTests : HttpErrorAsyncTests
+    {
+        public override IRestClientAsync CreateRestClient(string baseUri = null)
+        {
+            return baseUri != null
+                ? new JsonServiceClient(baseUri)
+                : new JsonServiceClient();
+        }
+    }
+
+    public class HttpErrorAsyncJsonHttpClientTests : HttpErrorAsyncTests
+    {
+        public override IRestClientAsync CreateRestClient(string baseUri = null)
+        {
+            return baseUri != null
+                ? new JsonHttpClient(baseUri)
+                : new JsonHttpClient();
+        }
+    }
+
+
+    public abstract class HttpErrorAsyncTests
     {
         private const string ListeningOn = "http://localhost:1337/";
 
@@ -29,12 +53,7 @@ namespace ServiceStack.WebHost.Endpoints.Tests
             appHost.Dispose();
         }
 
-        public IRestClientAsync CreateRestClient(string baseUri = null)
-        {
-            return baseUri != null
-                ? new JsonServiceClient(baseUri)
-                : new JsonServiceClient();
-        }
+        public abstract IRestClientAsync CreateRestClient(string baseUri = null);
 
         [Test]
         public async Task GET_returns_ArgumentNullException()
@@ -112,6 +131,26 @@ namespace ServiceStack.WebHost.Endpoints.Tests
                 Assert.That(webEx.StatusCode, Is.EqualTo(403));
                 Assert.That(webEx.ResponseStatus.ErrorCode, Is.EqualTo(typeof(Exception).Name));
                 Assert.That(webEx.ResponseStatus.Message, Is.EqualTo("ForbiddenErrorMessage"));
+            }
+        }
+
+        [Test]
+        public async Task Can_catch_async_error_to_non_existing_host()
+        {
+            var client = CreateRestClient("https://blahblahblah/");
+            try
+            {
+                var response = await client.GetAsync<ThrowHttpError>("/not-here");
+                Assert.Fail("Should throw");
+            }
+            catch (AggregateException ex) //JsonHttpClient
+            {
+                var webEx = (WebException)ex.UnwrapIfSingleException().InnerException;
+                Assert.That(webEx.Status, Is.EqualTo(WebExceptionStatus.NameResolutionFailure));
+            }
+            catch (WebException ex) //JsonServiceClient
+            {
+                Assert.That(ex.Status, Is.EqualTo(WebExceptionStatus.NameResolutionFailure));
             }
         }
     }

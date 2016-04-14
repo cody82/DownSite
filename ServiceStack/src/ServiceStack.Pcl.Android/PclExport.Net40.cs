@@ -4,7 +4,6 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Specialized;
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -17,7 +16,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
-using System.Xml;
 using ServiceStack.Text;
 using ServiceStack.Text.Common;
 using ServiceStack.Text.Json;
@@ -25,6 +23,12 @@ using ServiceStack.Text.Json;
 #if !__IOS__
 using System.Reflection.Emit;
 using FastMember = ServiceStack.Text.FastMember;
+#endif
+
+#if __UNIFIED__
+using Preserve = Foundation.PreserveAttribute;
+#elif __IOS__
+using Preserve = MonoTouch.Foundation.PreserveAttribute;
 #endif
 
 namespace ServiceStack
@@ -39,8 +43,13 @@ namespace ServiceStack
             this.DirSep = Path.DirectorySeparatorChar;
             this.AltDirSep = Path.DirectorySeparatorChar == '/' ? '\\' : '/';
             this.RegexOptions = RegexOptions.Compiled;
-            this.InvariantComparison = StringComparison.InvariantCulture;            
+#if DNXCORE50
+            this.InvariantComparison = CultureInfo.InvariantCulture.CompareInfo.GetStringComparer();
+            this.InvariantComparisonIgnoreCase = CultureInfo.InvariantCultureIgnoreCase.CompareInfo.GetStringComparer();
+#else
+            this.InvariantComparison = StringComparison.InvariantCulture;
             this.InvariantComparisonIgnoreCase = StringComparison.InvariantCultureIgnoreCase;
+#endif
             this.InvariantComparer = StringComparer.InvariantCulture;
             this.InvariantComparerIgnoreCase = StringComparer.InvariantCultureIgnoreCase;
 
@@ -91,14 +100,45 @@ namespace ServiceStack
             Directory.CreateDirectory(dirPath);
         }
 
+        public override string[] GetFileNames(string dirPath, string searchPattern = null)
+        {
+            if (!Directory.Exists(dirPath))
+                return new string[0];
+
+            return searchPattern != null
+                ? Directory.GetFiles(dirPath, searchPattern)
+                : Directory.GetFiles(dirPath);
+        }
+
+        public override string[] GetDirectoryNames(string dirPath, string searchPattern = null)
+        {
+            if (!Directory.Exists(dirPath))
+                return new string[0];
+
+            return searchPattern != null
+                ? Directory.GetDirectories(dirPath, searchPattern)
+                : Directory.GetDirectories(dirPath);
+        }
+
         public const string AppSettingsKey = "servicestack:license";
+        public const string EnvironmentKey = "SERVICESTACK_LICENSE";
+
         public override void RegisterLicenseFromConfig()
         {
 #if ANDROID
 #elif __IOS__
+#elif __MAC__
 #else
             //Automatically register license key stored in <appSettings/>
             var licenceKeyText = System.Configuration.ConfigurationManager.AppSettings[AppSettingsKey];
+            if (!string.IsNullOrEmpty(licenceKeyText))
+            {
+                LicenseUtils.RegisterLicense(licenceKeyText);
+                return;
+            }
+
+            //or SERVICESTACK_LICENSE Environment variable
+            licenceKeyText = Environment.GetEnvironmentVariable(EnvironmentKey);
             if (!string.IsNullOrEmpty(licenceKeyText))
             {
                 LicenseUtils.RegisterLicense(licenceKeyText);
@@ -123,7 +163,7 @@ namespace ServiceStack
 
         public override void AddCompression(WebRequest webReq)
         {
-            var httpReq = (HttpWebRequest)webReq; 
+            var httpReq = (HttpWebRequest)webReq;
             httpReq.Headers.Add(HttpRequestHeader.AcceptEncoding, "gzip,deflate");
             httpReq.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
         }
@@ -138,13 +178,15 @@ namespace ServiceStack
             return webRequest.GetResponse();
         }
 
+#if !LITE
         public override bool IsDebugBuild(Assembly assembly)
         {
             return assembly.AllAttributes()
-                           .OfType<DebuggableAttribute>()
+                           .OfType<System.Diagnostics.DebuggableAttribute>()
                            .Select(attr => attr.IsJITTrackingEnabled)
                            .FirstOrDefault();
         }
+#endif
 
         public override string MapAbsolutePath(string relativePath, string appendPartialPathModifier)
         {
@@ -181,12 +223,12 @@ namespace ServiceStack
         {
             var binPath = AssemblyUtils.GetAssemblyBinPath(Assembly.GetExecutingAssembly());
             Assembly assembly = null;
-            var assemblyDllPath = binPath + String.Format("{0}.{1}", assemblyName, "dll");
+            var assemblyDllPath = binPath + string.Format("{0}.{1}", assemblyName, "dll");
             if (File.Exists(assemblyDllPath))
             {
                 assembly = AssemblyUtils.LoadAssembly(assemblyDllPath);
             }
-            var assemblyExePath = binPath + String.Format("{0}.{1}", assemblyName, "exe");
+            var assemblyExePath = binPath + string.Format("{0}.{1}", assemblyName, "exe");
             if (File.Exists(assemblyExePath))
             {
                 assembly = AssemblyUtils.LoadAssembly(assemblyExePath);
@@ -295,7 +337,7 @@ namespace ServiceStack
         {
             field = newValue;
         }
-        
+
         public override PropertySetterDelegate GetFieldSetterFn(FieldInfo fieldInfo)
         {
             if (!SupportsExpression)
@@ -341,7 +383,7 @@ namespace ServiceStack
 
                 var fieldGetterFn = Expression.Lambda<PropertyGetterDelegate>
                     (
-                        oExprCallFieldGetFn, 
+                        oExprCallFieldGetFn,
                         oInstanceParam
                     )
                     .Compile();
@@ -382,23 +424,37 @@ namespace ServiceStack
 
         public override string ToXsdDateTimeString(DateTime dateTime)
         {
-            return XmlConvert.ToString(dateTime.ToStableUniversalTime(), XmlDateTimeSerializationMode.Utc);
+#if !LITE
+            return System.Xml.XmlConvert.ToString(dateTime.ToStableUniversalTime(), System.Xml.XmlDateTimeSerializationMode.Utc);
+#else
+            return dateTime.ToStableUniversalTime().ToString(DateTimeSerializer.XsdDateTimeFormat);
+#endif
         }
 
         public override string ToLocalXsdDateTimeString(DateTime dateTime)
         {
-            return XmlConvert.ToString(dateTime, XmlDateTimeSerializationMode.Local);
+#if !LITE
+            return System.Xml.XmlConvert.ToString(dateTime, System.Xml.XmlDateTimeSerializationMode.Local);
+#else
+            return dateTime.ToString(DateTimeSerializer.XsdDateTimeFormat);
+#endif
         }
 
         public override DateTime ParseXsdDateTime(string dateTimeStr)
         {
-            return XmlConvert.ToDateTime(dateTimeStr, XmlDateTimeSerializationMode.Utc);
+#if !LITE
+            return System.Xml.XmlConvert.ToDateTime(dateTimeStr, System.Xml.XmlDateTimeSerializationMode.Utc);
+#else
+            return DateTime.ParseExact(dateTimeStr, DateTimeSerializer.XsdDateTimeFormat, CultureInfo.InvariantCulture);
+#endif
         }
 
+#if !LITE
         public override DateTime ParseXsdDateTimeAsUtc(string dateTimeStr)
         {
-            return XmlConvert.ToDateTime(dateTimeStr, XmlDateTimeSerializationMode.Utc).Prepare(parsedAsUtc: true);
+            return System.Xml.XmlConvert.ToDateTime(dateTimeStr, System.Xml.XmlDateTimeSerializationMode.Utc).Prepare(parsedAsUtc: true);
         }
+#endif
 
         public override DateTime ToStableUniversalTime(DateTime dateTime)
         {
@@ -427,19 +483,14 @@ namespace ServiceStack
 
         public override ParseStringDelegate GetJsReaderParseMethod<TSerializer>(Type type)
         {
-#if !__IOS__
+#if !(__IOS__ || LITE)
             if (type.AssignableFrom(typeof(System.Dynamic.IDynamicMetaObjectProvider)) ||
                 type.HasInterface(typeof(System.Dynamic.IDynamicMetaObjectProvider)))
             {
                 return DeserializeDynamic<TSerializer>.Parse;
             }
 #endif
-			return null;
-        }
-
-        public override XmlSerializer NewXmlSerializer()
-        {
-            return new XmlSerializer();
+            return null;
         }
 
         public override void InitHttpWebRequest(HttpWebRequest httpReq,
@@ -472,7 +523,7 @@ namespace ServiceStack
         public override void VerifyInAssembly(Type accessType, ICollection<string> assemblyNames)
         {
             //might get merged/mangled on alt platforms
-            if (assemblyNames.Contains(accessType.Assembly.ManifestModule.Name)) 
+            if (assemblyNames.Contains(accessType.Assembly.ManifestModule.Name))
                 return;
 
             try
@@ -516,6 +567,11 @@ namespace ServiceStack
             if (timeout.HasValue) req.Timeout = (int)timeout.Value.TotalMilliseconds;
             if (userAgent != null) req.UserAgent = userAgent;
             if (preAuthenticate.HasValue) req.PreAuthenticate = preAuthenticate.Value;
+        }
+
+        public override string GetStackTrace()
+        {
+            return Environment.StackTrace;
         }
 
 #if !__IOS__
@@ -617,8 +673,49 @@ namespace ServiceStack
 #endif
     }
 
-#if __IOS__
-    [MonoTouch.Foundation.Preserve(AllMembers = true)]
+#if __MAC__
+	public class MacPclExport : IosPclExport 
+	{
+		public static new MacPclExport Provider = new MacPclExport();
+
+		public MacPclExport()
+		{
+			PlatformName = "MAC";
+			SupportsEmit = SupportsExpression = true;
+		}
+		
+		public new static void Configure()
+		{
+			Configure(Provider);
+		}
+	}
+#endif
+
+#if NET45 || NETFX_CORE
+    public class Net45PclExport : Net40PclExport
+    {
+        public static new Net45PclExport Provider = new IosPclExport();
+
+        public Net45PclExport()
+        {
+            PlatformName = "NET45 " + Environment.OSVersion.Platform.ToString();
+        }
+
+        public new static void Configure()
+        {
+            Configure(Provider);
+        }
+
+        public override Task WriteAndFlushAsync(Stream stream, byte[] bytes)
+        {
+            return stream.WriteAsync(bytes, 0, bytes.Length)
+                .ContinueWith(t => stream.FlushAsync());
+        }
+    }
+#endif
+
+#if __IOS__ || __MAC__
+    [Preserve(AllMembers = true)]
     internal class Poco
     {
         public string Dummy { get; set; }
@@ -654,12 +751,12 @@ namespace ServiceStack
         /// Provide hint to IOS AOT compiler to pre-compile generic classes for all your DTOs.
         /// Just needs to be called once in a static constructor.
         /// </summary>
-        [MonoTouch.Foundation.Preserve]
+        [Preserve]
         public static void InitForAot()
         {
         }
 
-        [MonoTouch.Foundation.Preserve]
+        [Preserve]
         public override void RegisterForAot()
         {
             RegisterTypeForAot<Poco>();
@@ -703,25 +800,28 @@ namespace ServiceStack
             RegisterTypeForAot<Guid>();
             RegisterTypeForAot<TimeSpan>();
             RegisterTypeForAot<DateTime>();
-            RegisterTypeForAot<DateTime?>();
-            RegisterTypeForAot<TimeSpan?>();
+            RegisterTypeForAot<DateTimeOffset>();
+
             RegisterTypeForAot<Guid?>();
+            RegisterTypeForAot<TimeSpan?>();
+            RegisterTypeForAot<DateTime?>();
+            RegisterTypeForAot<DateTimeOffset?>();
         }
 
-        [MonoTouch.Foundation.Preserve]
+        [Preserve]
         public static void RegisterTypeForAot<T>()
         {
             AotConfig.RegisterSerializers<T>();
         }
 
-        [MonoTouch.Foundation.Preserve]
+        [Preserve]
         public static void RegisterQueryStringWriter()
         {
             var i = 0;
             if (QueryStringWriter<Poco>.WriteFn() != null) i++;
         }
 
-        [MonoTouch.Foundation.Preserve]
+        [Preserve]
         public static int RegisterElement<T, TElement>()
         {
             var i = 0;
@@ -734,7 +834,7 @@ namespace ServiceStack
         ///<summary>
         /// Class contains Ahead-of-Time (AOT) explicit class declarations which is used only to workaround "-aot-only" exceptions occured on device only. 
         /// </summary>			
-        [MonoTouch.Foundation.Preserve(AllMembers = true)]
+        [Preserve(AllMembers = true)]
         internal class AotConfig
         {
             internal static JsReader<JsonTypeSerializer> jsonReader;
@@ -1049,6 +1149,9 @@ namespace ServiceStack
 
         public static Hashtable ParseHashtable(string value)
         {
+            if (value == null)
+                return null;
+
             var index = VerifyAndGetStartIndex(value, typeof(Hashtable));
 
             var result = new Hashtable();
@@ -1177,7 +1280,7 @@ namespace ServiceStack
             throw new NotImplementedException("Compression is not supported on this platform");
 #else
             using (var deflateStream = new System.IO.Compression.DeflateStream(stream, System.IO.Compression.CompressionMode.Compress))
-            using (var xw = new XmlTextWriter(deflateStream, Encoding.UTF8))
+            using (var xw = new System.Xml.XmlTextWriter(deflateStream, Encoding.UTF8))
             {
                 var serializer = new DataContractSerializer(from.GetType());
                 serializer.WriteObject(xw, from);
@@ -1188,7 +1291,7 @@ namespace ServiceStack
 
         public static byte[] Compress<TXmlDto>(TXmlDto from)
         {
-            using (var ms = new MemoryStream())
+            using (var ms = MemoryStreamFactory.GetStream())
             {
                 CompressToStream(from, ms);
 
@@ -1206,10 +1309,9 @@ namespace ServiceStack
                 return RSAalg.VerifySha1Data(DataToVerify, SignedData);
 
             }
-            catch (CryptographicException e)
+            catch (CryptographicException ex)
             {
-                Console.WriteLine(e.Message);
-
+                Tracer.Instance.WriteError(ex);
                 return false;
             }
         }

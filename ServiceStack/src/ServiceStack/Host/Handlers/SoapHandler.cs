@@ -7,7 +7,6 @@ using System.ServiceModel.Channels;
 using System.Threading.Tasks;
 using System.Web;
 using System.Xml;
-using ServiceStack.Host.AspNet;
 using ServiceStack.Serialization;
 using ServiceStack.Support.WebHost;
 using ServiceStack.Text;
@@ -18,9 +17,12 @@ namespace ServiceStack.Host.Handlers
 {
     public abstract class SoapHandler : ServiceStackHandlerBase, IOneWay, ISyncReply
     {
+        private ServiceStackHost appHost;
+
         public SoapHandler(RequestAttributes soapType)
         {
             this.HandlerAttributes = soapType;
+            this.appHost = HostContext.AppHost;
         }
 
         public void SendOneWay(Message requestMsg)
@@ -43,7 +45,7 @@ namespace ServiceStack.Host.Handlers
 
             return ExecuteMessage(requestMsg, endpointAttributes, null, null);
         }
-        
+
         protected Message Send(Message requestMsg, IRequest httpRequest, IResponse httpResponse)
         {
             var endpointAttributes = RequestAttributes.Reply | this.HandlerAttributes;
@@ -61,24 +63,22 @@ namespace ServiceStack.Host.Handlers
                 : Message.CreateMessage(requestMsg.Version, requestType.GetOperationName() + "Response", response);
         }
 
-        protected Message ExecuteMessage(Message message, RequestAttributes requestAttributes, IRequest httpRequest, IResponse httpResponse)
+        protected Message ExecuteMessage(Message message, RequestAttributes requestAttributes, IRequest httpReq, IResponse httpRes)
         {
             var soapFeature = requestAttributes.ToSoapFeature();
-            HostContext.AppHost.AssertFeatures(soapFeature);
-
-            var httpReq = HttpContext.Current != null && httpRequest == null
-                    ? HttpContext.Current.ToRequest()
-                    : httpRequest;
-
-            var httpRes = HttpContext.Current != null && httpResponse == null
-                ? httpReq.Response
-                : httpResponse;
+            appHost.AssertFeatures(soapFeature);
 
             if (httpReq == null)
-                throw new ArgumentNullException("httpRequest");
+                httpReq = HostContext.GetCurrentRequest();
+
+            if (httpRes == null && httpReq != null)
+                httpRes = httpReq.Response;
+
+            if (httpReq == null)
+                throw new ArgumentNullException("httpReq");
 
             if (httpRes == null)
-                throw new ArgumentNullException("httpResponse");
+                throw new ArgumentNullException("httpRes");
 
             httpReq.UseBufferedStream = true;
             var requestMsg = message ?? GetRequestMessageFromStream(httpReq.InputStream);
@@ -91,7 +91,7 @@ namespace ServiceStack.Host.Handlers
                 httpReq.OperationName = soapAction.Trim('"');
             }
 
-            if (HostContext.ApplyPreRequestFilters(httpReq, httpRes))
+            if (HostContext.ApplyCustomHandlerRequestFilters(httpReq, httpRes))
                 return PrepareEmptyResponse(message, httpReq);
 
             string requestXml = GetRequestXml(requestMsg);
@@ -104,9 +104,11 @@ namespace ServiceStack.Host.Handlers
             {
                 var useXmlSerializerRequest = requestType.HasAttribute<XmlSerializerFormatAttribute>();
 
-                var request = useXmlSerializerRequest
-                    ? XmlSerializableSerializer.Instance.DeserializeFromString(requestXml, requestType)
-                    : Serialization.DataContractSerializer.Instance.DeserializeFromString(requestXml, requestType);
+                var request = appHost.ApplyRequestConverters(httpReq, 
+                    useXmlSerializerRequest
+                        ? XmlSerializableSerializer.Instance.DeserializeFromString(requestXml, requestType)
+                        : Serialization.DataContractSerializer.Instance.DeserializeFromString(requestXml, requestType)
+                );
 
                 httpReq.Dto = request;
 
@@ -116,7 +118,7 @@ namespace ServiceStack.Host.Handlers
                     requiresSoapMessage.Message = requestMsg;
                 }
 
-                httpReq.SetItem("SoapMessage", requestMsg);
+                httpReq.SetItem(Keywords.SoapMessage, requestMsg);
 
                 httpRes.ContentType = GetSoapContentType(httpReq.ContentType);
 
@@ -136,10 +138,9 @@ namespace ServiceStack.Host.Handlers
                     response = TypeAccessor.Create(taskResponse.GetType())[taskResponse, "Result"];
                 }
 
-                var hasResponseFilters = HostContext.GlobalResponseFilters.Count > 0
-                   || FilterAttributeCache.GetResponseFilterAttributes(response.GetType()).Any();
+                response = appHost.ApplyResponseConverters(httpReq, response);
 
-                if (hasResponseFilters && HostContext.ApplyResponseFilters(httpReq, httpRes, response))
+                if (appHost.ApplyResponseFilters(httpReq, httpRes, response))
                     return EmptyResponse(requestMsg, requestType);
 
                 var httpResult = response as IHttpResult;
@@ -149,7 +150,7 @@ namespace ServiceStack.Host.Handlers
                 var noMsgAction = requestMsg.Headers.Action == null;
                 var responseMsg = CreateResponseMessage(response, requestMsg.Version, requestType, noMsgAction);
 
-                if (httpResult != null) 
+                if (httpResult != null)
                 {
                     SetErrorStatusIfAny(httpReq.Response, responseMsg, httpResult.Status);
                 }
@@ -158,6 +159,11 @@ namespace ServiceStack.Host.Handlers
             }
             catch (Exception ex)
             {
+                if (httpReq.Dto != null)
+                    HostContext.RaiseServiceException(httpReq, httpReq.Dto, ex);
+                else
+                    HostContext.RaiseUncaughtException(httpReq, httpRes, httpReq.OperationName, ex);
+
                 throw new SerializationException("3) Error trying to deserialize requestType: "
                     + requestType
                     + ", xml body: " + requestXml, ex);
@@ -220,7 +226,7 @@ namespace ServiceStack.Host.Handlers
 
         public static byte[] SerializeSoap11ToBytes(IRequest req, object response)
         {
-            using (var ms = new MemoryStream())
+            using (var ms = MemoryStreamFactory.GetStream())
             {
                 SerializeSoapToStream(req, response, MessageVersion.Soap11WSAddressingAugust2004, ms);
                 return ms.ToArray();
@@ -229,7 +235,7 @@ namespace ServiceStack.Host.Handlers
 
         public static byte[] SerializeSoap12ToBytes(IRequest req, object response)
         {
-            using (var ms = new MemoryStream())
+            using (var ms = MemoryStreamFactory.GetStream())
             {
                 SerializeSoapToStream(req, response, MessageVersion.Soap12WSAddressingAugust2004, ms);
                 return ms.ToArray();
@@ -248,7 +254,7 @@ namespace ServiceStack.Host.Handlers
 
         private static void SerializeSoapToStream(IRequest req, object response, MessageVersion defaultMsgVersion, Stream stream)
         {
-            var requestMsg = req.GetItem("SoapMessage") as Message;
+            var requestMsg = req.GetItem(Keywords.SoapMessage) as Message;
             var msgVersion = requestMsg != null
                 ? requestMsg.Version
                 : defaultMsgVersion;
@@ -258,10 +264,7 @@ namespace ServiceStack.Host.Handlers
             var responseMsg = CreateResponseMessage(response, msgVersion, req.Dto.GetType(), noMsgVersion);
             SetErrorStatusIfAny(req.Response, responseMsg, req.Response.StatusCode);
 
-            using (var writer = XmlWriter.Create(stream))
-            {
-                responseMsg.WriteMessage(writer);
-            }
+            HostContext.AppHost.WriteSoapMessage(req, responseMsg, stream);
         }
 
         private static void SetErrorStatusIfAny(IResponse res, Message responseMsg, int statusCode)

@@ -27,6 +27,7 @@
     var session = base.SessionAs<CustomUserSession>();
     if (session.IsAuthenticated)
     {
+        //requires using OrmLiteAuthRepository 
         var userAuthId = session.UserAuthId.ToInt();
         var userAuth = Db.SingleById<UserAuth>(userAuthId);
         var authProviders = Db.Select<UserAuthDetails>(x => x.UserAuthId == userAuthId);
@@ -68,6 +69,11 @@
         <h2>Yahoo</h2>
         <a href="/auth/YahooOpenId">/auth/YahooOpenId</a>
     </div>
+    
+    <div>
+        <h2>GitHub</h2>
+        <a href="/auth/github">/auth/github</a>
+    </div>
 
     <div>
         <h2>Google OAuth</h2>
@@ -78,10 +84,10 @@
         <h2>LinkedIn</h2>
         <a href="/auth/LinkedIn">/auth/LinkedIn</a>
     </div>
-    
+
     <div>
-        <h2>GitHub</h2>
-        <a href="/auth/github">/auth/github</a>
+        <h2>FourSquare</h2>
+        <a href="/auth/FourSquare">/auth/FourSquare</a>
     </div>
 
     <div>
@@ -108,6 +114,12 @@
     <form action="/auth/credentials">
         <input type="text" name="Username" value="demis.bellot@gmail.com"/>
         <input type="text" name="Password" value="test"/>
+        <input type="submit"/>
+    </form>
+    
+    <h3>Private Auth</h3>
+    <form action="/privateauth">
+        <input type="text" name="Username" value="demis.bellot@gmail.com"/>
         <input type="submit"/>
     </form>
     
@@ -141,6 +153,7 @@
     <div id="allAuthProviders"></div>
 
 @{
+    //requires using OrmLiteAuthRepository 
     var allUserAuths = Db.Select<UserAuth>();
     var allAuthProviders = Db.Select<UserAuthDetails>();
         

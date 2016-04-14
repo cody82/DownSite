@@ -74,10 +74,46 @@ namespace ServiceStack.Auth
 
         public bool VerifyHashString(string Data, string Hash, string Salt)
         {
+            if (Hash == null || Salt == null)
+                return false;
+            
             byte[] HashToVerify = Convert.FromBase64String(Hash);
             byte[] SaltToVerify = Convert.FromBase64String(Salt);
             byte[] DataToVerify = Encoding.UTF8.GetBytes(Data);
             return VerifyHash(DataToVerify, HashToVerify, SaltToVerify);
+        }
+    }
+
+    public static class HashExtensions
+    {
+        public static string ToSha256Hash(this string value)
+        {
+            var sb = new StringBuilder();
+            using (var hash = SHA256Managed.Create())
+            {
+                var result = hash.ComputeHash(value.ToUtf8Bytes());
+                foreach (var b in result)
+                {
+                    sb.Append(b.ToString("x2"));
+                }
+            }
+            return sb.ToString();
+        }
+
+        public static byte[] ToSha256HashBytes(this byte[] bytes)
+        {
+            using (var hash = SHA256Managed.Create())
+            {
+                return hash.ComputeHash(bytes);
+            }
+        }
+
+        public static byte[] ToSha512HashBytes(this byte[] bytes)
+        {
+            using (var hash = SHA512Managed.Create())
+            {
+                return hash.ComputeHash(bytes);
+            }
         }
     }
 

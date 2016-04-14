@@ -41,9 +41,18 @@ namespace ServiceStack
         public DateTime StartedAt { get; set; }
         public DateTime? AfterInitAt { get; set; }
         public DateTime? ReadyAt { get; set; }
+        public bool TestMode { get; set; }
+
+        public Assembly[] ServiceAssemblies { get; private set; }
+
         public bool HasStarted
         {
             get { return ReadyAt != null; }
+        }
+
+        public static bool IsReady()
+        {
+            return Instance != null && Instance.ReadyAt != null;
         }
 
         protected ServiceStackHost(string serviceName, params Assembly[] assembliesWithServices)
@@ -53,6 +62,7 @@ namespace ServiceStack
             ServiceName = serviceName;
             AppSettings = new AppSettings();
             Container = new Container { DefaultOwner = Owner.External };
+            ServiceAssemblies = assembliesWithServices;
             ServiceController = CreateServiceController(assembliesWithServices);
 
             ContentTypes = Host.ContentTypes.Instance;
@@ -60,6 +70,8 @@ namespace ServiceStack
             Routes = new ServiceRoutes(this);
             Metadata = new ServiceMetadata(RestPaths);
             PreRequestFilters = new List<Action<IRequest, IResponse>>();
+            RequestConverters = new List<Func<IRequest, object, object>>();
+            ResponseConverters = new List<Func<IRequest, object, object>>();
             GlobalRequestFilters = new List<Action<IRequest, IResponse, object>>();
             GlobalTypedRequestFilters = new Dictionary<Type, ITypedFilter>();
             GlobalResponseFilters = new List<Action<IRequest, IResponse, object>>();
@@ -73,6 +85,7 @@ namespace ServiceStack
             UncaughtExceptionHandlers = new List<HandleUncaughtExceptionDelegate>();
             AfterInitCallbacks = new List<Action<IAppHost>>();
             OnDisposeCallbacks = new List<Action<IAppHost>>();
+            OnEndRequestCallbacks = new List<Action<IRequest>>();
             RawHttpHandlers = new List<Func<IHttpRequest, IHttpHandler>> {
                  HttpHandlerFactory.ReturnRequestInfo,
                  MiniProfilerHandler.MatchesRequest,
@@ -100,6 +113,8 @@ namespace ServiceStack
                 typeof(NativeTypesService),
                 typeof(PostmanService),
             };
+
+            JsConfig.InitStatics();
         }
 
         public abstract void Configure(Container container);
@@ -139,29 +154,73 @@ namespace ServiceStack
 
             ConfigurePlugins();
 
-            if (VirtualPathProvider == null)
+            if (VirtualFiles == null)
+                VirtualFiles = GetFileSystemProvider();
+
+            if (VirtualFileSources == null)
             {
-                var pathProviders = new List<IVirtualPathProvider> {
-                    new FileSystemVirtualPathProvider(this, Config.WebHostPhysicalPath)
-                };
+                var pathProviders = GetVirtualFileSources().Where(x => x != null).ToList();
 
-                pathProviders.AddRange(Config.EmbeddedResourceBaseTypes.Distinct().Map(x =>
-                    new ResourceVirtualPathProvider(this, x)));
-
-                pathProviders.AddRange(Config.EmbeddedResourceSources.Distinct().Map(x =>
-                    new ResourceVirtualPathProvider(this, x)));
-
-                VirtualPathProvider = pathProviders.Count > 1
+                VirtualFileSources = pathProviders.Count > 1
                     ? new MultiVirtualPathProvider(this, pathProviders.ToArray())
                     : pathProviders.First();
             }
 
             OnAfterInit();
 
-            var elapsed = DateTime.UtcNow - this.StartedAt;
-            Log.InfoFormat("Initializing Application took {0}ms", elapsed.TotalMilliseconds);
+            LogInitComplete();
 
             return this;
+        }
+
+        private void LogInitComplete()
+        {
+            var elapsed = DateTime.UtcNow - StartedAt;
+            var hasErrors = StartUpErrors.Any();
+
+            if (hasErrors)
+            {
+                Log.ErrorFormat(
+                    "Initializing Application {0} took {1}ms. {2} error(s) detected: {3}",
+                    ServiceName,
+                    elapsed.TotalMilliseconds,
+                    StartUpErrors.Count,
+                    StartUpErrors.ToJson());
+            }
+            else
+            {
+                Log.InfoFormat(
+                    "Initializing Application {0} took {1}ms. No errors detected.",
+                    ServiceName,
+                    elapsed.TotalMilliseconds);
+            }
+        }
+
+        [Obsolete("Renamed to GetVirtualFileSources")]
+        public virtual List<IVirtualPathProvider> GetVirtualPathProviders()
+        {
+            return GetVirtualFileSources();
+        }
+
+        public virtual List<IVirtualPathProvider> GetVirtualFileSources()
+        {
+            var pathProviders = new List<IVirtualPathProvider> {
+                new FileSystemVirtualPathProvider(this, Config.WebHostPhysicalPath)
+            };
+
+            pathProviders.AddRange(Config.EmbeddedResourceBaseTypes.Distinct()
+                .Map(x => new ResourceVirtualPathProvider(this, x)));
+
+            pathProviders.AddRange(Config.EmbeddedResourceSources.Distinct()
+                .Map(x => new ResourceVirtualPathProvider(this, x)));
+
+            return pathProviders;
+        }
+
+        public virtual IVirtualFiles GetFileSystemProvider()
+        {
+            var fs = GetVirtualFileSources().FirstOrDefault(x => x is FileSystemVirtualPathProvider);
+            return fs as IVirtualFiles;
         }
 
         public virtual ServiceStackHost Start(string urlBase)
@@ -173,13 +232,15 @@ namespace ServiceStack
         /// Retain the same behavior as ASP.NET and redirect requests to directores 
         /// without a trailing '/'
         /// </summary>
-        public IHttpHandler RedirectDirectory(IHttpRequest request)
+        public virtual IHttpHandler RedirectDirectory(IHttpRequest request)
         {
-            //return null;
             var dir = request.GetVirtualNode() as IVirtualDirectory;
             if (dir != null)
             {
-                if (!request.PathInfo.EndsWith("/"))
+                //Only redirect GET requests for directories which don't have services registered at the same path
+                if (!request.PathInfo.EndsWith("/")
+                    && request.Verb == HttpMethods.Get
+                    && ServiceController.GetRestPathForRequest(request.Verb, request.PathInfo) == null)
                 {
                     return new RedirectHttpHandler
                     {
@@ -221,6 +282,10 @@ namespace ServiceStack
 
         public List<Action<IRequest, IResponse>> PreRequestFilters { get; set; }
 
+        public List<Func<IRequest, object, object>> RequestConverters { get; set; }
+
+        public List<Func<IRequest, object, object>> ResponseConverters { get; set; }
+
         public List<Action<IRequest, IResponse, object>> GlobalRequestFilters { get; set; }
 
         public Dictionary<Type, ITypedFilter> GlobalTypedRequestFilters { get; set; }
@@ -247,6 +312,8 @@ namespace ServiceStack
 
         public List<Action<IAppHost>> OnDisposeCallbacks { get; set; }
 
+        public List<Action<IRequest>> OnEndRequestCallbacks { get; set; }
+
         public List<Func<IHttpRequest, IHttpHandler>> RawHttpHandlers { get; set; }
 
         public List<HttpHandlerResolverDelegate> CatchAllHandlers { get; set; }
@@ -261,7 +328,16 @@ namespace ServiceStack
 
         public List<IPlugin> Plugins { get; set; }
 
-        public IVirtualPathProvider VirtualPathProvider { get; set; }
+        public IVirtualFiles VirtualFiles { get; set; }
+
+        public IVirtualPathProvider VirtualFileSources { get; set; }
+
+        [Obsolete("Renamed to VirtualFileSources")]
+        public IVirtualPathProvider VirtualPathProvider
+        {
+            get { return VirtualFileSources; }
+            set { VirtualFileSources = value; }
+        }
 
         /// <summary>
         /// Executed immediately before a Service is executed. Use return to change the request DTO used, must be of the same type.
@@ -304,20 +380,18 @@ namespace ServiceStack
                     errorHandler(httpReq, httpRes, operationName, ex);
                 }
             }
-            else
-            {
-                //Only add custom error messages to StatusDescription
-                var httpError = ex as IHttpError;
-                var errorMessage = httpError != null ? httpError.Message : null;
-                var statusCode = ex.ToStatusCode();
+        }
 
-                //httpRes.WriteToResponse always calls .Close in it's finally statement so 
-                //if there is a problem writing to response, by now it will be closed
-                if (!httpRes.IsClosed)
-                {
-                    httpRes.WriteErrorToResponse(httpReq, httpReq.ResponseContentType, operationName, errorMessage, ex, statusCode);
-                }
-            }
+        public virtual void HandleUncaughtException(IRequest httpReq, IResponse httpRes, string operationName, Exception ex)
+        {
+            //Only add custom error messages to StatusDescription
+            var httpError = ex as IHttpError;
+            var errorMessage = httpError != null ? httpError.Message : null;
+            var statusCode = ex.ToStatusCode();
+
+            //httpRes.WriteToResponse always calls .Close in it's finally statement so 
+            //if there is a problem writing to response, by now it will be closed
+            httpRes.WriteErrorToResponse(httpReq, httpReq.ResponseContentType, operationName, errorMessage, ex, statusCode);
         }
 
         public virtual void OnStartupException(Exception ex)
@@ -354,6 +428,7 @@ namespace ServiceStack
 
         public virtual void OnBeforeInit()
         {
+            Container.Register<IHashProvider>(c => new SaltedHash());
         }
 
         //After configure called
@@ -429,10 +504,14 @@ namespace ServiceStack
 
             var specifiedContentType = config.DefaultContentType; //Before plugins loaded
 
-            LoadPlugin(Plugins.ToArray());
-            pluginsLoaded = true;
+            var plugins = Plugins.ToArray();
+            delayLoadPlugin = true;
+            LoadPluginsInternal(plugins);
 
             AfterPluginsLoaded(specifiedContentType);
+
+            if (!TestMode && Container.Exists<IAuthSession>())
+                throw new Exception(ErrorMessages.ShouldNotRegisterAuthSession);
 
             if (!Container.Exists<IAppSettings>())
                 Container.Register(AppSettings);
@@ -442,8 +521,11 @@ namespace ServiceStack
                 if (Container.Exists<IRedisClientsManager>())
                     Container.Register(c => c.Resolve<IRedisClientsManager>().GetCacheClient());
                 else
-                    Container.Register<ICacheClient>(new MemoryCacheClient());
+                    Container.Register<ICacheClient>(ServiceExtensions.DefaultCache);
             }
+
+            if (!Container.Exists<MemoryCacheClient>())
+                Container.Register(ServiceExtensions.DefaultCache);
 
             if (Container.Exists<IMessageService>()
                 && !Container.Exists<IMessageFactory>())
@@ -523,22 +605,6 @@ namespace ServiceStack
             ServiceController.AfterInit();
         }
 
-        private bool pluginsLoaded;
-        public void AddPlugin(params IPlugin[] plugins)
-        {
-            if (pluginsLoaded)
-            {
-                LoadPlugin(plugins);
-            }
-            else
-            {
-                foreach (var plugin in plugins)
-                {
-                    Plugins.Add(plugin);
-                }
-            }
-        }
-
         public virtual void Release(object instance)
         {
             try
@@ -555,18 +621,33 @@ namespace ServiceStack
                         disposable.Dispose();
                 }
             }
-            catch { /*ignore*/ }
+            catch (Exception ex)
+            {
+                Log.Error("ServiceStackHost.Release", ex);
+            }
         }
 
-        public virtual void OnEndRequest()
+        public virtual void OnEndRequest(IRequest request = null)
         {
-            var disposables = RequestContext.Instance.Items.Values;
-            foreach (var item in disposables)
+            try
             {
-                Release(item);
-            }
+                var disposables = RequestContext.Instance.Items.Values;
+                foreach (var item in disposables)
+                {
+                    Release(item);
+                }
 
-            RequestContext.Instance.EndRequest();
+                RequestContext.Instance.EndRequest();
+
+                foreach (var fn in OnEndRequestCallbacks)
+                {
+                    fn(request);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Error when Disposing Request Context", ex);
+            }
         }
 
         public virtual void Register<T>(T instance)
@@ -589,6 +670,16 @@ namespace ServiceStack
             return this.Container.Resolve<T>();
         }
 
+        public T GetPlugin<T>() where T : class, IPlugin
+        {
+            return Plugins.FirstOrDefault(x => x is T) as T;
+        }
+
+        public bool HasPlugin<T>() where T : class, IPlugin
+        {
+            return Plugins.FirstOrDefault(x => x is T) != null;
+        }
+
         public virtual IServiceRunner<TRequest> CreateServiceRunner<TRequest>(ActionContext actionContext)
         {
             //cached per service action
@@ -602,24 +693,27 @@ namespace ServiceStack
 
         public virtual string ResolveAbsoluteUrl(string virtualPath, IRequest httpReq)
         {
+            if (httpReq == null)
+                return (Config.WebHostUrl ?? "/").CombineWith(virtualPath.TrimStart('~'));
+
             return httpReq.GetAbsoluteUrl(virtualPath); //Http Listener, TODO: ASP.NET overrides
         }
 
         public virtual string ResolvePhysicalPath(string virtualPath, IRequest httpReq)
         {
-            return VirtualPathProvider.CombineVirtualPath(VirtualPathProvider.RootDirectory.RealPath, virtualPath);
+            return VirtualFileSources.CombineVirtualPath(VirtualFileSources.RootDirectory.RealPath, virtualPath);
         }
 
         public virtual IVirtualFile ResolveVirtualFile(string virtualPath, IRequest httpReq)
         {
-            return VirtualPathProvider.GetFile(virtualPath);
+            return VirtualFileSources.GetFile(virtualPath);
         }
 
         public virtual IVirtualDirectory ResolveVirtualDirectory(string virtualPath, IRequest httpReq)
         {
-            return virtualPath == VirtualPathProvider.VirtualPathSeparator
-                ? VirtualPathProvider.RootDirectory
-                : VirtualPathProvider.GetDirectory(virtualPath);
+            return virtualPath == VirtualFileSources.VirtualPathSeparator
+                ? VirtualFileSources.RootDirectory
+                : VirtualFileSources.GetDirectory(virtualPath);
         }
 
         public virtual IVirtualNode ResolveVirtualNode(string virtualPath, IRequest httpReq)
@@ -628,7 +722,24 @@ namespace ServiceStack
                 ?? ResolveVirtualDirectory(virtualPath, httpReq);
         }
 
+        private bool delayLoadPlugin;
         public virtual void LoadPlugin(params IPlugin[] plugins)
+        {
+            if (delayLoadPlugin)
+            {
+                LoadPluginsInternal(plugins);
+                Plugins.AddRange(plugins);
+            }
+            else
+            {
+                foreach (var plugin in plugins)
+                {
+                    Plugins.Add(plugin);
+                }
+            }
+        }
+
+        internal virtual void LoadPluginsInternal(params IPlugin[] plugins)
         {
             foreach (var plugin in plugins)
             {
@@ -659,6 +770,16 @@ namespace ServiceStack
             return ServiceController.Execute(requestDto, new BasicRequest(requestDto, requestAttributes));
         }
 
+        public virtual object ExecuteMessage(IMessage mqMessage)
+        {
+            return ServiceController.ExecuteMessage(mqMessage, new BasicRequest(mqMessage));
+        }
+
+        public virtual object ExecuteMessage(IMessage dto, IRequest req)
+        {
+            return ServiceController.ExecuteMessage(dto, req);
+        }
+
         public virtual void RegisterService(Type serviceType, params string[] atRestPaths)
         {
             ServiceController.RegisterService(serviceType);
@@ -667,6 +788,8 @@ namespace ServiceStack
             {
                 foreach (var atRestPath in atRestPaths)
                 {
+                    if (atRestPath == null) continue;
+
                     this.Routes.Add(reqAttr.RequestType, atRestPath, null);
                 }
             }

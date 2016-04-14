@@ -288,6 +288,45 @@ namespace ServiceStack.Auth
             instance.Meta[typeof(T).GetOperationName()] = TypeSerializer.SerializeToString(value);
             return value;
         }
+
+        public static AuthTokens ToAuthTokens(this IAuthTokens from)
+        {
+            return new AuthTokens {
+                Provider = from.Provider,
+                UserId = from.UserId,
+                AccessToken = from.AccessToken,
+                AccessTokenSecret = from.AccessTokenSecret,
+                RefreshToken = from.RefreshToken,
+                RefreshTokenExpiry = from.RefreshTokenExpiry,
+                RequestToken = from.RequestToken,
+                RequestTokenSecret = from.RequestTokenSecret,
+                Items = from.Items,
+            };
+        }
+
+        public static void RecordSuccessfulLogin(this IUserAuthRepository repo, IUserAuth userAuth)
+        {
+            var feature = HostContext.GetPlugin<AuthFeature>();
+            if (feature == null || feature.MaxLoginAttempts == null) return;
+
+            userAuth.InvalidLoginAttempts = 0;
+            userAuth.LastLoginAttempt = userAuth.ModifiedDate = DateTime.UtcNow;
+            repo.SaveUserAuth(userAuth);
+        }
+
+        public static void RecordInvalidLoginAttempt(this IUserAuthRepository repo, IUserAuth userAuth)
+        {
+            var feature = HostContext.GetPlugin<AuthFeature>();
+            if (feature == null || feature.MaxLoginAttempts == null) return;
+
+            userAuth.InvalidLoginAttempts += 1;
+            userAuth.LastLoginAttempt = userAuth.ModifiedDate = DateTime.UtcNow;
+            if (userAuth.InvalidLoginAttempts >= feature.MaxLoginAttempts.Value)
+            {
+                userAuth.LockedDate = userAuth.LastLoginAttempt;
+            }
+            repo.SaveUserAuth(userAuth);
+        }
     }
 
 }

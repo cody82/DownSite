@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
 using NUnit.Framework;
 
 namespace ServiceStack.Text.Tests
@@ -187,4 +188,43 @@ namespace ServiceStack.Text.Tests
         private const string AssertMessageFormat = "Cannot find correct property value ({0})";
     }
 
+    [TestFixture]
+    public class JsConfigCreateTests
+    {
+        [Test]
+        public void Does_create_scope_from_string()
+        {
+            var scope = JsConfig.CreateScope("EmitCamelCaseNames,emitlowercaseunderscorenames,IncludeNullValues:false,ExcludeDefaultValues:0,IncludeDefaultEnums:1");
+            Assert.That(scope.EmitCamelCaseNames.Value);
+            Assert.That(scope.EmitLowercaseUnderscoreNames.Value);
+            Assert.That(!scope.IncludeNullValues.Value);
+            Assert.That(!scope.ExcludeDefaultValues.Value);
+            Assert.That(scope.IncludeDefaultEnums.Value);
+            scope.Dispose();
+
+            scope = JsConfig.CreateScope("DateHandler:ISO8601,timespanhandler:durationformat,PropertyConvention:strict");
+            Assert.That(scope.DateHandler, Is.EqualTo(DateHandler.ISO8601));
+            Assert.That(scope.TimeSpanHandler, Is.EqualTo(TimeSpanHandler.DurationFormat));
+            Assert.That(scope.PropertyConvention, Is.EqualTo(PropertyConvention.Strict));
+            scope.Dispose();
+        }
+
+        [Test]
+        public void Does_create_scope_from_string_using_CamelCaseHumps()
+        {
+            var scope = JsConfig.CreateScope("eccn,elun,inv:false,edv:0,ide:1");
+            Assert.That(scope.EmitCamelCaseNames.Value);
+            Assert.That(scope.EmitLowercaseUnderscoreNames.Value);
+            Assert.That(!scope.IncludeNullValues.Value);
+            Assert.That(!scope.ExcludeDefaultValues.Value);
+            Assert.That(scope.IncludeDefaultEnums.Value);
+            scope.Dispose();
+
+            scope = JsConfig.CreateScope("dh:ISO8601,tsh:df,pc:strict");
+            Assert.That(scope.DateHandler, Is.EqualTo(DateHandler.ISO8601));
+            Assert.That(scope.TimeSpanHandler, Is.EqualTo(TimeSpanHandler.DurationFormat));
+            Assert.That(scope.PropertyConvention, Is.EqualTo(PropertyConvention.Strict));
+            scope.Dispose();
+        }
+    }
 }

@@ -22,7 +22,6 @@ namespace ServiceStack
             string modifiers = null;
             if (!request.ResponseContentType.IsBinary())
             {
-
                 if (request.ResponseContentType == MimeTypes.Json)
                 {
                     string jsonp = request.GetJsonpCallback();
@@ -81,6 +80,7 @@ namespace ServiceStack
             IRequest request,
             TimeSpan? expireCacheIn = null)
         {
+            request.Response.Dto = responseDto;
             cacheClient.Set(cacheKey, responseDto, expireCacheIn);
 
             if (!request.ResponseContentType.IsBinary())
@@ -116,9 +116,10 @@ namespace ServiceStack
                     cacheClient.Set(cacheKeySerializedZip, compressedSerializedDto, expireCacheIn);
 
                     return (compressedSerializedDto != null)
-                        ? new CompressedResult(compressedSerializedDto, compressionType, request.ResponseContentType) {
-                                Status = request.Response.StatusCode
-                            }
+                        ? new CompressedResult(compressedSerializedDto, compressionType, request.ResponseContentType)
+                        {
+                            Status = request.Response.StatusCode
+                        }
                         : null;
                 }
 
@@ -137,8 +138,8 @@ namespace ServiceStack
         public static void ClearCaches(this ICacheClient cacheClient, params string[] cacheKeys)
         {
             var allContentTypes = new List<string>(HostContext.ContentTypes.ContentTypeFormats.Values) {
-			    MimeTypes.XmlText, MimeTypes.JsonText, MimeTypes.JsvText
-			};
+                MimeTypes.XmlText, MimeTypes.JsonText, MimeTypes.JsvText
+            };
 
             var allCacheKeys = new List<string>();
 
@@ -193,9 +194,28 @@ namespace ServiceStack
         {
             var canRemoveByPattern = cacheClient as IRemoveByPattern;
             if (canRemoveByPattern == null)
-                throw new NotImplementedException("IRemoveByPattern is not implemented by the cache client: " + cacheClient.GetType().FullName);
+                throw new NotImplementedException("IRemoveByPattern is not implemented by: " + cacheClient.GetType().FullName);
 
             canRemoveByPattern.RemoveByRegex(regex);
+        }
+
+        public static IEnumerable<string> GetKeysByPattern(this ICacheClient cache, string pattern)
+        {
+            var extendedCache = cache as ICacheClientExtended;
+            if (extendedCache == null)
+                throw new NotImplementedException("ICacheClientExtended is not implemented by: " + cache.GetType().FullName);
+
+            return extendedCache.GetKeysByPattern(pattern);
+        }
+
+        public static IEnumerable<string> GetAllKeys(this ICacheClient cache)
+        {
+            return cache.GetKeysByPattern("*");
+        }
+
+        public static IEnumerable<string> GetKeysStartingWith(this ICacheClient cache, string prefix)
+        {
+            return cache.GetKeysByPattern(prefix + "*");
         }
 
         public static T GetOrCreate<T>(this ICacheClient cache,
@@ -222,5 +242,13 @@ namespace ServiceStack
             return value;
         }
 
+        public static TimeSpan? GetTimeToLive(this ICacheClient cache, string key)
+        {
+            var extendedCache = cache as ICacheClientExtended;
+            if (extendedCache == null)
+                throw new NotFiniteNumberException("GetTimeToLive is not implemented by: " + cache.GetType().FullName);
+
+            return extendedCache.GetTimeToLive(key);
+        }
     }
 }

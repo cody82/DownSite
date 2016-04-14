@@ -85,7 +85,7 @@ namespace ServiceStack.Authentication.OpenId
                 catch (ProtocolException ex)
                 {
                     Log.Error("Failed to login to {0}".Fmt(openIdUrl), ex);
-                    return authService.Redirect(session.ReferrerUrl.AddHashParam("f", "Unknown"));
+                    return authService.Redirect(FailedRedirectUrlFilter(this, session.ReferrerUrl.SetParam("f", "Unknown")));
                 }
             }
 
@@ -107,20 +107,20 @@ namespace ServiceStack.Authentication.OpenId
                                 session.IsAuthenticated = true;
 
                                 return OnAuthenticated(authService, session, tokens, authInfo)
-                                    ?? authService.Redirect(session.ReferrerUrl.AddHashParam("s", "1")); //Haz access!
+                                    ?? authService.Redirect(SuccessRedirectUrlFilter(this, session.ReferrerUrl.SetParam("s", "1"))); //Haz access!
 
                             case AuthenticationStatus.Canceled:
-                                return authService.Redirect(session.ReferrerUrl.AddHashParam("f", "ProviderCancelled"));
+                                return authService.Redirect(FailedRedirectUrlFilter(this, session.ReferrerUrl.SetParam("f", "ProviderCancelled")));
 
                             case AuthenticationStatus.Failed:
-                                return authService.Redirect(session.ReferrerUrl.AddHashParam("f", "Unknown"));
+                                return authService.Redirect(FailedRedirectUrlFilter(this, session.ReferrerUrl.SetParam("f", "Unknown")));
                         }
                     }
                 }
             }
 
             //Shouldn't get here
-            return authService.Redirect(session.ReferrerUrl.AddHashParam("f", "Unknown"));
+            return authService.Redirect(FailedRedirectUrlFilter(this, session.ReferrerUrl.SetParam("f", "Unknown")));
         }
 
         protected virtual Dictionary<string, string> CreateAuthInfo(IAuthenticationResponse response)
@@ -278,7 +278,7 @@ namespace ServiceStack.Authentication.OpenId
             }
 
             // For OpenId, AccessTokenSecret is null/empty, but UserId is populated w/ authenticated url from openId providers            
-            return tokens != null && !string.IsNullOrEmpty(tokens.UserId);
+            return session != null && session.IsAuthenticated && tokens != null && !string.IsNullOrEmpty(tokens.UserId);
         }
     }
 
@@ -302,7 +302,7 @@ namespace ServiceStack.Authentication.OpenId
                 if (response.Culture != null)
                     map["Culture"] = response.Culture.TwoLetterISOLanguageName;
             }
-            catch (Exception ex) //CultureNotFoundException (.NET 4.5)
+            catch (Exception) //CultureNotFoundException (.NET 4.5)
             {
                 map["Culture"] = "en";
             }

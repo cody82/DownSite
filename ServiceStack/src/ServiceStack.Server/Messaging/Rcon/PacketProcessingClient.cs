@@ -1,5 +1,6 @@
 ﻿#if !SL5 
 using System;
+using System.Collections.Generic;
 using System.Net.Sockets;
 
 namespace ServiceStack.Messaging.Rcon
@@ -43,6 +44,15 @@ namespace ServiceStack.Messaging.Rcon
         public void SendOneWay(string queueName, object requestDto)
         {
             Publish(queueName, MessageFactory.Create(requestDto));
+        }
+
+        public void SendAllOneWay(IEnumerable<object> requests)
+        {
+            if (requests == null) return;
+            foreach (var request in requests)
+            {
+                SendOneWay(request);
+            }
         }
 
         /// <summary>

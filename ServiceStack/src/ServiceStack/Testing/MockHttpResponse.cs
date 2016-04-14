@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Net;
@@ -9,14 +10,17 @@ namespace ServiceStack.Testing
 {
     public class MockHttpResponse : IHttpResponse
     {
-        public MockHttpResponse()
+        public MockHttpResponse(IRequest request = null)
         {
+            this.Request = request;
             this.Headers = PclExportClient.Instance.NewNameValueCollection();
             this.OutputStream = new MemoryStream();
             this.TextWritten = new StringBuilder();
             this.Cookies = new Cookies(this);
+            this.Items = new Dictionary<string, object>();
         }
 
+        public IRequest Request { get; private set; }
         public object OriginalResponse { get; private set; }
         public int StatusCode { set; get; }
         public string StatusDescription { set; get; }
@@ -87,8 +91,14 @@ namespace ServiceStack.Testing
 
         public bool KeepAlive { get; set; }
 
+        public Dictionary<string, object> Items { get; private set; }
+
         public void SetCookie(Cookie cookie)
         {            
+        }
+
+        public void ClearCookies()
+        {
         }
     }
 }

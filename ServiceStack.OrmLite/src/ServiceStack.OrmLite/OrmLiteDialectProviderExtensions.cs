@@ -1,3 +1,7 @@
+using System;
+using System.Data;
+using ServiceStack.OrmLite.Converters;
+
 namespace ServiceStack.OrmLite
 {
     public static class OrmLiteDialectProviderExtensions
@@ -17,14 +21,14 @@ namespace ServiceStack.OrmLite
             return paramName.Substring(dialect.ParamString.Length);
         }
 
-        public static string FmtTable(this string tableName)
+        public static string FmtTable(this string tableName, IOrmLiteDialectProvider dialect = null)
         {
-            return OrmLiteConfig.DialectProvider.NamingStrategy.GetTableName(tableName);
+            return (dialect ?? OrmLiteConfig.DialectProvider).NamingStrategy.GetTableName(tableName);
         }
 
-        public static string FmtColumn(this string columnName)
+        public static string FmtColumn(this string columnName, IOrmLiteDialectProvider dialect=null)
         {
-            return OrmLiteConfig.DialectProvider.NamingStrategy.GetColumnName(columnName);
+            return (dialect ?? OrmLiteConfig.DialectProvider).NamingStrategy.GetColumnName(columnName);
         }
 
         public static string GetQuotedColumnName(this IOrmLiteDialectProvider dialect, 
@@ -34,9 +38,9 @@ namespace ServiceStack.OrmLite
         }
 
         public static string GetQuotedColumnName(this IOrmLiteDialectProvider dialect,
-            ModelDefinition modelDef, FieldDefinition fieldDef)
+            ModelDefinition tableDef, FieldDefinition fieldDef)
         {
-            return dialect.GetQuotedTableName(modelDef.ModelName) +
+            return dialect.GetQuotedTableName(tableDef) +
                 "." +
                 dialect.GetQuotedColumnName(fieldDef.FieldName);
         }
@@ -47,6 +51,37 @@ namespace ServiceStack.OrmLite
             return dialect.GetQuotedTableName(tableDef) +
                 "." +
                 dialect.GetQuotedColumnName(fieldName);
+        }
+
+        public static object FromDbValue(this IOrmLiteDialectProvider dialect, 
+            IDataReader reader, int columnIndex, Type type)
+        {
+            return dialect.FromDbValue(dialect.GetValue(reader, columnIndex, type), type);
+        }
+
+        public static IOrmLiteConverter GetConverter<T>(this IOrmLiteDialectProvider dialect)
+        {
+            return dialect.GetConverter(typeof(T));
+        }
+
+        public static bool HasConverter(this IOrmLiteDialectProvider dialect, Type type)
+        {
+            return dialect.GetConverter(type) != null;
+        }
+
+        public static StringConverter GetStringConverter(this IOrmLiteDialectProvider dialect)
+        {
+            return (StringConverter)dialect.GetConverter(typeof(string));
+        }
+
+        public static DecimalConverter GetDecimalConverter(this IOrmLiteDialectProvider dialect)
+        {
+            return (DecimalConverter)dialect.GetConverter(typeof(decimal));
+        }
+
+        public static DateTimeConverter GetDateTimeConverter(this IOrmLiteDialectProvider dialect)
+        {
+            return (DateTimeConverter)dialect.GetConverter(typeof(DateTime));
         }
     }
 }

@@ -77,9 +77,6 @@
     <Reference Include="System.Xml.Linq">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
-    <Reference Include="ServiceStack.Text">
-      <HintPath>..\..\lib\ServiceStack.Text.dll</HintPath>
-    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ActionExecExtensions.cs">
@@ -92,7 +89,6 @@
     <Compile Include="ByteArrayExtensions.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="CryptUtils.cs" />
     <Compile Include="Data\DbConnectionFactory.cs" />
     <Compile Include="Data\IDbConnectionFactory.cs" />
     <Compile Include="Data\IHasDbConnection.cs" />
@@ -115,6 +111,8 @@
     <Compile Include="IntExtensions.cs" />
     <Compile Include="Logging\ConsoleLogFactory.cs" />
     <Compile Include="Logging\ConsoleLogger.cs" />
+    <Compile Include="Logging\DebugLogFactory.cs" />
+    <Compile Include="Logging\DebugLogger.cs" />
     <Compile Include="Reflection\DelegateFactory.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -133,6 +131,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="StringUtils.cs" />
+    <Compile Include="TypeExtensions.cs" />
     <Compile Include="XLinqExtensions.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -189,6 +188,10 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\ServiceStack.Text\src\ServiceStack.Text\ServiceStack.Text.csproj">
+      <Project>{579b3fdb-cdad-44e1-8417-885c38e49a0e}</Project>
+      <Name>ServiceStack.Text</Name>
+    </ProjectReference>
     <ProjectReference Include="..\ServiceStack.Interfaces\ServiceStack.Interfaces.csproj">
       <Project>{55942102-033a-4da8-a6af-1db7b2f34a2d}</Project>
       <Name>ServiceStack.Interfaces</Name>

@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using ServiceStack.DataAnnotations;
 using ServiceStack.OrmLite.Tests.UseCase;
@@ -161,6 +162,26 @@ namespace ServiceStack.OrmLite.Tests
         public string Country { get; set; }
     }
 
+    public class MultiSelfCustomer
+    {
+        [AutoIncrement]
+        public int Id { get; set; }
+        public string Name { get; set; }
+
+        [References(typeof(SelfCustomerAddress))]
+        public int? HomeAddressId { get; set; }
+
+        [References(typeof(SelfCustomerAddress))]
+        public int? WorkAddressId { get; set; }
+
+        [Reference]
+        public SelfCustomerAddress HomeAddress { get; set; }
+
+        [Reference]
+        public SelfCustomerAddress WorkAddress { get; set; }
+    }
+
+
     public class LoadReferencesTests
         : OrmLiteTestBase
     {
@@ -182,8 +203,14 @@ namespace ServiceStack.OrmLite.Tests
             db.DropAndCreateTable<OldAliasedCustomerAddress>();
             db.DropAndCreateTable<MismatchAliasCustomer>();
             db.DropAndCreateTable<MismatchAliasAddress>();
-            db.DropAndCreateTable<SelfCustomer>();
-            db.DropAndCreateTable<SelfCustomerAddress>();
+
+            db.DropTable<SelfCustomer>();
+            db.DropTable<MultiSelfCustomer>();
+            db.DropTable<SelfCustomerAddress>();
+
+            db.CreateTable<SelfCustomerAddress>();
+            db.CreateTable<MultiSelfCustomer>();
+            db.CreateTable<SelfCustomer>();
         }
 
         [SetUp]
@@ -221,7 +248,7 @@ namespace ServiceStack.OrmLite.Tests
                     State = "Northern Territory",
                     Country = "Australia"
                 },
-                Orders = new[] { 
+                Orders = new[] {
                     new Order { LineItem = "Line 1", Qty = 1, Cost = 1.99m },
                     new Order { LineItem = "Line 2", Qty = 2, Cost = 2.99m },
                 }.ToList(),
@@ -345,18 +372,18 @@ namespace ServiceStack.OrmLite.Tests
             return customer;
         }
 
-        public static Customer GetCustomerWithOrders(string id="1")
+        public static Customer GetCustomerWithOrders(string id = "1")
         {
             var customer = new Customer
             {
                 Name = "Customer " + id,
                 PrimaryAddress = new CustomerAddress
-                    {
-                        AddressLine1 = id + " Humpty Street",
-                        City = "Humpty Doo",
-                        State = "Northern Territory",
-                        Country = "Australia"
-                    },
+                {
+                    AddressLine1 = id + " Humpty Street",
+                    City = "Humpty Doo",
+                    State = "Northern Territory",
+                    Country = "Australia"
+                },
                 Orders = new[]
                     {
                         new Order {LineItem = "Line 1", Qty = 1, Cost = 1.99m},
@@ -545,6 +572,179 @@ namespace ServiceStack.OrmLite.Tests
             Assert.That(results[0].PrimaryAddress.Country, Is.EqualTo("Australia"));
         }
 
+        [Test]
+        public void Can_support_multiple_self_references()
+        {
+            var customers = new[]
+            {
+                new MultiSelfCustomer
+                {
+                    Name = "Customer 1",
+                    HomeAddress = new SelfCustomerAddress
+                    {
+                        AddressLine1 = "1 Home Street",
+                        Country = "Australia"
+                    },
+                    WorkAddress = new SelfCustomerAddress
+                    {
+                        AddressLine1 = "1 Work Street",
+                        Country = "Australia"
+                    },
+                },
+                new MultiSelfCustomer
+                {
+                    Name = "Customer 2",
+                    HomeAddress = new SelfCustomerAddress
+                    {
+                        AddressLine1 = "2 Home Park",
+                        Country = "USA"
+                    },
+                    WorkAddress = new SelfCustomerAddress
+                    {
+                        AddressLine1 = "2 Work Park",
+                        Country = "UK"
+                    },
+                },
+            };
+
+            customers.Each(x =>
+                db.Save(x, references: true));
+
+            var results = db.LoadSelect<MultiSelfCustomer>(q =>
+                q.HomeAddressId != null &&
+                q.WorkAddressId != null);
+
+            results.PrintDump();
+
+            Assert.That(results.Count, Is.EqualTo(2));
+            Assert.That(results[0].HomeAddress.AddressLine1, Is.StringContaining("Home"));
+            Assert.That(results[0].WorkAddress.AddressLine1, Is.StringContaining("Work"));
+            Assert.That(results[1].HomeAddress.AddressLine1, Is.StringContaining("Home"));
+            Assert.That(results[1].WorkAddress.AddressLine1, Is.StringContaining("Work"));
+
+            var ukAddress = db.Single<SelfCustomerAddress>(q => q.Country == "UK");
+            ukAddress.PrintDump();
+            Assert.That(ukAddress.AddressLine1, Is.EqualTo("2 Work Park"));
+        }
+
+        [Test]
+        public void Can_load_only_included_references()
+        {
+            var customer = new Customer
+            {
+                Name = "Customer 1",
+                PrimaryAddress = new CustomerAddress
+                {
+                    AddressLine1 = "1 Humpty Street",
+                    City = "Humpty Doo",
+                    State = "Northern Territory",
+                    Country = "Australia"
+                },
+                Orders = new[] {
+                    new Order { LineItem = "Line 1", Qty = 1, Cost = 1.99m },
+                    new Order { LineItem = "Line 2", Qty = 2, Cost = 2.99m },
+                }.ToList(),
+            };
+
+            db.Save(customer, references: true);
+            Assert.That(customer.Id, Is.GreaterThan(0));
+
+            var dbCustomers = db.LoadSelect<Customer>(q => q.Id == customer.Id, include: new[] { "PrimaryAddress" });
+            Assert.That(dbCustomers.Count, Is.EqualTo(1));
+            Assert.That(dbCustomers[0].Name, Is.EqualTo("Customer 1"));
+
+            Assert.That(dbCustomers[0].Orders, Is.Null);
+            Assert.That(dbCustomers[0].PrimaryAddress, Is.Not.Null);
+
+            // Test LoadSingleById
+            var dbCustomer = db.LoadSingleById<Customer>(customer.Id, include: new[] { "PrimaryAddress" });
+            Assert.That(dbCustomer.Name, Is.EqualTo("Customer 1"));
+            Assert.That(dbCustomer.Orders, Is.Null);
+            Assert.That(dbCustomer.PrimaryAddress, Is.Not.Null);
+
+            dbCustomer = db.LoadSingleById<Customer>(customer.Id, include: x => new { x.PrimaryAddress });
+            Assert.That(dbCustomer.Name, Is.EqualTo("Customer 1"));
+            Assert.That(dbCustomer.Orders, Is.Null);
+            Assert.That(dbCustomer.PrimaryAddress, Is.Not.Null);
+
+
+            // Invalid field name
+            try
+            {
+                dbCustomers = db.LoadSelect<Customer>(q => q.Id == customer.Id, include: new[] { "InvalidOption1", "InvalidOption2" });
+                Assert.Fail();
+            }
+            catch (System.ArgumentException ex)
+            {
+            }
+            catch (System.Exception ex)
+            {
+                Assert.Fail();
+            }
+
+
+            try
+            {
+                dbCustomer = db.LoadSingleById<Customer>(customer.Id, include: new[] { "InvalidOption1", "InvalidOption2" });
+                Assert.Fail();
+            }
+            catch (System.ArgumentException ex)
+            {
+            }
+            catch (System.Exception ex)
+            {
+                Assert.Fail();
+            }
+        }
+
+        [Test]
+        public void Can_load_included_references_via_sql_in_expression()
+        {
+            var customer = new Customer
+            {
+                Name = "Customer 1",
+                PrimaryAddress = new CustomerAddress
+                {
+                    AddressLine1 = "1 Humpty Street",
+                    City = "Humpty Doo",
+                    State = "Northern Territory",
+                    Country = "Australia"
+                },
+                Orders = new[] {
+                    new Order { LineItem = "Line 1", Qty = 1, Cost = 1.99m },
+                    new Order { LineItem = "Line 2", Qty = 2, Cost = 2.99m },
+                }.ToList(),
+            };
+
+            db.Save(customer, references: true);
+
+            var customersSubFilter = db.From<Customer>().Select(c => c.Id);
+            var orderQuery = db.From<Order>().Where(q => Sql.In(q.CustomerId, customersSubFilter));
+            var dbOrders = db.Select(orderQuery);
+            Assert.That(dbOrders.Count, Is.EqualTo(2));
+
+            // Negative case
+            customersSubFilter = db.From<Customer>().Select(c => c.Id).Where(c => c.Id == -1);
+            orderQuery = db.From<Order>().Where(q => Sql.In(q.CustomerId, customersSubFilter));
+
+            dbOrders = db.Select(orderQuery);
+            Assert.That(dbOrders.Count, Is.EqualTo(0));
+
+            //Test merge subselect params
+            if (OrmLiteConfig.UseParameterizeSqlExpressions)
+            {
+                orderQuery = db.From<Order>().Where(q => q.CustomerId >= 1 && Sql.In(q.CustomerId, customersSubFilter));
+
+                Assert.That(orderQuery.Params.Count, Is.EqualTo(2));
+                Assert.That(orderQuery.Params[0].Value, Is.EqualTo(1));
+                Assert.That(orderQuery.Params[0].ParameterName, Is.StringEnding("0"));
+                Assert.That(orderQuery.Params[1].Value, Is.EqualTo(-1));
+                Assert.That(orderQuery.Params[1].ParameterName, Is.StringEnding("1"));
+
+                dbOrders = db.Select(orderQuery);
+                Assert.That(dbOrders.Count, Is.EqualTo(0));
+            }
+        }
     }
 
 }

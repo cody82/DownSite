@@ -9,14 +9,14 @@ using ServiceStack.Text.Common;
 namespace ServiceStack.Text.Json
 {
     public static class JsonReader
-	{
-		public static readonly JsReader<JsonTypeSerializer> Instance = new JsReader<JsonTypeSerializer>();
+    {
+        public static readonly JsReader<JsonTypeSerializer> Instance = new JsReader<JsonTypeSerializer>();
 
-		private static Dictionary<Type, ParseFactoryDelegate> ParseFnCache = new Dictionary<Type, ParseFactoryDelegate>();
+        private static Dictionary<Type, ParseFactoryDelegate> ParseFnCache = new Dictionary<Type, ParseFactoryDelegate>();
 
-	    internal static ParseStringDelegate GetParseFn(Type type)
-		{
-			ParseFactoryDelegate parseFactoryFn;
+        internal static ParseStringDelegate GetParseFn(Type type)
+        {
+            ParseFactoryDelegate parseFactoryFn;
             ParseFnCache.TryGetValue(type, out parseFactoryFn);
 
             if (parseFactoryFn != null) return parseFactoryFn();
@@ -34,27 +34,37 @@ namespace ServiceStack.Text.Json
 
             } while (!ReferenceEquals(
                 Interlocked.CompareExchange(ref ParseFnCache, newCache, snapshot), snapshot));
-            
+
             return parseFactoryFn();
-		}
-	}
+        }
+    }
 
     public static class JsonReader<T>
-	{
-		private static readonly ParseStringDelegate ReadFn;
+    {
+        private static ParseStringDelegate ReadFn;
 
-		static JsonReader()
-		{
-			ReadFn = JsonReader.Instance.GetParseFn<T>();
-		}
-		
-		public static ParseStringDelegate GetParseFn()
-		{
-			return ReadFn ?? Parse;
-		}
+        static JsonReader()
+        {
+            Refresh();
+        }
 
-		public static object Parse(string value)
-		{
+        public static void Refresh()
+        {
+            JsConfig.InitStatics();
+
+            if (JsonReader.Instance == null)
+                return;
+
+            ReadFn = JsonReader.Instance.GetParseFn<T>();
+        }
+
+        public static ParseStringDelegate GetParseFn()
+        {
+            return ReadFn ?? Parse;
+        }
+
+        public static object Parse(string value)
+        {
             TypeConfig<T>.AssertValidUsage();
 
             if (ReadFn == null)
@@ -70,11 +80,13 @@ namespace ServiceStack.Text.Json
                     throw new NotSupportedException("Can not deserialize interface type: "
                         + typeof(T).Name);
                 }
+
+                Refresh();
             }
 
             return value == null
                     ? null
                     : ReadFn(value);
         }
-	}
+    }
 }

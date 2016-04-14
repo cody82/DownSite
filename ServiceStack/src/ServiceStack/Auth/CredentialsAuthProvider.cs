@@ -18,8 +18,18 @@ namespace ServiceStack.Auth
             }
         }
 
+        private class PrivateAuthValidator : AbstractValidator<Authenticate>
+        {
+            public PrivateAuthValidator()
+            {
+                RuleFor(x => x.UserName).NotEmpty();
+            }
+        }
+
         public static string Name = AuthenticateService.CredentialsProvider;
         public static string Realm = "/auth/" + AuthenticateService.CredentialsProvider;
+
+        public bool SkipPasswordVerificationForInProcessRequests { get; set; }
 
         public CredentialsAuthProvider()
         {
@@ -44,18 +54,23 @@ namespace ServiceStack.Auth
                 if (IsAccountLocked(authRepo, userAuth))
                     throw new AuthenticationException("This account has been locked");
 
-                var holdSessionId = session.Id;
-                session.PopulateWith(userAuth); //overwrites session.Id
-                session.Id = holdSessionId;
-                session.IsAuthenticated = true;
-                session.UserAuthId = userAuth.Id.ToString(CultureInfo.InvariantCulture);
-                session.ProviderOAuthAccess = authRepo.GetUserAuthDetails(session.UserAuthId)
-                    .ConvertAll(x => (IAuthTokens)x);
+                PopulateSession(authRepo, userAuth, session);
 
                 return true;
             }
 
             return false;
+        }
+
+        private static void PopulateSession(IUserAuthRepository authRepo, IUserAuth userAuth, IAuthSession session)
+        {
+            var holdSessionId = session.Id;
+            session.PopulateWith(userAuth); //overwrites session.Id
+            session.Id = holdSessionId;
+            session.IsAuthenticated = true;
+            session.UserAuthId = userAuth.Id.ToString(CultureInfo.InvariantCulture);
+            session.ProviderOAuthAccess = authRepo.GetUserAuthDetails(session.UserAuthId)
+                .ConvertAll(x => (IAuthTokens) x);
         }
 
         public override bool IsAuthorized(IAuthSession session, IAuthTokens tokens, Authenticate request = null)
@@ -68,11 +83,17 @@ namespace ServiceStack.Auth
                 }
             }
 
-            return !session.UserAuthName.IsNullOrEmpty();
+            return session != null && session.IsAuthenticated && !session.UserAuthName.IsNullOrEmpty();
         }
 
         public override object Authenticate(IServiceBase authService, IAuthSession session, Authenticate request)
         {
+            if (SkipPasswordVerificationForInProcessRequests && authService.Request.IsInProcessRequest())
+            {
+                new PrivateAuthValidator().ValidateAndThrow(request);
+                return AuthenticatePrivateRequest(authService, session, request.UserName, request.Password, request.Continue);
+            }
+            
             new CredentialsAuthValidator().ValidateAndThrow(request);
             return Authenticate(authService, session, request.UserName, request.Password, request.Continue);
         }
@@ -108,11 +129,46 @@ namespace ServiceStack.Auth
                     UserId = session.UserAuthId,
                     UserName = userName,
                     SessionId = session.Id,
+                    DisplayName = session.DisplayName
+                        ?? session.UserName
+                        ?? "{0} {1}".Fmt(session.FirstName, session.LastName).Trim(),
                     ReferrerUrl = referrerUrl
                 };
             }
 
             throw HttpError.Unauthorized(ErrorMessages.InvalidUsernameOrPassword);
+        }
+
+        protected virtual object AuthenticatePrivateRequest(
+            IServiceBase authService, IAuthSession session, string userName, string password, string referrerUrl)
+        {
+            var authRepo = authService.TryResolve<IAuthRepository>().AsUserAuthRepository(authService.GetResolver());
+
+            var userAuth = authRepo.GetUserAuthByUserName(userName);
+            if (userAuth == null)
+                throw HttpError.Unauthorized(ErrorMessages.InvalidUsernameOrPassword);
+
+            if (IsAccountLocked(authRepo, userAuth))
+                throw new AuthenticationException("This account has been locked");
+
+            PopulateSession(authRepo, userAuth, session);
+
+            session.IsAuthenticated = true;
+
+            if (session.UserAuthName == null)
+                session.UserAuthName = userName;
+
+            var response = OnAuthenticated(authService, session, null, null);
+            if (response != null)
+                return response;
+
+            return new AuthenticateResponse
+            {
+                UserId = session.UserAuthId,
+                UserName = userName,
+                SessionId = session.Id,
+                ReferrerUrl = referrerUrl
+            };
         }
 
         public override IHttpResult OnAuthenticated(IServiceBase authService, IAuthSession session, IAuthTokens tokens, Dictionary<string, string> authInfo)
@@ -122,15 +178,41 @@ namespace ServiceStack.Auth
             {
                 LoadUserAuthInfo(userSession, tokens, authInfo);
                 HostContext.TryResolve<IAuthMetadataProvider>().SafeAddMetadata(tokens, authInfo);
+
+                if (LoadUserAuthFilter != null)
+                {
+                    LoadUserAuthFilter(userSession, tokens, authInfo);
+                }
             }
 
             var authRepo = authService.TryResolve<IAuthRepository>();
+
+            if (CustomValidationFilter != null)
+            {
+                var ctx = new AuthContext
+                {
+                    Request = authService.Request,
+                    Service = authService,
+                    AuthProvider = this,
+                    Session = session,
+                    AuthTokens = tokens,
+                    AuthInfo = authInfo,
+                    AuthRepository = authRepo,
+                };
+                var response = CustomValidationFilter(ctx);
+                if (response != null)
+                {
+                    authService.RemoveSession();
+                    return response;
+                }
+            }
+
             if (authRepo != null)
             {
                 if (tokens != null)
                 {
                     authInfo.ForEach((x, y) => tokens.Items[x] = y);
-                    session.UserAuthId = authRepo.CreateOrMergeAuthSession(session, tokens);
+                    session.UserAuthId = authRepo.CreateOrMergeAuthSession(session, tokens).UserAuthId.ToString();
                 }
 
                 foreach (var oAuthToken in session.ProviderOAuthAccess)

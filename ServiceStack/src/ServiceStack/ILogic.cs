@@ -67,7 +67,7 @@ namespace ServiceStack
         {
             get
             {
-                return cache ?? (cache = RedisManager != null ? RedisManager.GetCacheClient() : null);
+                return cache ?? (cache = RedisManager != null ? RedisManager.GetCacheClient() : ServiceExtensions.DefaultCache);
             }
             set { cache = value; }
         }
@@ -88,7 +88,7 @@ namespace ServiceStack
 
             MessageProducer.Publish(message);
         }
-        
+
         public override void Dispose()
         {
             base.Dispose();

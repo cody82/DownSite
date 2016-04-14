@@ -54,44 +54,34 @@ namespace ServiceStack
         /// <returns></returns>
         public static string BaseConvert(this string source, int from, int to)
         {
-            const string chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            var chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            var len = source.Length;
+            if (len == 0)
+                throw new Exception(string.Format("Parameter: '{0}' is not valid integer (in base {1}).", source, from));
+            var minus = source[0] == '-' ? "-" : "";
+            var src = minus == "" ? source : source.Substring(1);
+            len = src.Length;
+            if (len == 0)
+                throw new Exception(string.Format("Parameter: '{0}' is not valid integer (in base {1}).", source, from));
+
+            var d = 0;
+            for (int i = 0; i < len; i++) // Convert to decimal
+            {
+                int c = chars.IndexOf(src[i]);
+                if (c >= from)
+                    throw new Exception(string.Format("Parameter: '{0}' is not valid integer (in base {1}).", source, from));
+                d = d * from + c;
+            }
+            if (to == 10 || d == 0)
+                return minus + d;
+
             var result = "";
-            var length = source.Length;
-            var number = new int[length];
-
-            for (var i = 0; i < length; i++)
+            while (d > 0)   // Convert to desired
             {
-                number[i] = chars.IndexOf(source[i]);
+                result = chars[d % to] + result;
+                d /= to;
             }
-
-            int newlen;
-
-            do
-            {
-                var divide = 0;
-                newlen = 0;
-
-                for (var i = 0; i < length; i++)
-                {
-                    divide = divide * @from + number[i];
-
-                    if (divide >= to)
-                    {
-                        number[newlen++] = divide / to;
-                        divide = divide % to;
-                    }
-                    else if (newlen > 0)
-                    {
-                        number[newlen++] = 0;
-                    }
-                }
-
-                length = newlen;
-                result = chars[divide] + result;
-            }
-            while (newlen != 0);
-
-            return result;
+            return minus + result;
         }
 
         public static string EncodeXml(this string value)
@@ -358,7 +348,7 @@ namespace ServiceStack
             var pos = strVal.IndexOf(needle);
             return pos == -1
                 ? new[] { strVal }
-                : new[] { strVal.Substring(0, pos), strVal.Substring(pos + 1) };
+                : new[] { strVal.Substring(0, pos), strVal.Substring(pos + needle.Length) };
         }
 
         public static string[] SplitOnLast(this string strVal, char needle)
@@ -376,18 +366,28 @@ namespace ServiceStack
             var pos = strVal.LastIndexOf(needle);
             return pos == -1
                 ? new[] { strVal }
-                : new[] { strVal.Substring(0, pos), strVal.Substring(pos + 1) };
+                : new[] { strVal.Substring(0, pos), strVal.Substring(pos + needle.Length) };
         }
 
         public static string WithoutExtension(this string filePath)
         {
-            if (String.IsNullOrEmpty(filePath)) return null;
+            if (string.IsNullOrEmpty(filePath)) 
+                return null;
 
             var extPos = filePath.LastIndexOf('.');
             if (extPos == -1) return filePath;
 
             var dirPos = filePath.LastIndexOfAny(DirSeps);
             return extPos > dirPos ? filePath.Substring(0, extPos) : filePath;
+        }
+
+        public static string GetExtension(this string filePath)
+        {
+            if (string.IsNullOrEmpty(filePath)) 
+                return null;
+
+            var extPos = filePath.LastIndexOf('.');
+            return extPos == -1 ? string.Empty : filePath.Substring(extPos);
         }
 
         static readonly char[] DirSeps = new[] { '\\', '/' };
@@ -440,6 +440,21 @@ namespace ServiceStack
         public static string Fmt(this string text, params object[] args)
         {
             return String.Format(text, args);
+        }
+
+        public static string Fmt(this string text, object arg1)
+        {
+            return String.Format(text, arg1);
+        }
+
+        public static string Fmt(this string text, object arg1, object arg2)
+        {
+            return String.Format(text, arg1, arg2);
+        }
+
+        public static string Fmt(this string text, object arg1, object arg2, object arg3)
+        {
+            return String.Format(text, arg1, arg2, arg3);
         }
 
         public static bool StartsWithIgnoreCase(this string text, string startsWith)
@@ -531,6 +546,15 @@ namespace ServiceStack
             return String.IsNullOrEmpty(html) ? null : StripHtmlRegEx.Replace(html, "");
         }
 
+        public static string StripQuotes(this string text)
+        {
+            return string.IsNullOrEmpty(text) || text.Length < 2
+                ? text
+                : text[0] == '"' && text[text.Length - 1] == '"'
+                    ? text.Substring(1, text.Length - 2)
+                    : text;
+        }
+
         static readonly Regex StripBracketsRegEx = new Regex(@"\[(.|\n)*?\]", PclExport.Instance.RegexOptions);
         static readonly Regex StripBracesRegEx = new Regex(@"\((.|\n)*?\)", PclExport.Instance.RegexOptions);
 
@@ -552,7 +576,7 @@ namespace ServiceStack
         private const int LowerCaseOffset = 'a' - 'A';
         public static string ToCamelCase(this string value)
         {
-            if (String.IsNullOrEmpty(value)) return value;
+            if (string.IsNullOrEmpty(value)) return value;
 
             var len = value.Length;
             var newValue = new char[len];
@@ -574,6 +598,26 @@ namespace ServiceStack
             }
 
             return new string(newValue);
+        }
+
+        public static string ToPascalCase(this string value)
+        {
+            if (string.IsNullOrEmpty(value)) return value;
+
+            if (value.IndexOf('_') >= 0)
+            {
+                var parts = value.Split('_');
+                var sb = new StringBuilder();
+                foreach (var part in parts)
+                {
+                    var str = part.ToCamelCase();
+                    sb.Append(Char.ToUpper(str[0]) + str.SafeSubstring(1, str.Length));
+                }
+                return sb.ToString();
+            }
+
+            var camelCase = value.ToCamelCase();
+            return Char.ToUpper(camelCase[0]) + camelCase.SafeSubstring(1, camelCase.Length);
         }
 
         public static string ToTitleCase(this string value)
@@ -602,6 +646,16 @@ namespace ServiceStack
             return sb.ToString();
         }
 
+        public static string ToLowerSafe(this string value)
+        {
+            return value != null ? value.ToLower() : null;
+        }
+
+        public static string ToUpperSafe(this string value)
+        {
+            return value != null ? value.ToUpper() : null;
+        }
+
         public static string SafeSubstring(this string value, int startIndex)
         {
             return SafeSubstring(value, startIndex, value.Length);
@@ -609,7 +663,7 @@ namespace ServiceStack
 
         public static string SafeSubstring(this string value, int startIndex, int length)
         {
-            if (String.IsNullOrEmpty(value)) return String.Empty;
+            if (string.IsNullOrEmpty(value)) return string.Empty;
             if (value.Length >= (startIndex + length))
                 return value.Substring(startIndex, length);
 
@@ -773,17 +827,20 @@ namespace ServiceStack
         public static bool IsUserType(this Type type)
         {
             return type.IsClass()
-                && type.Namespace != null
-                && !type.Namespace.StartsWith("System")
-                && type.Name.IndexOfAny(SystemTypeChars) == -1;
+                && !type.IsSystemType();
         }
 
         public static bool IsUserEnum(this Type type)
         {
             return type.IsEnum()
-                && type.Namespace != null
-                && !type.Namespace.StartsWith("System")
-                && type.Name.IndexOfAny(SystemTypeChars) == -1;
+                && !type.IsSystemType();
+        }
+
+        public static bool IsSystemType(this Type type)
+        {
+            return type.Namespace == null
+                || type.Namespace.StartsWith("System")
+                || type.Name.IndexOfAny(SystemTypeChars) >= 0;
         }
 
         public static bool IsInt(this string text)
@@ -946,7 +1003,14 @@ namespace ServiceStack
             return count;
         }
 
-#if !XBOX
+        public static string NormalizeNewLines(this string text)
+        {
+            return text != null
+                ? text.Replace("\r\n", "\n")
+                : null;
+        }
+
+#if !LITE
         public static string HexEscape(this string text, params char[] anyCharOf)
         {
             if (String.IsNullOrEmpty(text)) return text;

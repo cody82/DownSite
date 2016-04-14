@@ -59,10 +59,8 @@ namespace ServiceStack.Host.Handlers
             var responseMessage = Send(null);
 
             context.Response.ContentType = GetSoapContentType(context.Request.ContentType);
-            using (var writer = XmlWriter.Create(context.Response.OutputStream))
-            {
-                responseMessage.WriteMessage(writer);
-            }
+
+            HostContext.AppHost.WriteSoapMessage(context.Request.ToRequest(), responseMessage, context.Response.OutputStream);
         }
 
         public override void ProcessRequest(IRequest httpReq, IResponse httpRes, string operationName)
@@ -79,10 +77,7 @@ namespace ServiceStack.Host.Handlers
             if (httpRes.IsClosed)
                 return;
 
-            using (var writer = XmlWriter.Create(httpRes.OutputStream))
-            {
-                responseMessage.WriteMessage(writer);
-            }
+            HostContext.AppHost.WriteSoapMessage(httpReq, responseMessage, httpRes.OutputStream);
         }
     }
 

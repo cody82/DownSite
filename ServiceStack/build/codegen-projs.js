@@ -20,19 +20,29 @@ String.prototype.lines = function() {
     return this.replace(/\r/g, '').split('\n');
 };
 
+
 var SIGN_PROJS = [
     '../../ServiceStack.Text/src/ServiceStack.Text/ServiceStack.Text.csproj',
     '../../ServiceStack.Redis/src/ServiceStack.Redis/ServiceStack.Redis.csproj',
     '../../ServiceStack.OrmLite/src/ServiceStack.OrmLite/ServiceStack.OrmLite.csproj',
+    '../../ServiceStack.OrmLite/src/ServiceStack.OrmLiteV45/ServiceStack.OrmLiteV45.csproj',
     '../../ServiceStack.OrmLite/src/ServiceStack.OrmLite.SqlServer/ServiceStack.OrmLite.SqlServer.csproj',
+    '../../ServiceStack.OrmLite/src/ServiceStack.OrmLite.SqlServerV45/ServiceStack.OrmLite.SqlServerV45.csproj',
+    '../../ServiceStack.OrmLite/src/ServiceStack.OrmLite.SqlServer.Converters/ServiceStack.OrmLite.SqlServer.Converters.csproj',
     '../../ServiceStack.OrmLite/src/ServiceStack.OrmLite.Oracle/ServiceStack.OrmLite.Oracle.csproj',
     '../../ServiceStack.OrmLite/src/ServiceStack.OrmLite.Sqlite.Windows/ServiceStack.OrmLite.Sqlite.Windows.csproj',
+    '../../ServiceStack.OrmLite/src/ServiceStack.OrmLite.MySql/ServiceStack.OrmLite.MySql.csproj',
+    '../../ServiceStack.OrmLite/src/ServiceStack.OrmLite.MySqlV45/ServiceStack.OrmLite.MySqlV45.csproj',
     '../src/ServiceStack.Common/ServiceStack.Common.csproj',
     '../src/ServiceStack.Client/ServiceStack.Client.csproj',
     '../src/ServiceStack.Server/ServiceStack.Server.csproj',
+    '../src/ServiceStack.ServerV45/ServiceStack.ServerV45.csproj',
     '../src/ServiceStack.Razor/ServiceStack.Razor.csproj',
     '../src/ServiceStack.ProtoBuf/ServiceStack.ProtoBuf.csproj',
     '../src/ServiceStack.Api.Swagger/ServiceStack.Api.Swagger.csproj',
+    '../src/ServiceStack.Authentication.OAuth2/ServiceStack.Authentication.OAuth2.csproj',
+    '../src/ServiceStack.Mvc/ServiceStack.Mvc.csproj',
+    '../../Admin/src/ServiceStack.Admin/ServiceStack.Admin.csproj',
     '../src/ServiceStack/ServiceStack.csproj'
 ];
 var SIGN_REPLACE_TEXTS = {
@@ -40,9 +50,13 @@ var SIGN_REPLACE_TEXTS = {
     '<HintPath>..\\..\\lib\\ServiceStack.Common.dll</HintPath>': '<HintPath>..\\..\\lib\\signed\\ServiceStack.Common.dll</HintPath>',
     '<HintPath>..\\..\\lib\\ServiceStack.Redis.dll</HintPath>': '<HintPath>..\\..\\lib\\signed\\ServiceStack.Redis.dll</HintPath>',
     '<HintPath>..\\..\\lib\\ServiceStack.OrmLite.dll</HintPath>': '<HintPath>..\\..\\lib\\signed\\ServiceStack.OrmLite.dll</HintPath>',
+    '<HintPath>..\\..\\lib\\ServiceStack.dll</HintPath>': '<HintPath>..\\..\\lib\\signed\\ServiceStack.dll</HintPath>',
+    '<HintPath>..\\..\\lib\\ServiceStack.Server.dll</HintPath>': '<HintPath>..\\..\\lib\\signed\\ServiceStack.Server.dll</HintPath>',
+    '<HintPath>..\\..\\lib\\net45\\ServiceStack.OrmLite.dll</HintPath>': '<HintPath>..\\..\\lib\\net45\\signed\\ServiceStack.OrmLite.dll</HintPath>',
     '<HintPath>..\\..\\lib\\ServiceStack.OrmLite.SqlServer.dll</HintPath>': '<HintPath>..\\..\\lib\\signed\\ServiceStack.OrmLite.SqlServer.dll</HintPath>',
     '<ProjectReference Include="..\\ServiceStack.Common\\ServiceStack.Common.csproj">': '<ProjectReference Include="..\\ServiceStack.Common\\ServiceStack.Common.Signed.csproj">',
     '<ProjectReference Include="..\\ServiceStack.Client\\ServiceStack.Client.csproj">': '<ProjectReference Include="..\\ServiceStack.Client\\ServiceStack.Client.Signed.csproj">',
+    '<ProjectReference Include="..\\ServiceStack.Server\\ServiceStack.Server.csproj">': '<ProjectReference Include="..\\ServiceStack.Server\\ServiceStack.Server.Signed.csproj">',
     '<ProjectReference Include="..\\ServiceStack\\ServiceStack.csproj">': '<ProjectReference Include="..\\ServiceStack\\ServiceStack.Signed.csproj">'
 };
 

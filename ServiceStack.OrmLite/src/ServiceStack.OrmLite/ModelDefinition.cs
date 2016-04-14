@@ -58,11 +58,17 @@ namespace ServiceStack.OrmLite
 
         public Type ModelType { get; set; }
 
-        public string SqlSelectAllFromTable { get; set; }
-
         public FieldDefinition PrimaryKey
         {
             get { return this.FieldDefinitions.First(x => x.IsPrimaryKey); }
+        }
+
+        public object GetPrimaryKey(object instance)
+        {
+            var pk = PrimaryKey;
+            return pk != null
+                ? pk.GetValue(instance)
+                : instance.GetId();
         }
 
         public List<FieldDefinition> FieldDefinitions { get; set; }
@@ -90,24 +96,22 @@ namespace ServiceStack.OrmLite
         private readonly object fieldDefLock = new object();
         private Dictionary<string, FieldDefinition> fieldDefinitionMap;
         private Func<string, string> fieldNameSanitizer;
+
         public Dictionary<string, FieldDefinition> GetFieldDefinitionMap(Func<string, string> sanitizeFieldName)
         {
-            if (fieldDefinitionMap == null || fieldNameSanitizer != sanitizeFieldName)
+            lock (fieldDefLock)
             {
-                lock (fieldDefLock)
+                if (fieldDefinitionMap != null && fieldNameSanitizer == sanitizeFieldName) 
+                    return fieldDefinitionMap;
+                
+                fieldDefinitionMap = new Dictionary<string, FieldDefinition>(StringComparer.OrdinalIgnoreCase);
+                fieldNameSanitizer = sanitizeFieldName;
+                foreach (var fieldDef in FieldDefinitionsArray)
                 {
-                    if (fieldDefinitionMap == null || fieldNameSanitizer != sanitizeFieldName)
-                    {
-                        fieldDefinitionMap = new Dictionary<string, FieldDefinition>(StringComparer.OrdinalIgnoreCase);
-                        fieldNameSanitizer = sanitizeFieldName;
-                        foreach (var fieldDef in FieldDefinitionsArray)
-                        {
-                            fieldDefinitionMap[sanitizeFieldName(fieldDef.FieldName)] = fieldDef;
-                        }
-                    }
+                    fieldDefinitionMap[sanitizeFieldName(fieldDef.FieldName)] = fieldDef;
                 }
+                return fieldDefinitionMap;
             }
-            return fieldDefinitionMap;
         }
 
         public List<CompositeIndexAttribute> CompositeIndexes { get; set; }
@@ -116,6 +120,11 @@ namespace ServiceStack.OrmLite
         {
             var fn = GetFieldName(field);
             return FieldDefinitions.First(f => f.Name == fn);
+        }
+
+        public FieldDefinition GetFieldDefinition(string fieldName)
+        {
+            return FieldDefinitions.FirstOrDefault(f => f.Name == fieldName);
         }
 
         string GetFieldName<T>(Expression<Func<T, object>> field)
@@ -140,10 +149,18 @@ namespace ServiceStack.OrmLite
             var allItems = new List<FieldDefinition>(FieldDefinitions);
             allItems.AddRange(IgnoredFieldDefinitions);
             allFieldDefinitionsArray = allItems.ToArray();
+        }
 
-            SqlSelectAllFromTable = "SELECT {0} FROM {1} "
-                .Fmt(OrmLiteConfig.DialectProvider.GetColumnNames(this),
-                     OrmLiteConfig.DialectProvider.GetQuotedTableName(this));
+        public bool IsRefField(FieldDefinition fieldDef)
+        {
+            return (fieldDef.Alias != null && IsRefField(fieldDef.Alias))
+                    || IsRefField(fieldDef.Name);
+        }
+
+        private bool IsRefField(string name)
+        {
+            return (Alias != null && Alias + "Id" == name)
+                    || Name + "Id" == name;
         }
     }
 

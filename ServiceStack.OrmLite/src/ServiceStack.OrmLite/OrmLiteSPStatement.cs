@@ -4,13 +4,43 @@ using System.Data;
 
 namespace ServiceStack.OrmLite
 {
-    public class OrmLiteSPStatement
+    public class OrmLiteSPStatement : IDisposable
     {
-        private IDbCommand command { get; set; }
+        private readonly IDbConnection db;
+        private readonly IDbCommand dbCmd;
+        private readonly IOrmLiteDialectProvider dialectProvider;
 
-        public OrmLiteSPStatement(IDbCommand cmd)
+        public bool TryGetParameterValue(string parameterName, out object value)
         {
-            command = cmd;
+            try
+            {
+                value = ((IDataParameter)dbCmd.Parameters[parameterName]).Value;
+                return true;
+            }
+            catch(Exception)
+            {
+                value = null;
+                return false;
+            }
+        }
+
+        public int ReturnValue
+        {
+            get
+            {
+                var returnValue = ((IDataParameter)dbCmd.Parameters["__ReturnValue"]).Value;
+                return (int)returnValue;
+            }
+        }
+
+        public OrmLiteSPStatement(IDbCommand dbCmd)
+            : this(null, dbCmd) {}
+
+        public OrmLiteSPStatement(IDbConnection db, IDbCommand dbCmd)
+        {
+            this.db = db;
+            this.dbCmd = dbCmd;
+            dialectProvider = dbCmd.GetDialectProvider();
         }
 
         public List<T> ConvertToList<T>()
@@ -21,8 +51,8 @@ namespace ServiceStack.OrmLite
             IDataReader reader = null;
             try
             {
-                reader = command.ExecuteReader();
-                return reader.ConvertToList<T>();
+                reader = dbCmd.ExecuteReader();
+                return reader.ConvertToList<T>(dialectProvider);
             }
             finally
             {
@@ -33,14 +63,14 @@ namespace ServiceStack.OrmLite
 
         public List<T> ConvertToScalarList<T>()
         {
-            if (!((typeof(T).IsPrimitive) || (typeof(T) == typeof(string)) || (typeof(T) == typeof(String))))
+            if (!((typeof(T).IsPrimitive) || typeof(T).IsValueType || (typeof(T) == typeof(string)) || (typeof(T) == typeof(String))))
                 throw new Exception("Type " + typeof(T).Name + " is a non primitive type. Use ConvertToList function.");
 
             IDataReader reader = null;
             try
             {
-                reader = command.ExecuteReader();
-                return reader.Column<T>();
+                reader = dbCmd.ExecuteReader();
+                return reader.Column<T>(dialectProvider);
             }
             finally
             {
@@ -57,8 +87,8 @@ namespace ServiceStack.OrmLite
             IDataReader reader = null;
             try
             {
-                reader = command.ExecuteReader();
-                return reader.ConvertTo<T>();
+                reader = dbCmd.ExecuteReader();
+                return reader.ConvertTo<T>(dialectProvider);
             }
             finally
             {
@@ -69,14 +99,14 @@ namespace ServiceStack.OrmLite
 
         public T ConvertToScalar<T>()
         {
-            if (!((typeof(T).IsPrimitive) || (typeof(T) == typeof(string)) || (typeof(T) == typeof(String))))
+            if (!((typeof(T).IsPrimitive) || typeof(T).IsValueType || (typeof(T) == typeof(string)) || (typeof(T) == typeof(String))))
                 throw new Exception("Type " + typeof(T).Name + " is a non primitive type. Use ConvertTo function.");
 
             IDataReader reader = null;
             try
             {
-                reader = command.ExecuteReader();
-                return reader.Scalar<T>();
+                reader = dbCmd.ExecuteReader();
+                return reader.Scalar<T>(dialectProvider);
             }
             finally
             {
@@ -87,14 +117,14 @@ namespace ServiceStack.OrmLite
 
         public List<T> ConvertFirstColumnToList<T>()
         {
-            if (!((typeof(T).IsPrimitive) || (typeof(T) == typeof(string)) || (typeof(T) == typeof(String))))
+            if (!((typeof(T).IsPrimitive) || typeof(T).IsValueType || (typeof(T) == typeof(string)) || (typeof(T) == typeof(String))))
                 throw new Exception("Type " + typeof(T).Name + " is a non primitive type. Only primitive type can be used.");
 
             IDataReader reader = null;
             try
             {
-                reader = command.ExecuteReader();
-                return reader.Column<T>();
+                reader = dbCmd.ExecuteReader();
+                return reader.Column<T>(dialectProvider);
             }
             finally
             {
@@ -105,14 +135,14 @@ namespace ServiceStack.OrmLite
 
         public HashSet<T> ConvertFirstColumnToListDistinct<T>()
         {
-            if (!((typeof(T).IsPrimitive) || (typeof(T) == typeof(string)) || (typeof(T) == typeof(String))))
+            if (!((typeof(T).IsPrimitive) || typeof(T).IsValueType || (typeof(T) == typeof(string)) || (typeof(T) == typeof(String))))
                 throw new Exception("Type " + typeof(T).Name + " is a non primitive type. Only primitive type can be used.");
 
             IDataReader reader = null;
             try
             {
-                reader = command.ExecuteReader();
-                return reader.ColumnDistinct<T>();
+                reader = dbCmd.ExecuteReader();
+                return reader.ColumnDistinct<T>(dialectProvider);
             }
             finally
             {
@@ -123,7 +153,7 @@ namespace ServiceStack.OrmLite
 
         public int ExecuteNonQuery()
         {
-            return command.ExecuteNonQuery();
+            return dbCmd.ExecuteNonQuery();
         }
 
         public bool HasResult()
@@ -131,7 +161,7 @@ namespace ServiceStack.OrmLite
             IDataReader reader = null;
             try
             {
-                reader = command.ExecuteReader();
+                reader = dbCmd.ExecuteReader();
                 if (reader.Read())
                     return true;
                 else
@@ -142,6 +172,11 @@ namespace ServiceStack.OrmLite
                 if (reader != null)
                     reader.Close();
             }
+        }
+
+        public void Dispose()
+        {
+            dialectProvider.GetExecFilter().DisposeCommand(this.dbCmd, this.db);
         }
     }
 }

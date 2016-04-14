@@ -2,9 +2,11 @@
 //License: https://raw.github.com/ServiceStack/ServiceStack/master/license.txt
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using ServiceStack.Logging;
+using ServiceStack.Text;
 using ServiceStack.Web;
 
 namespace ServiceStack.Host.HttpListener
@@ -15,16 +17,20 @@ namespace ServiceStack.Host.HttpListener
 
         private readonly System.Net.HttpListenerResponse response;
 
-        public ListenerResponse(System.Net.HttpListenerResponse response)
+        public ListenerResponse(HttpListenerResponse response, IRequest request = null)
         {
             this.response = response;
+            this.Request = request;
             this.Cookies = new Cookies(this);
+            this.Items = new Dictionary<string, object>();
         }
 
         public object OriginalResponse
         {
             get { return response; }
         }
+
+        public IRequest Request { get; private set; }
 
         public int StatusCode
         {
@@ -44,8 +50,6 @@ namespace ServiceStack.Host.HttpListener
             set { response.ContentType = value; }
         }
 
-        public ICookies Cookies { get; set; }
-
         public void AddHeader(string name, string value)
         {
             response.AddHeader(name, value);
@@ -56,35 +60,35 @@ namespace ServiceStack.Host.HttpListener
             response.Redirect(url);
         }
 
-        private MemoryStream bufferedStream;
+        public MemoryStream BufferedStream { get; set; }
         public Stream OutputStream
         {
-            get { return bufferedStream ?? response.OutputStream; }
+            get { return BufferedStream ?? response.OutputStream; }
         }
 
         public bool UseBufferedStream
         {
-            get { return bufferedStream != null; }
+            get { return BufferedStream != null; }
             set
             {
-                bufferedStream = value
-                    ? bufferedStream ?? new MemoryStream()
+                BufferedStream = value
+                    ? BufferedStream ?? new MemoryStream()
                     : null;
             }
         }
 
         private void FlushBufferIfAny()
         {
-            if (bufferedStream == null)
+            if (BufferedStream == null)
                 return;
 
-            var bytes = bufferedStream.ToArray();
+            var bytes = BufferedStream.ToArray();
             try {
                 SetContentLength(bytes.LongLength); //safe to set Length in Buffered Response
             } catch {}
 
             response.OutputStream.Write(bytes, 0, bytes.Length);
-            bufferedStream = new MemoryStream();
+            BufferedStream = MemoryStreamFactory.GetStream();
         }
 
         public object Dto { get; set; }
@@ -157,10 +161,22 @@ namespace ServiceStack.Host.HttpListener
             set { response.KeepAlive = true; }
         }
 
+        public Dictionary<string, object> Items { get; private set; }
+
+        public ICookies Cookies { get; set; }
+
         public void SetCookie(Cookie cookie)
         {
+            if (!HostContext.AppHost.AllowSetCookie(Request, cookie.Name))
+                return;
+
             var cookieStr = cookie.AsHeaderValue();
             response.Headers.Add(HttpHeaders.SetCookie, cookieStr);            
+        }
+
+        public void ClearCookies()
+        {
+            response.Headers.Remove(HttpHeaders.SetCookie);
         }
     }
 

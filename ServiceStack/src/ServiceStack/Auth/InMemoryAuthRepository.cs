@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,7 +9,7 @@ namespace ServiceStack.Auth
     /// <summary>
     /// Thread-safe In memory UserAuth data store so it can be used without a dependency on Redis.
     /// </summary>
-    public class InMemoryAuthRepository : RedisAuthRepository
+    public class InMemoryAuthRepository : RedisAuthRepository, IDisposable 
     {
         public static readonly InMemoryAuthRepository Instance = new InMemoryAuthRepository();
 
@@ -22,13 +23,13 @@ namespace ServiceStack.Auth
 
             private TypedData()
             {
-                lock (InMemoryAuthRepository.Instance.TrackedTypes) 
+                lock (InMemoryAuthRepository.Instance.TrackedTypes)
                     InMemoryAuthRepository.Instance.TrackedTypes.Add(this);
             }
 
             internal readonly List<T> Items = new List<T>();
             internal int Sequence = 0;
-            
+
             public void Clear()
             {
                 lock (Items) Items.Clear();
@@ -36,7 +37,8 @@ namespace ServiceStack.Auth
             }
         }
 
-        public InMemoryAuthRepository() : base(new InMemoryManagerFacade(Instance))
+        public InMemoryAuthRepository()
+            : base(new InMemoryManagerFacade(Instance))
         {
             this.Sets = new Dictionary<string, HashSet<string>>();
             this.Hashes = new Dictionary<string, Dictionary<string, string>>();
@@ -45,7 +47,7 @@ namespace ServiceStack.Auth
         class InMemoryManagerFacade : IRedisClientManagerFacade
         {
             private readonly InMemoryAuthRepository root;
-            
+
             public InMemoryManagerFacade(InMemoryAuthRepository root)
             {
                 this.root = root;
@@ -107,6 +109,25 @@ namespace ServiceStack.Auth
                         return TypedData<T>.Instance.Items.Where(x => idsSet.Contains(x.ToId().ToString())).ToList();
                     }
                 }
+
+                public void DeleteById(string id)
+                {
+                    lock (TypedData<T>.Instance.Items)
+                    {
+                        TypedData<T>.Instance.Items.RemoveAll(x => x.GetId().ToString() == id);
+                    }
+                }
+
+                public void DeleteByIds(IEnumerable ids)
+                {
+                    var idsSet = new HashSet<object>();
+                    foreach (var id in ids) idsSet.Add(id.ToString());
+
+                    lock (TypedData<T>.Instance.Items)
+                    {
+                        TypedData<T>.Instance.Items.RemoveAll(x => idsSet.Contains(x.ToId().ToString()));
+                    }
+                }
             }
 
             public HashSet<string> GetAllItemsFromSet(string setId)
@@ -118,7 +139,7 @@ namespace ServiceStack.Auth
                 }
             }
 
-            public void Store<T>(T item) 
+            public void Store<T>(T item)
             {
                 if (Equals(item, default(T))) return;
 
@@ -132,6 +153,14 @@ namespace ServiceStack.Auth
                         return;
                     }
                     TypedData<T>.Instance.Items.Add(item);
+                }
+            }
+
+            public void DeleteById<T>(string id)
+            {
+                lock (TypedData<T>.Instance.Items)
+                {
+                    TypedData<T>.Instance.Items.RemoveAll(x => x.GetId().ToString() == id);
                 }
             }
 
@@ -203,5 +232,9 @@ namespace ServiceStack.Auth
             }
         }
 
+        public void Dispose()
+        {
+            Clear();
+        }
     }
 }

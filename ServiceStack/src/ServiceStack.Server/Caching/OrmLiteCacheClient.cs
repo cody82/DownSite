@@ -10,7 +10,7 @@ using ServiceStack.Text;
 
 namespace ServiceStack.Caching
 {
-    public class OrmLiteCacheClient : ICacheClient, IRequiresSchema
+    public class OrmLiteCacheClient : ICacheClient, IRequiresSchema, ICacheClientExtended, IRemoveByPattern
     {
         CacheEntry CreateEntry(string id, string data = null,
             DateTime? created = null, DateTime? expires = null)
@@ -141,22 +141,52 @@ namespace ServiceStack.Caching
             }
         }
 
+        private static bool UpdateIfExists<T>(IDbConnection db, string key, T value)
+        {
+            var exists = db.UpdateOnly(new CacheEntry
+                {
+                    Id = key,
+                    Data = db.Serialize(value),
+                    ModifiedDate = DateTime.UtcNow,
+                },
+                onlyFields: q => new { q.Data, q.ModifiedDate },
+                @where: q => q.Id == key) == 1;
+
+            return exists;
+        }
+
+        private static bool UpdateIfExists<T>(IDbConnection db, string key, T value, DateTime expiresAt)
+        {
+            var exists = db.UpdateOnly(new CacheEntry
+                {
+                    Id = key,
+                    Data = db.Serialize(value),
+                    ExpiryDate = expiresAt,
+                    ModifiedDate = DateTime.UtcNow,
+                },
+                onlyFields: q => new { q.Data, ExpiredDate = q.ExpiryDate, q.ModifiedDate },
+                @where: q => q.Id == key) == 1;
+
+            return exists;
+        }
+
         public bool Set<T>(string key, T value)
         {
             return Exec(db =>
             {
-                var exists = db.UpdateOnly(new CacheEntry
-                    {
-                        Id = key,
-                        Data = db.Serialize(value),
-                        ModifiedDate = DateTime.UtcNow,
-                    },
-                    onlyFields: q => new { q.Data, q.ModifiedDate },
-                    where: q => q.Id == key) == 1;
+                var exists = UpdateIfExists(db, key, value);
 
                 if (!exists)
                 {
-                    db.Insert(CreateEntry(key, db.Serialize(value)));
+                    try
+                    {
+                        db.Insert(CreateEntry(key, db.Serialize(value)));
+                    }
+                    catch (Exception)
+                    {
+                        exists = UpdateIfExists(db, key, value);
+                        if (!exists) throw;
+                    }
                 }
 
                 return true;
@@ -205,19 +235,18 @@ namespace ServiceStack.Caching
         {
             return Exec(db =>
             {
-                var exists = db.UpdateOnly(new CacheEntry
-                    {
-                        Id = key,
-                        Data = db.Serialize(value),
-                        ExpiryDate = expiresAt,
-                        ModifiedDate = DateTime.UtcNow,
-                    },
-                    onlyFields: q => new { q.Data, ExpiredDate = q.ExpiryDate, q.ModifiedDate },
-                    where: q => q.Id == key) == 1;
-
+                var exists = UpdateIfExists(db, key, value, expiresAt);
                 if (!exists)
                 {
-                    db.Insert(CreateEntry(key, db.Serialize(value), expires: expiresAt));
+                    try
+                    {
+                        db.Insert(CreateEntry(key, db.Serialize(value), expires: expiresAt));
+                    }
+                    catch (Exception)
+                    {
+                        exists = UpdateIfExists(db, key, value, expiresAt);
+                        if (!exists) throw;
+                    }
                 }
 
                 return true;
@@ -268,19 +297,18 @@ namespace ServiceStack.Caching
         {
             return Exec(db =>
             {
-                var exists = db.UpdateOnly(new CacheEntry
-                    {
-                        Id = key,
-                        Data = db.Serialize(value),
-                        ExpiryDate = DateTime.UtcNow.Add(expiresIn),
-                        ModifiedDate = DateTime.UtcNow,
-                    },
-                    onlyFields: q => new { q.Data, ExpiredDate = q.ExpiryDate, q.ModifiedDate },
-                    where: q => q.Id == key) == 1;
-
+                var exists = UpdateIfExists(db, key, value, DateTime.UtcNow.Add(expiresIn));
                 if (!exists)
                 {
-                    db.Insert(CreateEntry(key, db.Serialize(value), expires: DateTime.UtcNow.Add(expiresIn)));
+                    try
+                    {
+                        db.Insert(CreateEntry(key, db.Serialize(value), expires: DateTime.UtcNow.Add(expiresIn)));
+                    }
+                    catch (Exception)
+                    {
+                        exists = UpdateIfExists(db, key, value, DateTime.UtcNow.Add(expiresIn));
+                        if (!exists) throw;
+                    }
                 }
 
                 return true;
@@ -378,6 +406,50 @@ namespace ServiceStack.Caching
             return entry;
         }
 
+        public TimeSpan? GetTimeToLive(string key)
+        {
+            return Exec(db =>
+            {
+                var cache = db.SingleById<CacheEntry>(key);
+                if (cache == null)
+                    return null;
+
+                if (cache.ExpiryDate == null)
+                    return TimeSpan.MaxValue;
+
+                return cache.ExpiryDate - DateTime.UtcNow;
+            });
+        }
+
+        public void RemoveByPattern(string pattern)
+        {
+            Exec(db => {
+                var dbPattern = pattern.Replace('*', '%');
+                db.DeleteFmt<CacheEntry>(db.GetDialectProvider().GetQuotedColumnName("Id") + " LIKE {0}", dbPattern);
+            });
+        }
+
+        public IEnumerable<string> GetKeysByPattern(string pattern)
+        {
+            return Exec(db =>
+            {
+                if (pattern == "*")
+                    return db.Column<string>(db.From<CacheEntry>().Select(x => x.Id));
+
+                var dbPattern = pattern.Replace('*', '%');
+                var dialect = db.GetDialectProvider();
+                var id = dialect.GetQuotedColumnName("Id");
+
+                return db.Column<string>(db.From<CacheEntry>()
+                    .Where(id + " LIKE {0}", dbPattern));
+            });
+        }
+
+        public void RemoveByRegex(string regex)
+        {
+            throw new NotImplementedException();
+        }
+
         public void Dispose() { }
     }
 
@@ -391,17 +463,8 @@ namespace ServiceStack.Caching
         public DateTime ModifiedDate { get; set; }
     }
 
-    public static class CacheExtensions
+    public static class DbExtensions
     {
-        public static void InitSchema(this ICacheClient cache)
-        {
-            var requiresSchema = cache as IRequiresSchema;
-            if (requiresSchema != null)
-            {
-                requiresSchema.InitSchema();
-            }
-        }
-
         public static string Serialize<T>(this IDbConnection db, T value)
         {
             return db.GetDialectProvider().StringSerializer.SerializeToString(value);

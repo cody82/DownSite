@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using ServiceStack.IO;
+using ServiceStack.VirtualPath;
 
 namespace ServiceStack.VirtualPath
 {
@@ -58,9 +59,17 @@ namespace ServiceStack.VirtualPath
             }
         }
 
+        public virtual byte[] ReadAllBytes()
+        {
+            using (var stream = OpenRead())
+            {
+                return stream.ReadFully();
+            }
+        }
+
         public abstract Stream OpenRead();
 
-        protected virtual String GetVirtualPathToRoot()
+        protected virtual string GetVirtualPathToRoot()
         {
             return GetPathToRoot(VirtualPathProvider.VirtualPathSeparator, p => p.VirtualPath);
         }
@@ -76,7 +85,9 @@ namespace ServiceStack.VirtualPath
             if (parentPath == separator)
                 parentPath = string.Empty;
 
-            return string.Concat(parentPath, separator, Name);
+            return parentPath == null
+                ? Name
+                : string.Concat(parentPath, separator, Name);
         }
 
         public override bool Equals(object obj)
@@ -97,6 +108,10 @@ namespace ServiceStack.VirtualPath
         {
             return string.Format("{0} -> {1}", RealPath, VirtualPath);
         }
+
+        public virtual void Refresh()
+        {            
+        }
     }
 }
 
@@ -111,11 +126,24 @@ namespace ServiceStack
             {
                 foreach (var skipPath in appHost.Config.ScanSkipPaths)
                 {
-                    if (node.VirtualPath.StartsWith(skipPath, StringComparison.InvariantCultureIgnoreCase))
+                    if (node.VirtualPath.StartsWith(skipPath.TrimStart('/'), StringComparison.InvariantCultureIgnoreCase))
                         return true;
                 }
             }
             return false;
+        }
+
+        /// <summary>
+        /// Refresh file stats for this node if supported
+        /// </summary>
+        public static IVirtualFile Refresh(this IVirtualFile node)
+        {
+            var file = node as AbstractVirtualFileBase;
+            if (file != null)
+            {
+                file.Refresh();
+            }
+            return node;
         }
     }
     

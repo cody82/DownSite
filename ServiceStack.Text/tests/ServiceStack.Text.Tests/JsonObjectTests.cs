@@ -1,4 +1,6 @@
-﻿using NUnit.Framework;
+﻿using System.Collections.Generic;
+using System.Linq;
+using NUnit.Framework;
 
 namespace ServiceStack.Text.Tests
 {
@@ -72,6 +74,148 @@ namespace ServiceStack.Text.Tests
             var obj = objs[0];
 
             Assert.That(obj.Get("name"), Is.EqualTo("Demis Bellot TW"));
+        }
+
+        [Test]
+        public void Can_parse_ArrayObjects()
+        {
+            var data = new { key = new[] { "value1", "value2" } };
+            var json = data.ToJson();
+
+            Assert.That(json, Is.EqualTo(@"{""key"":[""value1"",""value2""]}"));
+
+            var value = JsonObject.Parse(json);
+            var dataObjects = value.Get<string[]>("key");
+
+            Assert.That(dataObjects[0], Is.EqualTo("value1"));
+            Assert.That(dataObjects[1], Is.EqualTo("value2"));
+        }
+
+        [Test]
+        public void Can_deserialize_JsonArray()
+        {
+            var json = @"
+                {
+                    ""projects"":[
+                        {
+                            ""name"": ""Project1""
+                        },
+                        {
+                            ""name"": ""Project2""
+                        },
+                        {
+                            ""name"": ""Project3""
+                        }
+                    ]
+                }";
+
+            var projects = JsonObject.Parse(json).ArrayObjects("projects");
+
+            var proj3Name = projects[2].Get("name");
+
+            Assert.That(proj3Name, Is.EqualTo("Project3"));
+        }
+
+        [Test]
+        public void Can_deserialize_JSON_Object()
+        {
+            var json = "{\"http://SomeUrl.com/\":{\"http://otherUrl.org/schema#name\":[{\"value\":\"val1\",\"type\":\"val2\"}]}}";
+
+            var obj = JsonObject.Parse(json)
+                .Object("http://SomeUrl.com/");
+
+            var items = obj.ArrayObjects("http://otherUrl.org/schema#name")[0];
+
+            Assert.That(items["value"], Is.EqualTo("val1"));
+            Assert.That(items["type"], Is.EqualTo("val2"));
+        }
+
+        public class Customer
+        {
+            public static List<object> Setters = new List<object>();
+
+            private string name;
+            private int age;
+            private string address;
+
+            public string Name
+            {
+                get { return name; }
+                set { name = value; Setters.Add(value); }
+            }
+
+            public int Age
+            {
+                get { return age; }
+                set { age = value; Setters.Add(value); }
+            }
+
+            public string Address
+            {
+                get { return address; }
+                set { address = value; Setters.Add(value); }
+            }
+        }
+
+        [Test]
+        public void Only_sets_Setters_with_JSON()
+        {
+            var dto = "{\"Name\":\"Foo\"}".FromJson<Customer>();
+
+            Assert.That(dto.Name, Is.EqualTo("Foo"));
+            Assert.That(Customer.Setters.Count, Is.EqualTo(1));
+            Assert.That(Customer.Setters[0], Is.EqualTo(dto.Name));
+        }
+
+        public class TypeObject
+        {
+            public string Prop1 { get; set; }
+            public int Prop2 { get; set; }
+            public bool Prop3 { get; set; }
+            public double Prop4 { get; set; }
+            public string[] Prop5 { get; set; }
+            public Dictionary<string,string> Prop6 { get; set; }
+        }
+
+        [Test]
+        public void Can_parse_dynamic_json()
+        {
+            var json = @"{
+              ""prop1"": ""text string"",
+              ""prop2"": 33,
+              ""prop3"": true,
+              ""prop4"": 6.3,
+              ""prop5"": [ ""A"", ""B"", ""C"" ],
+              ""prop6"": { ""A"" : ""a"" }
+            }";
+
+            var typeObj = json.FromJson<TypeObject>();
+
+            Assert.That(typeObj.Prop1, Is.EqualTo("text string"));
+            Assert.That(typeObj.Prop2, Is.EqualTo(33));
+            Assert.That(typeObj.Prop3, Is.EqualTo(true));
+            Assert.That(typeObj.Prop4, Is.EqualTo(6.3d));
+            Assert.That(typeObj.Prop5, Is.EquivalentTo(new[] {"A","B","C"}));
+            Assert.That(typeObj.Prop6, Is.EquivalentTo(new Dictionary<string,string> { { "A", "a" } }));
+
+            var obj = JsonObject.Parse(json);
+
+            var o = new TypeObject
+            {
+                Prop1 = obj["prop1"],
+                Prop2 = obj.Get<int>("prop2"),
+                Prop3 = obj.Get<bool>("prop3"),
+                Prop4 = obj.Get<double>("prop4"),
+                Prop5 = obj.Get<string[]>("prop5"),
+                Prop6 = obj.Object("prop6"),
+            };
+
+            Assert.That(o.Prop1, Is.EqualTo("text string"));
+            Assert.That(o.Prop2, Is.EqualTo(33));
+            Assert.That(o.Prop3, Is.EqualTo(true));
+            Assert.That(o.Prop4, Is.EqualTo(6.3d));
+            Assert.That(o.Prop5, Is.EquivalentTo(new[] { "A", "B", "C" }));
+            Assert.That(o.Prop6, Is.EquivalentTo(new Dictionary<string, string> { { "A", "a" } }));
         }
     }
 }

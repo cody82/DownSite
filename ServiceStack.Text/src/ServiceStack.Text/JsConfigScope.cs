@@ -1,9 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Diagnostics;
+using ServiceStack.Text.Common;
 
 namespace ServiceStack.Text
 {
@@ -44,8 +41,6 @@ namespace ServiceStack.Text
             if (!disposed)
             {
                 disposed = true;
-                Debug.Assert(this == head, "Disposed out of order.");
-
                 head = parent;
 
                 PclExport.Instance.EndThreadAffinity();
@@ -57,7 +52,9 @@ namespace ServiceStack.Text
 		public bool? TryToParseNumericType { get; set; }
 		public ParseAsType? ParsePrimitiveFloatingPointTypes { get; set; }
 		public ParseAsType? ParsePrimitiveIntegerTypes { get; set; }
+        public bool? ExcludeDefaultValues { get; set; }
         public bool? IncludeNullValues { get; set; }
+        public bool? IncludeNullValuesInDictionaries { get; set; }
         public bool? IncludeDefaultEnums { get; set; }
         public bool? TreatEnumAsInteger { get; set; }
         public bool? ExcludeTypeInfo { get; set; }
@@ -67,12 +64,14 @@ namespace ServiceStack.Text
         internal string JsvTypeAttrInObject { get; set; }
         public Func<Type, string> TypeWriter { get; set; }
         public Func<string, Type> TypeFinder { get; set; }
+        public Func<string, object> ParsePrimitiveFn { get; set; }
         public DateHandler? DateHandler { get; set; }
         public TimeSpanHandler? TimeSpanHandler { get; set; }
         public PropertyConvention? PropertyConvention { get; set; }
         public bool? EmitCamelCaseNames { get; set; }
         public bool? EmitLowercaseUnderscoreNames { get; set; }
         public bool? ThrowOnDeserializationError { get; set; }
+        public bool? SkipDateTimeConversion { get; set; }
         public bool? AlwaysUseUtc { get; set; }
         public bool? AssumeUtc { get; set; }
         public bool? AppendUtcOffset { get; set; }
@@ -81,6 +80,7 @@ namespace ServiceStack.Text
         public bool? IncludePublicFields { get; set; }
         public bool? ReuseStringBuffer { get; set; }
         public int? MaxDepth { get; set; }
+        public DeserializationErrorDelegate OnDeserializationError { get; set; }
         public EmptyCtorFactoryDelegate ModelFactory { get; set; }
         public string[] ExcludePropertyReferences { get; set; }
         public HashSet<Type> ExcludeTypes { get; set; }

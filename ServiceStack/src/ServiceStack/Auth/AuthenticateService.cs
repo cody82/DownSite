@@ -73,7 +73,7 @@ namespace ServiceStack.Auth
         private void AssertAuthProviders()
         {
             if (AuthProviders == null || AuthProviders.Length == 0)
-                throw new ConfigurationException("No OAuth providers have been registered in your AppHost.");
+                throw new ConfigurationErrorsException("No OAuth providers have been registered in your AppHost.");
         }
 
         public void Options(Authenticate request) { }
@@ -146,7 +146,7 @@ namespace ServiceStack.Auth
                 if (isHtml && request.provider != null)
                 {
                     if (alreadyAuthenticated)
-                        return this.Redirect(referrerUrl.AddHashParam("s", "0"));
+                        return this.Redirect(referrerUrl.SetParam("s", "0"));
 
                     if (!(response is IHttpResult) && !string.IsNullOrEmpty(referrerUrl))
                     {
@@ -163,7 +163,7 @@ namespace ServiceStack.Auth
                 var errorReferrerUrl = this.Request.GetHeader("Referer");
                 if (isHtml && errorReferrerUrl != null)
                 {
-                    errorReferrerUrl = errorReferrerUrl.AddHashParam("f", ex.Message.Localize(Request));
+                    errorReferrerUrl = errorReferrerUrl.SetParam("f", ex.Message.Localize(Request));
                     return HttpResult.Redirect(errorReferrerUrl);
                 }
 
@@ -224,10 +224,24 @@ namespace ServiceStack.Auth
             if (request.provider == null && request.UserName == null)
                 return null; //Just return sessionInfo if no provider or username is given
 
+            var authFeature = HostContext.GetPlugin<AuthFeature>();
+            var generateNewCookies = authFeature == null || authFeature.GenerateNewSessionCookiesOnAuthentication;
+
             object response = null;
             if (!oAuthConfig.IsAuthorized(session, session.GetOAuthTokens(provider), request))
             {
+                if (generateNewCookies)
+                    this.Request.GenerateNewSessionCookies(session);
+
                 response = oAuthConfig.Authenticate(this, session, request);
+            }
+            else
+            {
+                if (generateNewCookies)
+                {
+                    this.Request.GenerateNewSessionCookies(session);
+                    this.Request.SaveSession(session);
+                }
             }
             return response;
         }

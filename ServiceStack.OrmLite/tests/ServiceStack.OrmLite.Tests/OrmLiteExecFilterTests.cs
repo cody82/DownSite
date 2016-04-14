@@ -3,6 +3,7 @@ using System.Data;
 using System.Linq;
 using NUnit.Framework;
 using ServiceStack.Common.Tests.Models;
+using ServiceStack.OrmLite.Tests.Expression;
 using ServiceStack.OrmLite.Tests.Shared;
 using ServiceStack.Text;
 
@@ -14,7 +15,6 @@ namespace ServiceStack.OrmLite.Tests
 
         public override T Exec<T>(IDbConnection dbConn, System.Func<IDbCommand, T> filter)
         {
-            var holdProvider = OrmLiteConfig.DialectProvider;
             var dbCmd = CreateCommand(dbConn);
             try
             {
@@ -27,8 +27,7 @@ namespace ServiceStack.OrmLite.Tests
             }
             finally
             {
-                DisposeCommand(dbCmd);
-                OrmLiteConfig.DialectProvider = holdProvider;
+                DisposeCommand(dbCmd, dbConn);
             }
         }
     }
@@ -86,7 +85,7 @@ namespace ServiceStack.OrmLite.Tests
             using (var db = OpenDbConnection())
             {
                 var person = db.SqlScalar<Person>("exec sp_name @firstName, @age",
-                    new {firstName = "aName", age = 1});
+                    new { firstName = "aName", age = 1 });
 
                 Assert.That(person.FirstName, Is.EqualTo("Mocked"));
             }
@@ -110,6 +109,27 @@ namespace ServiceStack.OrmLite.Tests
             }
 
             OrmLiteConfig.StringFilter = null;
+        }
+
+        [Test]
+        public void Does_use_StringFilter_on_null_strings()
+        {
+            OrmLiteConfig.OnDbNullFilter = fieldDef => 
+                fieldDef.FieldType == typeof(string)
+                    ? "NULL"
+                    : null;
+
+            using (var db = OpenDbConnection())
+            {
+                db.DropAndCreateTable<ModelWithIdAndName>();
+
+                db.Insert(new ModelWithIdAndName { Name = null });
+                var row = db.Select<ModelWithIdAndName>().First();
+
+                Assert.That(row.Name, Is.EqualTo("NULL"));
+            }
+
+            OrmLiteConfig.OnDbNullFilter = null;
         }
     }
 }

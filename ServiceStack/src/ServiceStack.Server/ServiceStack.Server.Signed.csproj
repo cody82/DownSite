@@ -107,6 +107,7 @@
     <Compile Include="Caching\OrmLiteCacheClient.cs" />
     <Compile Include="Configuration\OrmLiteAppSettings.cs" />
     <Compile Include="AutoQueryFeature.cs" />
+    <Compile Include="Host\RedisRequestLogger.cs" />
     <Compile Include="Messaging\Redis\MessageHandlerWorker.cs" />
     <Compile Include="Messaging\Rcon\Client.cs" />
     <Compile Include="Messaging\Rcon\Packet.cs" />
@@ -118,6 +119,7 @@
     <Compile Include="Messaging\Rcon\Server.cs" />
     <Compile Include="MiniProfiler.Storage\SqlServerStorage.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RedisSequenceSource.cs" />
     <Compile Include="RedisServerEvents.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -151,9 +153,7 @@
       <Name>ServiceStack</Name>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Data\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

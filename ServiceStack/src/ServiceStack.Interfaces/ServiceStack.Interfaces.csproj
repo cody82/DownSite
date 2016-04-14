@@ -44,9 +44,11 @@
   <ItemGroup>
     <Compile Include="AttributeBase.cs" />
     <Compile Include="Auth\IUserAuth.cs" />
+    <Compile Include="AutoQueryViewerAttributes.cs" />
     <Compile Include="Caching\ICacheClient.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Caching\ICacheClientExtended.cs" />
     <Compile Include="Caching\IRemoveByPattern.cs" />
     <Compile Include="Caching\IDeflateProvider.cs">
       <SubType>Code</SubType>
@@ -74,15 +76,19 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="DataAnnotations\BelongToAttribute.cs" />
+    <Compile Include="DataAnnotations\CompositeKeyAttribute.cs" />
     <Compile Include="DataAnnotations\ComputeAttribute.cs" />
     <Compile Include="DataAnnotations\CustomFieldAttribute.cs" />
     <Compile Include="DataAnnotations\DescriptionAttribute.cs" />
+    <Compile Include="DataAnnotations\EnumAsIntAttribute.cs" />
     <Compile Include="DataAnnotations\ExcludeAttribute.cs" />
     <Compile Include="DataAnnotations\PostCreateTableAttribute.cs" />
     <Compile Include="DataAnnotations\PostDropTableAttribute.cs" />
     <Compile Include="DataAnnotations\PreCreateTableAttribute.cs" />
     <Compile Include="DataAnnotations\PreDropTableAttribute.cs" />
     <Compile Include="DataAnnotations\RangeAttribute.cs" />
+    <Compile Include="DataAnnotations\HashKeyAttribute.cs" />
+    <Compile Include="DataAnnotations\RangeKeyAttribute.cs" />
     <Compile Include="DataAnnotations\ReferenceAttribute.cs" />
     <Compile Include="DataAnnotations\DecimalLengthAttribute.cs" />
     <Compile Include="DataAnnotations\ForeignKeyAttribute.cs" />
@@ -132,17 +138,24 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Data\OptimisticConcurrencyException.cs" />
+    <Compile Include="ICompressor.cs" />
+    <Compile Include="IO\IVirtualFiles.cs" />
     <Compile Include="IO\IEndpoint.cs" />
     <Compile Include="IQuery.cs" />
     <Compile Include="IReceiver.cs" />
+    <Compile Include="IRequiresSchema.cs" />
     <Compile Include="IRestGateway.cs" />
-    <Compile Include="Logging\DebugLogFactory.cs" />
-    <Compile Include="Logging\DebugLogger.cs" />
+    <Compile Include="IEncryptedClient.cs" />
+    <Compile Include="ISequenceSource.cs" />
+    <Compile Include="IUrlFilter.cs" />
+    <Compile Include="Logging\GenericLogFactory.cs" />
+    <Compile Include="Logging\GenericLogger.cs" />
     <Compile Include="Logging\NullDebugLogger.cs" />
     <Compile Include="Logging\NullLogFactory.cs" />
     <Compile Include="Logging\StringBuilderLog.cs" />
     <Compile Include="Logging\TestLogFactory.cs" />
     <Compile Include="Logging\TestLogger.cs" />
+    <Compile Include="Messaging\IMessageHandler.cs" />
     <Compile Include="Messaging\MessagingException.cs" />
     <Compile Include="Model\IHasGuidId.cs">
       <SubType>Code</SubType>
@@ -166,12 +179,6 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Model\IHasStringId.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Model\IHasUserId.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Model\IHasUserSession.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="IO\IVirtualDirectory.cs" />
@@ -310,6 +317,8 @@
     <Compile Include="ApiResponse.cs" />
     <Compile Include="IService.cs" />
     <Compile Include="SwaggerType.cs" />
+    <Compile Include="NamedConnectionAttribute.cs" />
+    <Compile Include="UploadFile.cs" />
     <Compile Include="Web\INameValueCollection.cs" />
     <Compile Include="Web\IRequiresRequestStream.cs" />
     <Compile Include="RequestAttributes.cs">

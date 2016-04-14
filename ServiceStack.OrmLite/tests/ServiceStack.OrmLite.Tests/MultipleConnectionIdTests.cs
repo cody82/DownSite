@@ -138,9 +138,9 @@ namespace ServiceStack.OrmLite.Tests
                 return new PostExcuteActionCommand(innerCommand, _postExecuteAction);
             }
 
-            public void DisposeCommand(IDbCommand dbCmd)
+            public void DisposeCommand(IDbCommand dbCmd, IDbConnection dbConn)
             {
-                _inner.DisposeCommand(dbCmd);
+                _inner.DisposeCommand(dbCmd, dbConn);
             }
 
             public T Exec<T>(IDbConnection dbConn, Func<IDbCommand, T> filter)
@@ -152,8 +152,14 @@ namespace ServiceStack.OrmLite.Tests
                 }
                 finally
                 {
-                    DisposeCommand(cmd);
+                    DisposeCommand(cmd, dbConn);
                 }
+            }
+
+            public IDbCommand Exec(IDbConnection dbConn, Func<IDbCommand, IDbCommand> filter)
+            {
+                var cmd = CreateCommand(dbConn);
+                return filter(cmd);
             }
 
             public async Task<T> Exec<T>(IDbConnection dbConn, Func<IDbCommand, Task<T>> filter)
@@ -165,8 +171,14 @@ namespace ServiceStack.OrmLite.Tests
                 }
                 finally
                 {
-                    DisposeCommand(cmd);
+                    DisposeCommand(cmd, dbConn);
                 }
+            }
+
+            public async Task<IDbCommand> Exec(IDbConnection dbConn, Func<IDbCommand, Task<IDbCommand>> filter)
+            {
+                var cmd = CreateCommand(dbConn);
+                return await filter(cmd);
             }
 
             public void Exec(IDbConnection dbConn, Action<IDbCommand> filter)
@@ -178,7 +190,7 @@ namespace ServiceStack.OrmLite.Tests
                 }
                 finally
                 {
-                    DisposeCommand(cmd);
+                    DisposeCommand(cmd, dbConn);
                 }
             }
 
@@ -191,7 +203,7 @@ namespace ServiceStack.OrmLite.Tests
                 }
                 finally
                 {
-                    DisposeCommand(cmd);
+                    DisposeCommand(cmd, dbConn);
                 }
             }
 
@@ -209,7 +221,7 @@ namespace ServiceStack.OrmLite.Tests
                 }
                 finally
                 {
-                    DisposeCommand(cmd);
+                    DisposeCommand(cmd, dbConn);
                 }
             }
         }

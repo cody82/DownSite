@@ -133,14 +133,15 @@ namespace ServiceStack.WebHost.Endpoints.Tests
             catch (WebServiceException ex)
             {
                 Assert.That(ex.StatusCode, Is.EqualTo((int)HttpStatusCode.Forbidden));
-                Assert.That(ex.Message, Is.EqualTo("Forbidden Test"));
+                Assert.That(ex.ErrorCode, Is.EqualTo("Forbidden"));
+                Assert.That(ex.ErrorMessage, Is.EqualTo("Forbidden Test"));
             }            
         }
 
         [Test]
         public async Task VoidAsync()
         {
-            var response = await CreateServiceClient()
+            await CreateServiceClient()
                 .GetAsync(new VoidAsync { Message = "VoidAsync" });
         }
 
@@ -150,6 +151,15 @@ namespace ServiceStack.WebHost.Endpoints.Tests
             protected override IServiceClient CreateServiceClient()
             {
                 return new JsonServiceClient(Config.ListeningOn);
+            }
+        }
+
+        [TestFixture]
+        public class JsonHttpClientAsyncTaskTests : AsyncTaskTests
+        {
+            protected override IServiceClient CreateServiceClient()
+            {
+                return new JsonHttpClient(Config.ListeningOn);
             }
         }
 
@@ -305,7 +315,7 @@ namespace ServiceStack.WebHost.Endpoints.Tests
 
         public async Task<GetFactorialResponse> Any(ThrowErrorAwaitAsync request)
         {
-            throw new HttpError(System.Net.HttpStatusCode.Forbidden, request.Message ?? "Request is forbidden");
+            throw new HttpError(HttpStatusCode.Forbidden, HttpStatusCode.Forbidden.ToString(), request.Message ?? "Request is forbidden");
         }
 
         public async Task Any(VoidAsync request)
@@ -357,9 +367,44 @@ namespace ServiceStack.WebHost.Endpoints.Tests
         }
 
         [Test]
+        public void Load_test_GetFactorialSync_HttpClient_sync()
+        {
+            var client = new JsonHttpClient(Config.ListeningOn);
+
+            for (var i = 0; i < NoOfTimes; i++)
+            {
+                var response = client.Get(new GetFactorialSync { ForNumber = 3 });
+                if (i % 100 == 0)
+                {
+                    "{0}: {1}".Print(i, response.Result);
+                }
+            }
+        }
+
+        [Test]
         public async Task Load_test_GetFactorialSync_async()
         {
             var client = new JsonServiceClient(Config.ListeningOn);
+
+            int i = 0;
+
+            var fetchTasks = NoOfTimes.Times(() =>
+                client.GetAsync(new GetFactorialSync { ForNumber = 3 })
+                .ContinueWith(t =>
+                {
+                    if (++i % 100 == 0)
+                    {
+                        "{0}: {1}".Print(i, t.Result.Result);
+                    }
+                }));
+
+            await Task.WhenAll(fetchTasks);
+        }
+
+        [Test]
+        public async Task Load_test_GetFactorialSync_HttpClient_async()
+        {
+            var client = new JsonHttpClient(Config.ListeningOn);
 
             int i = 0;
 

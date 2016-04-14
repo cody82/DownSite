@@ -83,9 +83,6 @@
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
     <Reference Include="System.Xml" />
-    <Reference Include="ServiceStack.Text">
-      <HintPath>..\..\lib\ServiceStack.Text.dll</HintPath>
-    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AddHeaderAttribute.cs" />
@@ -94,8 +91,31 @@
     <Compile Include="AspNet\ServiceStackPage.cs">
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Compile Include="ConnectionInfo.cs" />
+    <Compile Include="ConnectionInfoAttribute.cs" />
+    <Compile Include="FluentValidation\Internal\CollectionPropertyRule.cs" />
+    <Compile Include="Host\Handlers\StaticContentHandler.cs" />
+    <Compile Include="NativeTypes\Kotlin\KotlinGenerator.cs" />
+    <Compile Include="RequiresSchemaProviders.cs" />
+    <Compile Include="CancellableRequestsFeature.cs" />
     <Compile Include="Configuration\EnvironmentVariableSettings.cs" />
     <Compile Include="Configuration\MultiAppSettings.cs" />
+    <Compile Include="EncryptedMessagesFeature.cs" />
+    <Compile Include="Html\Minifiers.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Html\Minifiers.css.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Html\Minifiers.html.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Html\Minifiers.js.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="NativeTypes\Java\JavaGenerator.cs" />
+    <Compile Include="NativeTypes\Swift\SwiftGenerator.cs" />
+    <Compile Include="NativeTypes\TypeScript\TypeScriptGenerator.cs" />
     <Compile Include="NativeTypes\VbNet\VbNetGenerator.cs" />
     <Compile Include="ServiceStackProvider.cs" />
     <Compile Include="AsyncExtensions.cs" />
@@ -124,7 +144,6 @@
     <Compile Include="Host\Handlers\CustomActionHandler.cs" />
     <Compile Include="Host\Handlers\HttpAsyncTaskHandler.cs" />
     <Compile Include="Host\RequestBaseWrapper.cs" />
-    <Compile Include="Messaging\IMessageHandler.cs" />
     <Compile Include="Messaging\IMessageHandlerDisposer.cs" />
     <Compile Include="Messaging\IMessageHandlerFactory.cs" />
     <Compile Include="Messaging\InMemoryTransientMessageFactory.cs" />
@@ -138,6 +157,7 @@
     <Compile Include="PostmanFeature.cs" />
     <Compile Include="RequestContext.cs" />
     <Compile Include="ServerEventsFeature.cs" />
+    <Compile Include="SitemapFeature.cs" />
     <Compile Include="SmartThreadPool\CallerThreadContext.cs" />
     <Compile Include="SmartThreadPool\CanceledWorkItemsGroup.cs" />
     <Compile Include="SmartThreadPool\EventWaitHandle.cs" />
@@ -167,7 +187,7 @@
     <Compile Include="Host\HttpResponseStreamWrapper.cs" />
     <Compile Include="HttpError.cs" />
     <Compile Include="HttpResult.cs" />
-    <Compile Include="HttpResultExtensions.cs" />
+    <Compile Include="HttpResultUtils.cs" />
     <Compile Include="LocalizedStrings.cs" />
     <Compile Include="RedisErrorLoggerFeature.cs" />
     <Compile Include="RequestLogsFeature.cs" />
@@ -492,7 +512,6 @@
     <Compile Include="Host\AppDelegates.cs" />
     <Compile Include="Host\Handlers\CustomResponseHandler.cs" />
     <Compile Include="Templates\HtmlTemplates.cs" />
-    <Compile Include="Host\RequestBindingException.cs" />
     <Compile Include="Support\Markdown\Evaluator.cs" />
     <Compile Include="Support\Markdown\ITemplateWriter.cs" />
     <Compile Include="Support\Markdown\Markdown.cs" />
@@ -563,6 +582,7 @@
     <Compile Include="Metadata\IndexOperationsControl.cs" />
     <Compile Include="Metadata\XsdTypeNames.cs" />
     <Compile Include="Metadata\XsdTypes.cs" />
+    <Compile Include="VirtualPath\VirtualPathProviderExtensions.cs" />
     <Compile Include="WebSudoFeature.cs" />
     <Compile Include="WebSudoRequiredAttribute.cs" />
     <Compile Include="XsdUtils.cs" />
@@ -595,6 +615,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Funq\License.txt" />
+    <EmbeddedResource Include="js\ss-utils.d.ts" />
     <EmbeddedResource Include="js\ss-utils.js" />
     <EmbeddedResource Include="Templates\OperationControl.html" />
     <EmbeddedResource Include="Templates\IndexOperations.html" />
@@ -623,7 +644,24 @@
   <ItemGroup>
     <EmbeddedResource Include="Properties\Resources.resx" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\ServiceStack.Text\src\ServiceStack.Text\ServiceStack.Text.csproj">
+      <Project>{579b3fdb-cdad-44e1-8417-885c38e49a0e}</Project>
+      <Name>ServiceStack.Text</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\ServiceStack.Client\ServiceStack.Client.csproj">
+      <Project>{c43f583f-abde-4dd4-bbe3-66322817a6ad}</Project>
+      <Name>ServiceStack.Client</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\ServiceStack.Common\ServiceStack.Common.csproj">
+      <Project>{982416db-c143-4028-a0c3-cf41892d18d3}</Project>
+      <Name>ServiceStack.Common</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\ServiceStack.Interfaces\ServiceStack.Interfaces.csproj">
+      <Project>{55942102-033a-4da8-a6af-1db7b2f34a2d}</Project>
+      <Name>ServiceStack.Interfaces</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
@@ -632,19 +670,5 @@
   <Target Name="AfterBuild">
   </Target>
   -->
-  <ItemGroup>
-    <ProjectReference Include="..\ServiceStack.Client\ServiceStack.Client.csproj">
-      <Project>{c43f583f-abde-4dd4-bbe3-66322817a6ad}</Project>
-      <Name>ServiceStack.Client</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\ServiceStack.Common\ServiceStack.Common.csproj">
-      <Project>{982416DB-C143-4028-A0C3-CF41892D18D3}</Project>
-      <Name>ServiceStack.Common</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\ServiceStack.Interfaces\ServiceStack.Interfaces.csproj">
-      <Project>{55942102-033a-4da8-a6af-1db7b2f34a2d}</Project>
-      <Name>ServiceStack.Interfaces</Name>
-    </ProjectReference>
-  </ItemGroup>
   <ItemGroup />
 </Project>

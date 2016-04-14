@@ -2,6 +2,7 @@
 //License: https://raw.github.com/ServiceStack/ServiceStack/master/license.txt
 
 using System;
+using System.Globalization;
 using System.IO;
 
 namespace ServiceStack.Text
@@ -18,7 +19,8 @@ namespace ServiceStack.Text
             {
                 IsMono = AssemblyUtils.FindType("Mono.Runtime") != null;
 
-                IsMonoTouch = AssemblyUtils.FindType("MonoTouch.Foundation.NSObject") != null;
+                IsMonoTouch = AssemblyUtils.FindType("MonoTouch.Foundation.NSObject") != null
+                    || AssemblyUtils.FindType("Foundation.NSObject") != null;
 
                 IsAndroid = AssemblyUtils.FindType("Android.Manifest") != null;
 
@@ -46,8 +48,12 @@ namespace ServiceStack.Text
                 + platformName
                 + (IsMono ? "/Mono" : "/.NET");
 
-            __releaseDate = DateTime.Parse("2001-01-01");
+            VersionString = ServiceStackVersion.ToString(CultureInfo.InvariantCulture);
+
+            __releaseDate = new DateTime(2001,01,01);
         }
+
+        public static string VersionString { get; set; }
 
         public static decimal ServiceStackVersion = 4.00m;
 
@@ -87,16 +93,34 @@ namespace ServiceStack.Text
                 {
                     var programFilesPath = PclExport.Instance.GetEnvironmentVariable("ProgramFiles(x86)") ?? @"C:\Program Files (x86)";
                     var netFxReferenceBasePath = programFilesPath + @"\Reference Assemblies\Microsoft\Framework\.NETFramework\";
-                    if ((netFxReferenceBasePath + @"v4.5.1\").DirectoryExists())
+                    if ((netFxReferenceBasePath + @"v4.5.2\").DirectoryExists())
+                        referenceAssembyPath = netFxReferenceBasePath + @"v4.5.2\";
+                    else if ((netFxReferenceBasePath + @"v4.5.1\").DirectoryExists())
                         referenceAssembyPath = netFxReferenceBasePath + @"v4.5.1\";
                     else if ((netFxReferenceBasePath + @"v4.5\").DirectoryExists())
                         referenceAssembyPath = netFxReferenceBasePath + @"v4.5\";
                     else if ((netFxReferenceBasePath + @"v4.0\").DirectoryExists())
                         referenceAssembyPath = netFxReferenceBasePath + @"v4.0\";
                     else
-                        throw new FileNotFoundException(
-                            "Could not infer .NET Reference Assemblies path, e.g '{0}'.\n".Fmt(netFxReferenceBasePath + @"v4.0\") +
-                            "Provide path manually 'Env.ReferenceAssembyPath'.");
+                    {
+                        var v4Dirs = PclExport.Instance.GetDirectoryNames(netFxReferenceBasePath, "v4*");
+                        if (v4Dirs.Length == 0)
+                        {
+                            var winPath = PclExport.Instance.GetEnvironmentVariable("SYSTEMROOT") ?? @"C:\Windows";
+                            var gacPath = winPath + @"\Microsoft.NET\Framework\";
+                            v4Dirs = PclExport.Instance.GetDirectoryNames(gacPath, "v4*");                            
+                        }
+                        if (v4Dirs.Length > 0)
+                        {
+                            referenceAssembyPath = v4Dirs[v4Dirs.Length - 1] + @"\"; //latest v4
+                        }
+                        else
+                        {
+                            throw new FileNotFoundException(
+                                "Could not infer .NET Reference Assemblies path, e.g '{0}'.\n".Fmt(netFxReferenceBasePath + @"v4.0\") +
+                                "Provide path manually 'Env.ReferenceAssembyPath'.");
+                        }
+                    }
                 }
 #endif
                 return referenceAssembyPath;

@@ -4,6 +4,7 @@ using System.Data;
 using System.Linq;
 using NUnit.Framework;
 using ServiceStack.Common.Tests.Models;
+using ServiceStack.Text;
 
 namespace ServiceStack.OrmLite.Tests
 {
@@ -25,6 +26,25 @@ namespace ServiceStack.OrmLite.Tests
         public void TearDown()
         {
             db.Dispose();
+        }
+
+	    [Test]
+	    public void Can_delete_all_rows()
+	    {
+            var row1 = ModelWithFieldsOfDifferentTypes.Create(1);
+            var row2 = ModelWithFieldsOfDifferentTypes.Create(2);
+            var row3 = ModelWithFieldsOfDifferentTypes.Create(3);
+
+            db.Save(row1);
+            db.Save(row2);
+            db.Save(row3);
+
+	        db.DeleteAll(new[] {row1, row3});
+
+	        var remaining = db.Select<ModelWithFieldsOfDifferentTypes>();
+
+            Assert.That(remaining.Count, Is.EqualTo(1));
+            Assert.That(remaining[0].Id, Is.EqualTo(row2.Id));
         }
 
 		[Test]
@@ -123,5 +143,87 @@ namespace ServiceStack.OrmLite.Tests
             Assert.That(dbRow, Is.Null);
         }
 
-	}
+        [Test]
+        public void Can_Delete_entity_with_nullable_DateTime()
+        {
+            db.DropAndCreateTable<ModelWithFieldsOfNullableTypes>();
+
+            var row = ModelWithFieldsOfNullableTypes.Create(1);
+            row.NDateTime = null;
+
+            db.Save(row);
+
+            row = db.SingleById<ModelWithFieldsOfNullableTypes>(row.Id);
+
+            var rowsAffected = db.Delete(row);
+
+            Assert.That(rowsAffected, Is.EqualTo(1));
+
+            row = db.SingleById<ModelWithFieldsOfNullableTypes>(row.Id);
+            Assert.That(row, Is.Null);
+        }
+
+        [Test]
+        public void Can_DeleteAll_entity_with_nullable_DateTime()
+        {
+            db.DropAndCreateTable<ModelWithFieldsOfNullableTypes>();
+
+            var rows = 3.Times(i => ModelWithFieldsOfNullableTypes.Create(i));
+            rows.Each(x => x.NDateTime = null);
+
+            db.SaveAll(rows);
+            db.Save(ModelWithFieldsOfNullableTypes.Create(3)); // extra row shouldn't be deleted
+
+            rows = db.SelectByIds<ModelWithFieldsOfNullableTypes>(rows.Map(x => x.Id));
+
+            var rowsAffected = db.Delete(rows.ToArray());
+
+            Assert.That(rowsAffected, Is.EqualTo(rows.Count));
+
+            rows = db.SelectByIds<ModelWithFieldsOfNullableTypes>(rows.Map(x => x.Id));
+            Assert.That(rows.Count, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void Can_DeleteNonDefaults_entity_with_nullable_DateTime()
+        {
+            db.DropAndCreateTable<ModelWithFieldsOfNullableTypes>();
+
+            var row = ModelWithFieldsOfNullableTypes.Create(1);
+            row.NDateTime = null;
+
+            db.Save(row);
+
+            row = db.SingleById<ModelWithFieldsOfNullableTypes>(row.Id);
+
+            var rowsAffected = db.DeleteNonDefaults(row);
+
+            Assert.That(rowsAffected, Is.EqualTo(1));
+
+            row = db.SingleById<ModelWithFieldsOfNullableTypes>(row.Id);
+            Assert.That(row, Is.Null);
+        }
+
+        [Test]
+        public void Can_DeleteNonDefaultsAll_entity_with_nullable_DateTime()
+        {
+            db.DropAndCreateTable<ModelWithFieldsOfNullableTypes>();
+
+            var rows = 3.Times(i => ModelWithFieldsOfNullableTypes.Create(i));
+            rows.Each(x => x.NDateTime = null);
+
+            db.SaveAll(rows);
+            db.Save(ModelWithFieldsOfNullableTypes.Create(3)); // extra row shouldn't be deleted
+
+            rows = db.SelectByIds<ModelWithFieldsOfNullableTypes>(rows.Map(x => x.Id));
+
+            var rowsAffected = db.DeleteNonDefaults(rows.ToArray());
+
+            Assert.That(rowsAffected, Is.EqualTo(rows.Count));
+
+            rows = db.SelectByIds<ModelWithFieldsOfNullableTypes>(rows.Map(x => x.Id));
+            Assert.That(rows.Count, Is.EqualTo(0));
+        }
+
+    }
 }

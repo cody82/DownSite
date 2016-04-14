@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using ServiceStack.Text;
 using ServiceStack.Web;
 
 namespace ServiceStack.Host
@@ -13,9 +14,15 @@ namespace ServiceStack.Host
         {
             this.requestContext = requestContext;
             this.Headers = new Dictionary<string, string>();
+            this.Items = new Dictionary<string, object>();
         }
 
         public object OriginalResponse { get; set; }
+
+        public IRequest Request
+        {
+            get { return requestContext; }
+        }
 
         public int StatusCode { get; set; }
 
@@ -56,6 +63,8 @@ namespace ServiceStack.Host
         public void Close()
         {
             IsClosed = true;
+            if (ms != null && ms.CanWrite)
+                ms.Dispose();
         }
 
         public void End()
@@ -74,5 +83,7 @@ namespace ServiceStack.Host
         }
 
         public bool KeepAlive { get; set; }
+
+        public Dictionary<string, object> Items { get; private set; }
     }
 }

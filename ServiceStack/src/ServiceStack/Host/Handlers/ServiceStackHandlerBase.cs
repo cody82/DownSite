@@ -68,7 +68,31 @@ namespace ServiceStack.Host.Handlers
                             if (task.IsCompleted)
                             {
                                 var taskResult = task.GetResult();
-                                return callback(taskResult);
+
+                                var taskResults = taskResult as Task[];
+                                
+                                if (taskResults == null)
+                                {
+                                    var subTask = taskResult as Task;
+                                    if (subTask != null)
+                                        taskResult = subTask.GetResult();
+
+                                    return callback(taskResult);
+                                }
+
+                                if (taskResults.Length == 0)
+                                    return callback(new object[0]);
+
+                                var firstResponse = taskResults[0].GetResult();
+                                var batchedResponses = firstResponse != null 
+                                    ? (object[])Array.CreateInstance(firstResponse.GetType(), taskResults.Length)
+                                    : new object[taskResults.Length];
+                                batchedResponses[0] = firstResponse;
+                                for (var i = 1; i < taskResults.Length; i++)
+                                {
+                                    batchedResponses[i] = taskResults[i].GetResult();
+                                }
+                                return callback(batchedResponses);
                             }
 
                             return errorCallback(new InvalidOperationException("Unknown Task state"));
@@ -87,32 +111,18 @@ namespace ServiceStack.Host.Handlers
         {
             var httpMethod = httpReq.Verb;
             var queryString = httpReq.QueryString;
+            var hasRequestBody = httpReq.ContentType != null && httpReq.ContentLength > 0;
 
-            if (httpMethod == HttpMethods.Get || httpMethod == HttpMethods.Delete || httpMethod == HttpMethods.Options)
+            if (!hasRequestBody
+                && (httpMethod == HttpMethods.Get || httpMethod == HttpMethods.Delete || httpMethod == HttpMethods.Options))
             {
-                try
-                {
-                    return KeyValueDataContractDeserializer.Instance.Parse(queryString, operationType);
-                }
-                catch (Exception ex)
-                {
-                    var msg = "Could not deserialize '{0}' request using KeyValueDataContractDeserializer: '{1}'.\nError: '{2}'"
-                        .Fmt(operationType, queryString, ex);
-                    throw new SerializationException(msg);
-                }
+                return KeyValueDataContractDeserializer.Instance.Parse(queryString, operationType);
             }
 
             var isFormData = httpReq.HasAnyOfContentTypes(MimeTypes.FormUrlEncoded, MimeTypes.MultiPartFormData);
             if (isFormData)
             {
-                try
-                {
-                    return KeyValueDataContractDeserializer.Instance.Parse(httpReq.FormData, operationType);
-                }
-                catch (Exception ex)
-                {
-                    throw new SerializationException("Error deserializing FormData: " + httpReq.FormData, ex);
-                }
+                return KeyValueDataContractDeserializer.Instance.Parse(httpReq.FormData, operationType);
             }
 
             var request = CreateContentTypeRequest(httpReq, operationType, contentType);

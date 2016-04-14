@@ -17,6 +17,7 @@ namespace ServiceStack
         public Action<IndexOperationsControl> IndexPageFilter { get; set; }
         public Action<OperationControl> DetailPageFilter { get; set; }
 
+        public bool ShowResponseStatusInMetadataPages { get; set; }
 
         public MetadataFeature()
         {
@@ -82,8 +83,8 @@ namespace ServiceStack
                     return new Soap12MetadataHandler();
 
                 case "operations":
-                    return new CustomResponseHandler((httpReq, httpRes) => 
-                        HostContext.AppHost.HasAccessToMetadata(httpReq, httpRes) 
+                    return new CustomResponseHandler((httpReq, httpRes) =>
+                        HostContext.AppHost.HasAccessToMetadata(httpReq, httpRes)
                             ? HostContext.Metadata.GetOperationDtos()
                             : null, "Operations");
 
@@ -107,8 +108,17 @@ namespace ServiceStack
         {
             if (metadata != null)
             {
+                if (HostContext.Config.HandlerFactoryPath != null && href[0] == '/')
+                    href = "/" + HostContext.Config.HandlerFactoryPath + href;
+
                 metadata.PluginLinks[href] = title;
             }
+            return metadata;
+        }
+
+        public static MetadataFeature RemovePluginLink(this MetadataFeature metadata, string href)
+        {
+            metadata.PluginLinks.Remove(href);
             return metadata;
         }
 
@@ -116,8 +126,17 @@ namespace ServiceStack
         {
             if (metadata != null)
             {
+                if (HostContext.Config.HandlerFactoryPath != null && href[0] == '/')
+                    href = "/" + HostContext.Config.HandlerFactoryPath + href;
+
                 metadata.DebugLinks[href] = title;
             }
+            return metadata;
+        }
+
+        public static MetadataFeature RemoveDebugLink(this MetadataFeature metadata, string href)
+        {
+            metadata.DebugLinks.Remove(href);
             return metadata;
         }
     }
