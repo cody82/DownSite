@@ -27,7 +27,7 @@ using System.Web.Hosting;
 using ServiceStack.VirtualPath;
 using ServiceStack.IO;
 using System.Reflection;
-
+using System.Collections.Concurrent;
 
 namespace DownSite
 {
@@ -166,7 +166,7 @@ namespace DownSite
         {
             lock (Image.ConvertQueue)
             {
-                return new SystemInfoResponse() { ConversionQueue = Image.ConvertQueue.Select(x => Path.GetFileName(x)).ToList() };
+                return new SystemInfoResponse() { ConversionQueue = Image.ConvertQueue.Select(x => Path.GetFileName(x.Output)).ToList() };
             }
         }
     }
@@ -284,7 +284,7 @@ namespace DownSite
         public int Width { get; set; }
         public int Height { get; set; }
 
-        public static List<string> ConvertQueue = new List<string>();
+        public static BlockingCollection<ConvertInfo> ConvertQueue = new BlockingCollection<ConvertInfo>(1000);
 
         static Bitmap resizeImage(Bitmap imgToResize, Size size)
         {
@@ -372,6 +372,46 @@ namespace DownSite
             }
         }
 
+        public class ConvertInfo
+        {
+            public ConvertInfo(int w, int h, Image img, string output, FileInfo file)
+            {
+                Width = w;
+                Height = h;
+                Image = img;
+                Output = output;
+                File = file;
+            }
+
+            public int Width;
+            public int Height;
+            public Image Image;
+            public string Output;
+            public FileInfo File;
+        }
+
+        static Image()
+        {
+            new Thread(() =>
+            {
+                foreach (var c in ConvertQueue.GetConsumingEnumerable())
+                {
+                    if (File.Exists(c.Output))
+                        continue;
+
+                    Console.WriteLine("converting to " + c.Height + "p:" + c.Output);
+                    if (VideoConverter.Resize(c.File.FullName, c.Output + ".tmp", c.Width, c.Height))
+                    {
+                        Console.WriteLine("conversion ready");
+                        File.Move(c.Output + ".tmp", c.Output);
+                    }
+                    else
+                        Console.WriteLine("conversion failed");
+
+                }
+            }).Start();
+        }
+
         static void ConvertVideo(Image img)
         {
             foreach (int h in ImageService.ResizeHeights)
@@ -393,31 +433,14 @@ namespace DownSite
                     if (File.Exists(output))
                         continue;
 
-                    int h2 = h;
-                    int w2 = w;
-                    new Thread(() =>
+                    if (ConvertQueue.Any(x => x.Output == output))
                     {
-                        lock (ConvertQueue)
-                        {
-                            if (ConvertQueue.Contains(output))
-                                return;
-                            ConvertQueue.Add(output);
-                        }
+                        Console.WriteLine("already in convert queue: " + output);
+                        continue;
+                    }
 
-                        Console.WriteLine("converting to " + h2 + "p...");
-                        if (VideoConverter.Resize(file.FullName, output + ".tmp", w2, h2))
-                        {
-                            Console.WriteLine("conversion ready");
-                            File.Move(output + ".tmp", output);
-                        }
-                        else
-                            Console.WriteLine("conversion failed");
-
-                        lock (ConvertQueue)
-                        {
-                            ConvertQueue.Remove(output);
-                        }
-                    }).Start();
+                    Console.WriteLine("add to convert queue: " + output);
+                    ConvertQueue.Add(new ConvertInfo(w, h, img, output, file));
                 }
             }
         }
