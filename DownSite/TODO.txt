@@ -1,2 +1,0 @@
-﻿- better user editing
-- fix responsive png images

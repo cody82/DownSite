@@ -1,0 +1,91 @@
+{
+  "version": 2,
+  "exports": {
+    "ServiceStack.OrmLite.Sqlite.Windows/1.0.0": {
+      "type": "project",
+      "framework": ".NETFramework,Version=v4.0",
+      "compile": {
+        "bin/Debug/ServiceStack.OrmLite.Sqlite.Windows.dll": {}
+      },
+      "runtime": {
+        "../../../../packages/System.Data.SQLite.Core.1.0.102.0/lib/net40/System.Data.SQLite.dll": {},
+        "bin/Debug/ServiceStack.OrmLite.Sqlite.Windows.dll": {}
+      },
+      "contentFiles": {
+        "bin/Debug/ServiceStack.OrmLite.Sqlite.Windows.pdb": {
+          "buildAction": "None",
+          "codeLanguage": "any",
+          "copyToOutput": true
+        }
+      }
+    },
+    "ServiceStack.OrmLite/1.0.0": {
+      "type": "project",
+      "framework": ".NETFramework,Version=v4.0",
+      "compile": {
+        "bin/Debug/ServiceStack.OrmLite.dll": {}
+      },
+      "runtime": {
+        "bin/Debug/ServiceStack.OrmLite.dll": {}
+      },
+      "contentFiles": {
+        "bin/Debug/ServiceStack.OrmLite.pdb": {
+          "buildAction": "None",
+          "codeLanguage": "any",
+          "copyToOutput": true
+        }
+      }
+    },
+    "ServiceStack.Text/1.0.0": {
+      "type": "project",
+      "framework": ".NETFramework,Version=v4.0",
+      "compile": {
+        "bin/Debug/ServiceStack.Text.dll": {}
+      },
+      "runtime": {
+        "bin/Debug/ServiceStack.Text.dll": {}
+      },
+      "contentFiles": {
+        "bin/Debug/ServiceStack.Text.pdb": {
+          "buildAction": "None",
+          "codeLanguage": "any",
+          "copyToOutput": true
+        }
+      }
+    },
+    "ServiceStack.Common/1.0.0": {
+      "type": "project",
+      "framework": ".NETFramework,Version=v4.0",
+      "compile": {
+        "bin/Debug/ServiceStack.Common.dll": {}
+      },
+      "runtime": {
+        "bin/Debug/ServiceStack.Common.dll": {}
+      },
+      "contentFiles": {
+        "bin/Debug/ServiceStack.Common.pdb": {
+          "buildAction": "None",
+          "codeLanguage": "any",
+          "copyToOutput": true
+        }
+      }
+    },
+    "ServiceStack.Interfaces/1.0.0": {
+      "type": "project",
+      "framework": ".NETFramework,Version=v4.0",
+      "compile": {
+        "bin/PclDebug/ServiceStack.Interfaces.dll": {}
+      },
+      "runtime": {
+        "bin/PclDebug/ServiceStack.Interfaces.dll": {}
+      },
+      "contentFiles": {
+        "bin/PclDebug/ServiceStack.Interfaces.pdb": {
+          "buildAction": "None",
+          "codeLanguage": "any",
+          "copyToOutput": true
+        }
+      }
+    }
+  }
+}
