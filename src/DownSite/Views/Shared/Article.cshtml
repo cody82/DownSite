@@ -1,9 +1,9 @@
-﻿@inherits ServiceStack.Razor.ViewPage<DownSite.Article>
-
+﻿@model DownSite.Article
 @{
-    Layout = "Default";
+    Layout = "_Layout";
     DownSite.Settings config = DownSite.Settings.Load();
 }
+
 <script>
     function post_comment(article_id) {
         var comment = { "ArticleId": article_id, "Name": $('#comment_name').val(), "Content": $('#comment_text').val() };

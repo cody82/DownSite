@@ -24,7 +24,7 @@ using Microsoft.AspNetCore.Mvc;
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-
+using Microsoft.AspNetCore.Http;
 
 namespace DownSite
 {
@@ -107,7 +107,7 @@ namespace DownSite
 
         public static Settings Load()
         {
-            return Database.Db.SingleById<Settings>(Guid.Empty);
+            return Database.Db.Select<Settings>().Single(x => x.Id == Guid.Empty);
         }
     }
 
@@ -608,6 +608,7 @@ namespace DownSite
     }
 
     //[Authenticate]
+    [Route("upload")]
     public class UploadService : Controller
     {
         public static DirectoryInfo GetFileDir()
@@ -689,17 +690,18 @@ namespace DownSite
             }
             return path;
         }
-
-        public object Post(Upload request)
+        
+        [HttpPost]
+        public object Post(ICollection<IFormFile> files)
         {
-            //var file = Request.Files.FirstOrDefault();
+            var file = files.FirstOrDefault();
 
             Guid pic1 = Guid.NewGuid();
             //var mimetypes = new string[] { MimeTypes.ImageJpg, "video/webm", MimeTypes.ImagePng, MimeTypes.ImageGif, "video/mp4" };
-            //if (file == null)
+            if (file == null)
             {
-                if(request.RequestStream == null)
-                    return new StatusCodeResult((int)HttpStatusCode.InternalServerError);// HttpError(System.Net.HttpStatusCode.InternalServerError, "File missing.");
+                //if(request.RequestStream == null)
+                //    return new StatusCodeResult((int)HttpStatusCode.InternalServerError);// HttpError(System.Net.HttpStatusCode.InternalServerError, "File missing.");
 
                 //if (mimetypes.Contains(Request.ContentType))
                 {
@@ -713,7 +715,7 @@ namespace DownSite
                         filename = content;
                     }
 
-                    Image.Save(pic1, Database.Db, Request.ContentType, filename, request.RequestStream);
+                    Image.Save(pic1, Database.Db, Request.ContentType, filename, Request.Body);
 
                     return new UploadResult() { Guid = pic1 };
                 }
@@ -724,8 +726,7 @@ namespace DownSite
             //if(!mimetypes.Contains(file.ContentType))
             //    return new HttpError(System.Net.HttpStatusCode.InternalServerError, string.Format("Unknown file type: {0}.", file.ContentType));
 
-            throw new Exception("NYI");
-            //Image.Save(pic1, Database.Db, Request.ContentType, file.FileName, file.InputStream);
+            Image.Save(pic1, Database.Db, Request.ContentType, file.FileName, file.OpenReadStream());
 
             return new UploadResult(){ Guid= pic1 };
         }

@@ -187,6 +187,8 @@ namespace DownSite
 
         void Parse()
         {
+            if (requeststring == null)
+                requeststring = string.Empty;
             string filename = Path.GetFileNameWithoutExtension(requeststring);
             parts = filename.Split(Constants.Seperator[0]);
             Guid.TryParse(parts[0], out id);
@@ -234,10 +236,17 @@ namespace DownSite
         }
     }
 
+    [Route("Blog")]
+    //[Route("")]
     public class Blog : Controller
     {
-        public object Get(BlogRequest request)
+        [HttpGet]
+        [Route("{requeststring}")]
+        [Route("")]
+        public IActionResult Get(string requeststring)
         {
+            BlogRequest request = new BlogRequest() { RequestString = requeststring };
+
             string tag = null;
             int page = 1;
             if (request.Parts != null)
@@ -294,7 +303,7 @@ namespace DownSite
             return bloginfo;
         }
 
-        public static object Get(string tag = null, int page = 1)
+        public IActionResult Get(string tag = null, int page = 1)
         {
             var blog = LoadBlog(tag, page);
 
@@ -303,7 +312,7 @@ namespace DownSite
                 View = "Blog",
                 Template = "Standard",
             };*/
-            return blog;
+            return View("Blog", blog);
         }
 
         public static string Preview(string markdown, bool staticpage = false)
@@ -404,6 +413,9 @@ namespace DownSite
         }
     }
 
+    [Route("article")]
+    //[Route("/article/{Id}")]
+    //[Route("/article/{Id}.html")]
     public class ArticleService : Controller
     {
         public static Article[] GetMenuArticles()
@@ -411,30 +423,36 @@ namespace DownSite
             return Database.Db.Select<Article>(x => x.ShowInMenu).OrderBy(x => x.Title).ToArray();
         }
 
-        public object Get(Article request)
+        [Route("{id}")]
+        [Route("{id}.html")]
+        [HttpGet]
+        public IActionResult Get(string id)
         {
             Guid guid;
-            if (Guid.TryParse(request.Title, out guid))
-                request.Id = guid;
+            if (Guid.TryParse(id, out guid))
+            {
+                //request.Id = guid;
+            }
 
             //var html = Request.AbsoluteUri.EndsWith("?html");
             //if (html)
            //     return GetHtml(request);
 
-            var a = Database.Db.LoadSelect<Article>(x => x.Title == request.Title || x.Id == request.Id).SingleOrDefault();
+            var a = Database.Db.LoadSelect<Article>().Single(x => x.Title == id || x.Id == guid);
             
             if (a.Author != null)
                 a.AuthorName = a.Author.UserName;
             else
                 a.AuthorName = "unknown author";
 
+            return View("Article", a);
             //return a;
             /*return new HttpResult(a)
             {
                 View = "Article",
                 Template = "Standard",
             };*/
-            return a;
+            //return a;
         }
 
         public Article[] Get(ArticleListRequest request)
@@ -510,6 +528,7 @@ namespace DownSite
         }
 
         //[Authenticate]
+        [HttpPut]
         public IActionResult Put(Article article)
         {
             if (Database.Db.Exists<Article>(x => x.Title == article.Title))
@@ -528,13 +547,14 @@ namespace DownSite
         }
 
         //[Authenticate]
-        public object Post(Article article)
+        [HttpPost]
+        public object Post([FromBody]Article article)
         {
             //var session = GetSession();
             //if (session.IsAuthenticated)
             //    article.AuthorId = Database.Db.Single<User>(x => x.UserName == session.UserAuthName).Id;
 
-            var original = Database.Db.LoadSelect<Article>(x => x.Id == article.Id).Single();
+            var original = Database.Db.LoadSelect<Article>().Single(x => x.Id == article.Id);
             article.Category = article.Category.Where(x => !string.IsNullOrWhiteSpace(x.Name)).ToList();
 
 

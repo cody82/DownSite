@@ -54,7 +54,12 @@ namespace DownSite
 
             app.UseMvc();
 
-            app.UseStaticFiles();
+            app.UseDefaultFiles();
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                ServeUnknownFileTypes = true,
+                DefaultContentType = "text/plain"
+            });
         }
     }
 }
