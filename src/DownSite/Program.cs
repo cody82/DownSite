@@ -1,7 +1,4 @@
-﻿using ServiceStack.DataAnnotations;
-using ServiceStack.OrmLite;
-using ServiceStack.OrmLite.Sqlite;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -17,7 +14,6 @@ using System.Security.Cryptography;
 //using ServiceStack.Razor;
 using System.ServiceModel.Syndication;
 using System.Drawing.Imaging;
-using ServiceStack.IO;
 using System.Reflection;
 using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Mvc;
@@ -39,7 +35,7 @@ namespace DownSite
     //[Route("/menu/{Id}", "PUT")]
     public class Menu
     {
-        [PrimaryKey]
+        //[PrimaryKey]
         public Guid Id { get; set; }
 
         public string Caption { get; set; }
@@ -47,7 +43,10 @@ namespace DownSite
 
         public static Menu[] Load()
         {
-            return Database.Db.Select<Menu>().ToArray();
+            using (var context = new Database())
+            {
+                return context.Menu.ToArray();
+            }
         }
     }
 
@@ -71,24 +70,27 @@ namespace DownSite
 
     public class Configuration
     {
-        [PrimaryKey]
+        //[PrimaryKey]
         public Guid Id { get; set; }
 
         public int Version { get; set; }
 
         public static Configuration Load()
         {
-            var tmp = Database.Db.Select<Configuration>().Single();
-            if (tmp == null)
-                throw new Exception("No config row");
-            return tmp;
+            using (var context = new Database())
+            {
+                var tmp = context.Configuration.Single();
+                if (tmp == null)
+                    throw new Exception("No config row");
+                return tmp;
+            }
         }
     }
 
     //[Route("/settings")]
     public class Settings
     {
-        [PrimaryKey]
+        //[PrimaryKey]
         public Guid Id { get; set; }
 
         public string SiteName { get; set; }
@@ -107,7 +109,10 @@ namespace DownSite
 
         public static Settings Load()
         {
-            return Database.Db.Select<Settings>().Single(x => x.Id == Guid.Empty);
+            using (var context = new Database())
+            {
+                return context.Settings.Single();
+            }
         }
     }
 
@@ -115,14 +120,21 @@ namespace DownSite
     {
         public object Get(Settings s)
         {
-            return Database.Db.SingleById<Settings>(Guid.Empty);
+            using (var context = new Database())
+            {
+                return context.Settings.Single();
+            }
         }
 
         //[Authenticate]
         public object Post(Settings s)
         {
-            Database.Db.Update<Settings>(s);
-            return s;
+            using (var context = new Database())
+            {
+                context.Settings.Update(s);
+                context.SaveChanges();
+                return s;
+            }
         }
 
         //[Authenticate]
@@ -136,18 +148,18 @@ namespace DownSite
     //[Route("/user/{Id}", "PUT")]
     public class User
     {
-        [PrimaryKey]
+        //[PrimaryKey]
         public Guid Id { get; set; }
         public string FirstName { get; set; }
         public string LastName { get; set; }
-        [Index(true)]
+        //[Index(true)]
         public string UserName { get; set; }
         public string Password { get; set; }
         public string PlainTextPassword { get; set; }
         public string Email { get; set; }
 
 
-        [References(typeof(Image))]
+        //[References(typeof(Image))]
         public Guid ImageId { get; set; }
     }
 
@@ -283,7 +295,7 @@ namespace DownSite
 
     public class Image
     {
-        [PrimaryKey]
+        //[PrimaryKey]
         public Guid Id { get; set; }
         public byte[] Data { get; set; }
         public string MimeType { get; set; }
@@ -452,7 +464,7 @@ namespace DownSite
             }
         }
         
-        public static void Save(Guid id, IDbConnection db, string mimetype, string filename, Stream s)
+        public static void Save(Guid id, Database db, string mimetype, string filename, Stream s)
         {
             string extension = UploadService.MimeTypeExtension(mimetype);
             if (extension == null)
@@ -481,22 +493,30 @@ namespace DownSite
                     ConvertImage(img);
                 }
             }
-            db.Insert<Image>(img);
+            db.Image.Add(img);
+            db.SaveChanges();
         }
 
         public static void GenerateCache()
         {
-            var list = Database.Db.Select<Image>();
-            foreach(var img in list)
+            using (var context = new Database())
             {
-                Convert(img);
-                Thumb(img);
+                var list = context.Image;
+                foreach (var img in list)
+                {
+                    Convert(img);
+                    Thumb(img);
+                }
             }
         }
 
         public static Tuple<Image, FileInfo> Load(Guid id)
         {
-            var img = Database.Db.Select<Image>().SingleOrDefault(x => x.Id == id);
+            Image img;
+            using (var context = new Database())
+            {
+                img = context.Image.SingleOrDefault(x => x.Id == id);
+            }
             if (img == null)
                 return null;
 
@@ -715,8 +735,11 @@ namespace DownSite
                         filename = content;
                     }
 
-                    Image.Save(pic1, Database.Db, Request.ContentType, filename, Request.Body);
 
+                    using (var context = new Database())
+                    {
+                        Image.Save(pic1, context, Request.ContentType, filename, Request.Body);
+                    }
                     return new UploadResult() { Guid = pic1 };
                 }
                 //else
@@ -726,8 +749,10 @@ namespace DownSite
             //if(!mimetypes.Contains(file.ContentType))
             //    return new HttpError(System.Net.HttpStatusCode.InternalServerError, string.Format("Unknown file type: {0}.", file.ContentType));
 
-            Image.Save(pic1, Database.Db, Request.ContentType, file.FileName, file.OpenReadStream());
-
+            using (var context = new Database())
+            {
+                Image.Save(pic1, context, Request.ContentType, file.FileName, file.OpenReadStream());
+            }
             return new UploadResult(){ Guid= pic1 };
         }
     }
@@ -777,8 +802,12 @@ namespace DownSite
         //[Authenticate]
         public object Delete(ImageRequest request)
         {
-            Database.Db.Delete<Image>(x => x.Id == request.Id);
-
+            using (var context = new Database())
+            {
+                var del = context.Image.Single(x => x.Id == request.Id);
+                context.Image.Remove(del);
+                context.SaveChanges();
+            }
             FileInfo fi = UploadService.GetFileInfo(request.Id);
             if (fi != null)
             {
@@ -914,7 +943,10 @@ namespace DownSite
         [HttpGet]
         public object Get(Images request)
         {
-            return Database.Db.Select<Image>().ToArray();
+            using (var context = new Database())
+            {
+                return context.Image.ToArray();
+            }
         }
     }
 
@@ -923,17 +955,24 @@ namespace DownSite
         List<Menu> GetByIds(Guid[] ids)
         {
             List<Menu> list = new List<Menu>();
-            foreach (var id in ids)
+
+            using (var context = new Database())
             {
-                var p = Database.Db.Select<Menu>().Where(x => x.Id == id).SingleOrDefault();
-                if (p != null)
-                    list.Add(p);
+                foreach (var id in ids)
+                {
+                    var p = context.Menu.SingleOrDefault(x => x.Id == id);
+                    if (p != null)
+                        list.Add(p);
+                }
             }
             return list;
         }
         List<Menu> GetAll()
         {
-            return Database.Db.Select<Menu>();
+            using (var context = new Database())
+            {
+                return context.Menu.ToList();
+            }
         }
 
         public object Get(MenuListRequest request)
@@ -947,7 +986,12 @@ namespace DownSite
         {
             if (todo.Id == Guid.Empty)
                 todo.Id = Guid.NewGuid();
-            Database.Db.Insert<Menu>(todo);
+
+            using (var context = new Database())
+            {
+                context.Menu.Add(todo);
+                context.SaveChanges();
+            }
             return todo;
         }
         //[Authenticate]
@@ -955,13 +999,22 @@ namespace DownSite
         {
             if (todo.Id == Guid.Empty)
                 todo.Id = Guid.NewGuid();
-            Database.Db.Insert<Menu>(todo);
+
+            using (var context = new Database())
+            {
+                context.Menu.Add(todo);
+                context.SaveChanges();
+            }
             return todo;
         }
         //[Authenticate]
         public void Delete(MenuListRequest request)
         {
-            Database.Db.DeleteByIds<Menu>(request.Ids);
+            using (var context = new Database())
+            {
+                throw new Exception("TODO");
+                //var m = context.Menu.Single(x => x.Id == request.Ids);
+            }
         }
     }
     public class PersonsService : Controller
@@ -1007,26 +1060,31 @@ namespace DownSite
             List<User> list = new List<User>();
             foreach (var id in ids)
             {
-                var p = Database.Db.Select<User>().Where(x => x.Id == id).SingleOrDefault();
-                if(p != null)
-                    list.Add(p);
+                throw new Exception("TODO");
+                //var p = Database.Db.Select<User>().Where(x => x.Id == id).SingleOrDefault();
+                //if(p != null)
+                //    list.Add(p);
             }
             return list;
         }
         public List<User> GetAll()
         {
-            return Database.Db.Select<User>();
+            throw new Exception("TODO");
+            //return Database.Db.Select<User>();
         }
         public User Store(User todo)
         {
             if (todo.Id == Guid.Empty)
                 todo.Id = Guid.NewGuid();
-            Database.Db.Insert<User>(todo);
+
+            throw new Exception("TODO");
+            //Database.Db.Insert<User>(todo);
             return todo;
         }
         public void DeleteByIds(params Guid[] ids)
         {
-            Database.Db.DeleteByIds<User>(ids);
+            throw new Exception("TODO");
+            //Database.Db.DeleteByIds<User>(ids);
         }
     }
 
@@ -1077,12 +1135,15 @@ namespace DownSite
         private static void AddDirectory(string p)
         {
             var dir = new DirectoryInfo(p);
-            var pics = dir.GetFiles("*.jpg").Select(x =>
+
+            using (var context = new Database())
+            {
+                var pics = dir.GetFiles("*.jpg").Select(x =>
             {
                 Guid guid = Guid.NewGuid();
                 using(var s = x.OpenRead())
                 {
-                    Image.Save(guid, Database.Db, MimeTypes.ImageJpg, x.Name, s);
+                        Image.Save(guid, context, MimeTypes.ImageJpg, x.Name, s);
                 }
                 return new {Guid = guid, Name = x.Name};
             });
@@ -1097,7 +1158,10 @@ namespace DownSite
                 Title = dir.Name,
                 Content = text,
             };
-            Database.Db.Insert<Article>(article);
+                
+                context.Article.Add(article);
+                context.SaveChanges();
+            }
         }
 
         static void watcher_Changed(object sender, FileSystemEventArgs e)

@@ -1,7 +1,4 @@
-﻿using ServiceStack.DataAnnotations;
-using ServiceStack.OrmLite;
-using ServiceStack.OrmLite.Sqlite;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -10,42 +7,49 @@ using System.Net;
 using System.Data;
 using System.IO;
 using System.Drawing;
-using ServiceStack.Web;
 using System.Web;
 using System.Threading;
 using HtmlAgilityPack;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations;
+using DownSite.Migrations;
 
 namespace DownSite
 {
     public class Comment
     {
-        [PrimaryKey]
+        [DataType(DataType.Text)]
         public Guid Id { get; set; }
 
         public string Content { get; set; }
         public DateTime Created { get; set; }
         public string Name { get; set; }
 
-        [Ignore]
+        [NotMapped]
         public string Link
         {
             get
             {
-                return "/article/" + ArticleId.ToString().Replace("-", "") + ".html";
+                //BUG
+                //return "";
+                return "/article/" + ArticleId.ToString().Replace("-", string.Empty) + ".html";
             }
         }
 
-        [References(typeof(Article))]
+        //[References(typeof(Article))]
         public Guid ArticleId { get; set; }
 
-        [Reference]
+        //[Reference]
         public Article Article { get; set; }
 
         public static Comment[] LoadLatest(int n)
         {
-            return Database.Db.Select<Comment>().OrderByDescending(x => x.Created).Take(n).ToArray();
+            using (var context = new Database())
+            {
+                return context.Comment.OrderByDescending(x => x.Created).Take(n).ToArray();
+            }
         }
     }
 
@@ -57,23 +61,69 @@ namespace DownSite
         {
             c.Created = DateTime.Now;
             c.Id = Guid.NewGuid();
-            Database.Db.Insert<Comment>(c);
+
+            using (var context = new Database())
+            {
+                context.Comment.Add(c);
+                context.SaveChanges();
+            }
             return c;
         }
     }
-
-    //[Route("/article")]
-    //[Route("/article/{Id}")]
-    //[Route("/article/{Id}.html")]
+    
     public class Article// : IReturn<Article>
     {
-        [PrimaryKey]
+        /*[NotMapped]
+        protected string __id;
+
+        //[PrimaryKey]
+        [Column("Id")]
+        public string _id
+        {
+            get
+            {
+                return __id;
+            }
+            set
+            {
+                Guid tmp;
+                if(Guid.TryParse(value, out tmp))
+                {
+                    _Id = tmp;
+                }
+                __id = value;
+            }
+        }
+
+        [NotMapped]
+        protected Guid _Id;
+
+        [NotMapped]
+        public Guid Id
+        {
+            get
+            {
+                return _Id;
+            }
+            set
+            {
+                _id = value.ToString();
+                _Id = value;
+            }
+        }*/
+
+        //[DataType(DataType.Text)]
         public Guid Id { get; set; }
+
+
+
+        //[DataType(DataType.Text)]
         public Guid VersionGroup { get; set; }
 
         public DateTime Created { get; set; }
         public DateTime Modified { get; set; }
-        [References(typeof(User))]
+        //[References(typeof(User))]
+        //[DataType(DataType.Text)]
         public Guid AuthorId { get; set; }
 
         public string Title { get; set; }
@@ -82,22 +132,22 @@ namespace DownSite
         public bool ShowInMenu { get; set; }
         public bool ShowInBlog { get; set; }
 
-        [Reference]
+        //[Reference]
         public User Author { get; set; }
 
-        [Reference]
+        //[Reference]
         public List<Tag> Category { get; set; }
 
-        [Reference]
+        //[Reference]
         public List<Comment> Comment { get; set; }
 
-        [Ignore]
+        [NotMapped]
         public string AuthorName { get; set; }
 
-        [Ignore]
+        [NotMapped]
         public string Html { get; set; }
 
-        [Ignore]
+        [NotMapped]
         public string Link
         {
             get
@@ -123,13 +173,14 @@ namespace DownSite
 
     public class Tag
     {
-        [PrimaryKey, AutoIncrement]
+        //[PrimaryKey, AutoIncrement]
         public int Id { get; set; }
 
-        [Index(false), References(typeof(Article))]
+        //[Index(false), References(typeof(Article))]
+        [DataType(DataType.Text)]
         public Guid ArticleId { get; set; }
 
-        [Index]
+        //[Index]
         public string Name { get; set; }
     }
 
@@ -154,8 +205,11 @@ namespace DownSite
 
         public static string[] LoadTags()
         {
-            var c = Database.Db.Select<Tag>().Select(x => x.Name).Distinct().ToArray();
-            return c;
+            using (var context = new Database())
+            {
+                var c = context.Tag.Select(x => x.Name).Distinct().ToArray();
+                return c;
+            }
         }
     }
 
@@ -264,11 +318,14 @@ namespace DownSite
         public static BlogInfo LoadBlog(string tag = null, int page = 1)
         {
             Article[] blog;
-            
-            if(string.IsNullOrWhiteSpace(tag))
-                blog = Database.Db.LoadSelect<Article>(x => x.ShowInBlog).OrderByDescending(x => x.Created).ToArray();
-            else
-                blog = Database.Db.LoadSelect<Article>().OrderByDescending(x => x.Created).ToArray();
+
+            using (var context = new Database())
+            {
+                if (string.IsNullOrWhiteSpace(tag))
+                    blog = context.Article.Where(x => x.ShowInBlog).OrderByDescending(x => x.Created).ToArray();
+                else
+                    blog = context.Article.OrderByDescending(x => x.Created).ToArray();
+            }
 
             if (!string.IsNullOrWhiteSpace(tag))
                 blog = blog.Where(y => y.Category != null && y.Category.Any(x => x.Name.ToLower() == tag.ToLower())).ToArray();
@@ -408,8 +465,15 @@ namespace DownSite
         [HttpGet]
         public Article[] Get()
         {
-            var list = Database.Db.LoadSelect<Article>().OrderByDescending(x => x.Created);
-            return list.ToArray();
+            using (var context = new Database())
+            {
+                var list = context.Article.OrderByDescending(x => x.Created);
+                foreach (var a in list)
+                {
+                    a.Category = context.Tag.Where(x => x.ArticleId == a.Id).ToList();
+                }
+                return list.ToArray();
+            }
         }
     }
 
@@ -420,7 +484,10 @@ namespace DownSite
     {
         public static Article[] GetMenuArticles()
         {
-            return Database.Db.Select<Article>(x => x.ShowInMenu).OrderBy(x => x.Title).ToArray();
+            using (var context = new Database())
+            {
+                return context.Article.Where(x => x.ShowInMenu).OrderBy(x => x.Title).ToArray();
+            }
         }
 
         [Route("{id}")]
@@ -436,16 +503,21 @@ namespace DownSite
 
             //var html = Request.AbsoluteUri.EndsWith("?html");
             //if (html)
-           //     return GetHtml(request);
-
-            var a = Database.Db.LoadSelect<Article>().Single(x => x.Title == id || x.Id == guid);
+            //     return GetHtml(request);
             
-            if (a.Author != null)
-                a.AuthorName = a.Author.UserName;
-            else
-                a.AuthorName = "unknown author";
+            using (var context = new Database())
+            {
+                var a = context.Article.Single(x => x.Title == id || x.Id == guid);
+                a.Category = context.Tag.Where(x => x.ArticleId == a.Id).ToList();
 
-            return View("Article", a);
+                if (a.Author != null)
+                    a.AuthorName = a.Author.UserName;
+                else
+                    a.AuthorName = "unknown author";
+
+                return View("Article", a);
+            }
+
             //return a;
             /*return new HttpResult(a)
             {
@@ -462,8 +534,15 @@ namespace DownSite
 
         public static Article[] Get()
         {
-            var list = Database.Db.LoadSelect<Article>().OrderByDescending(x => x.Created);
-            return list.ToArray();
+            using (var context = new Database())
+            {
+                var list = context.Article.OrderByDescending(x => x.Created);
+                foreach(var a in list)
+                {
+                    a.Category = context.Tag.Where(x => x.ArticleId == a.Id).ToList();
+                }
+                return list.ToArray();
+            }
         }
 
         //[Authenticate]
@@ -472,12 +551,16 @@ namespace DownSite
             if (article.Id == Guid.Empty)
                 return new NotFoundResult();
 
-            Database.Db.Delete<Tag>(x => x.ArticleId == article.Id);
+            using (var context = new Database())
+            {
+                var del = context.Tag.Where(x => x.ArticleId == article.Id);
+                context.Tag.RemoveRange(del);
 
-            int count = Database.Db.Delete<Article>(x => x.Id == article.Id);
-            if (count == 0)
-                return new NotFoundResult();
+                var del2 = context.Article.Where(x => x.Id == article.Id);
+                context.Article.RemoveRange(del2);
 
+                context.SaveChanges();
+            }
             return article;
         }
 
@@ -488,62 +571,71 @@ namespace DownSite
             var preview = false;
 
             //var article = Database.db.Single<Article>(x => x.Title == request.Title || x.Id == request.Id);
-            var article = Database.Db.LoadSelect<Article>(x => x.Title == request.Title || x.Id == request.Id).SingleOrDefault();
-            if (article == null)
-                return new NotFoundResult();
 
-            //var author = Database.db.Single<User>(x => x.Id == article.AuthorId);
-            //var category = string.Join(",", Database.db.Select<Category>(x => x.ArticleId == article.Id).OrderBy(x => x.Name).Select(x => x.Name));
-            var category = article.Category != null ? string.Join(",", article.Category.OrderBy(x => x.Name).Select(x => x.Name)) : "";
-            if (article.Author != null)
-                article.AuthorName = article.Author.UserName;
-            else
-                article.AuthorName = "unknown author";
-
-            //var parts = Database.db.Select<Part>(x => x.ArticleId == article.Id).OrderBy(x => x.Number).ToArray();
-
-            string header = "<h1>" + article.Title + "</h1><p>" + (article.AuthorName ?? "unknown author") + ", " + article.Created + " [" + category + "]</p>";
-            string html = "";
-            string previewtext = "";
-
-            if (!string.IsNullOrWhiteSpace(article.Content))
+            using (var context = new Database())
             {
-                if (preview)
-                    previewtext += new HtmlToText().ConvertHtml(article.Content);
+                //BUG
+                var article = context.Article.SingleOrDefault(x => x.Title == request.Title || x.Id == request.Id);
+                if (article == null)
+                    return new NotFoundResult();
+
+                //var author = Database.db.Single<User>(x => x.Id == article.AuthorId);
+                //var category = string.Join(",", Database.db.Select<Category>(x => x.ArticleId == article.Id).OrderBy(x => x.Name).Select(x => x.Name));
+                var category = article.Category != null ? string.Join(",", article.Category.OrderBy(x => x.Name).Select(x => x.Name)) : "";
+                if (article.Author != null)
+                    article.AuthorName = article.Author.UserName;
                 else
-                    html += new CustomMarkdownSharp.Markdown() { Static = staticpage}.Transform(article.Content);
+                    article.AuthorName = "unknown author";
+
+                //var parts = Database.db.Select<Part>(x => x.ArticleId == article.Id).OrderBy(x => x.Number).ToArray();
+
+                string header = "<h1>" + article.Title + "</h1><p>" + (article.AuthorName ?? "unknown author") + ", " + article.Created + " [" + category + "]</p>";
+                string html = "";
+                string previewtext = "";
+
+                if (!string.IsNullOrWhiteSpace(article.Content))
+                {
+                    if (preview)
+                        previewtext += new HtmlToText().ConvertHtml(article.Content);
+                    else
+                        html += new CustomMarkdownSharp.Markdown() { Static = staticpage }.Transform(article.Content);
+                }
+
+                const int maxpreview = 100;
+                if (!string.IsNullOrWhiteSpace(previewtext))
+                {
+                    if (previewtext.Length > maxpreview)
+                        previewtext = previewtext.Substring(0, maxpreview) + "...";
+                    previewtext += "</br>";
+                }
+
+                html = header + previewtext + html;
+
+                return html;
             }
-
-            const int maxpreview = 100;
-            if (!string.IsNullOrWhiteSpace(previewtext))
-            {
-                if(previewtext.Length > maxpreview)
-                    previewtext = previewtext.Substring(0, maxpreview) + "...";
-                previewtext += "</br>";
-            }
-
-            html = header + previewtext + html;
-
-            return html;
         }
 
         //[Authenticate]
         [HttpPut]
         public IActionResult Put(Article article)
         {
-            if (Database.Db.Exists<Article>(x => x.Title == article.Title))
-                return new NotFoundResult();
+            using (var context = new Database())
+            {
+                if (context.Article.Any(x => x.Title == article.Title))
+                    return new NotFoundResult();
 
-            article.Id = Guid.NewGuid();
-            article.Created = article.Modified = DateTime.Now;
+                article.Id = Guid.NewGuid();
+                article.Created = article.Modified = DateTime.Now;
 
-            //var session = GetSession();
-            //if (session.IsAuthenticated)
-            //    article.AuthorId = Database.Db.Single<User>(x => x.UserName == session.UserAuthName).Id;
+                //var session = GetSession();
+                //if (session.IsAuthenticated)
+                //    article.AuthorId = Database.Db.Single<User>(x => x.UserName == session.UserAuthName).Id;
 
-            Database.Db.Insert<Article>(article);
+                context.Article.Add(article);
+                context.SaveChanges();
 
-            return Ok(article);
+                return Ok(article);
+            }
         }
 
         //[Authenticate]
@@ -554,37 +646,38 @@ namespace DownSite
             //if (session.IsAuthenticated)
             //    article.AuthorId = Database.Db.Single<User>(x => x.UserName == session.UserAuthName).Id;
 
-            var original = Database.Db.LoadSelect<Article>().Single(x => x.Id == article.Id);
-            article.Category = article.Category.Where(x => !string.IsNullOrWhiteSpace(x.Name)).ToList();
-
-
-            article.Modified = DateTime.Now;
-
-            if (original == null)
-                throw new Exception("BUG");
-
-            if(article.AuthorId == Guid.Empty)
-                article.AuthorId = original.AuthorId;
-            article.Created = original.Created;
-
-            Database.Db.Update<Article>(article);
-
-            foreach (var c in article.Category.Where(x => original == null || original.Category == null || !original.Category.Any(y => y.Name == x.Name)))
+            using (var context = new Database())
             {
-                c.ArticleId = article.Id;
-                Database.Db.Insert<Tag>(c);
-            }
+                var original = context.Article.Single(x => x.Id == article.Id);
+                if (original == null)
+                    throw new Exception("BUG");
 
-            if (original.Category != null)
-            {
+                original.Category = context.Tag.Where(x => x.ArticleId == original.Id).ToList().ToList();
+
+                article.Category = article.Category.Where(x => !string.IsNullOrWhiteSpace(x.Name)).ToList();
+
+                original.Content = article.Content;
+                original.ShowInBlog = article.ShowInBlog;
+                original.ShowInMenu = article.ShowInMenu;
+                
+                original.Modified = DateTime.Now;
+
+                foreach (var c in article.Category.Where(x => original.Category == null || !original.Category.Any(y => y.Name == x.Name)))
+                {
+                    c.ArticleId = original.Id;
+                    context.Tag.Add(c);
+                }
+                
                 foreach (var c in original.Category.Where(x => !article.Category.Any(y => y.Name == x.Name)))
                 {
-                    c.ArticleId = article.Id;
-                    Database.Db.Delete<Tag>(c);
+                    //c.ArticleId = article.Id;
+                    context.Tag.Remove(c);
                 }
-            }
+                
+                context.SaveChanges();
 
-            return article.Id;
+                return article.Id;
+            }
         }
     }
 }

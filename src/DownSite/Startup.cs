@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Serialization;
+using Microsoft.EntityFrameworkCore;
 
 namespace DownSite
 {
@@ -40,6 +41,10 @@ namespace DownSite
 
             services.AddMvc()
                     .AddJsonOptions(options => options.SerializerSettings.ContractResolver = new DefaultContractResolver());
+
+            //var connection = @"Filename=C:\Users\cody\Documents\DownSite\src\DownSite\data\db2.sqlite3;";
+            //services.AddDbContext<Database>(options => options.UseSqlite(connection));
+
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline

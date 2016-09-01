@@ -1,7 +1,4 @@
-﻿using ServiceStack.DataAnnotations;
-using ServiceStack.OrmLite;
-using ServiceStack.OrmLite.Sqlite;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -10,15 +7,11 @@ using System.Net;
 using System.Data;
 using System.IO;
 using System.Drawing;
-using ServiceStack.Web;
 using System.Web;
 using System.Threading;
-using ServiceStack.Auth;
-using ServiceStack.Caching;
 using System.Diagnostics;
 using System.Security.Cryptography;
 //using ServiceStack.Razor;
-using ServiceStack.Logging;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc;
 
@@ -99,6 +92,7 @@ namespace DownSite
 
         public static void Generate(DirectoryInfo output, DirectoryInfo data, bool delete)
         {
+            /*
             if (output.Exists && delete)
             {
                 foreach(var d in output.GetDirectories())
@@ -134,6 +128,7 @@ namespace DownSite
                 File.Copy(source, path, true);
             }*/
 
+            /*
             var article_dir = output.CreateSubdirectory("article");
             var articles = db.LoadSelect<Article>();
             foreach (var a in articles)
