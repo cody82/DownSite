@@ -659,6 +659,7 @@ namespace DownSite
                 original.Content = article.Content;
                 original.ShowInBlog = article.ShowInBlog;
                 original.ShowInMenu = article.ShowInMenu;
+                original.Title = article.Title;
                 
                 original.Modified = DateTime.Now;
 
