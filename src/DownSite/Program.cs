@@ -931,7 +931,8 @@ namespace DownSite
                 }
                 else
                 {
-                    return new PhysicalFileResult(img.Item2.FullName, string.IsNullOrWhiteSpace(img.Item1.MimeType) ? MimeTypes.ImageJpg : img.Item1.MimeType);
+                    return StreamResult(img.Item2.FullName, string.IsNullOrWhiteSpace(img.Item1.MimeType) ? MimeTypes.ImageJpg : img.Item1.MimeType);
+                    //return new PhysicalFileResult(img.Item2.FullName, string.IsNullOrWhiteSpace(img.Item1.MimeType) ? MimeTypes.ImageJpg : img.Item1.MimeType);
                     //var res = new HttpResult(img.Item2, string.IsNullOrWhiteSpace(img.Item1.MimeType) ? MimeTypes.ImageJpg : img.Item1.MimeType ) { };
                     var res = new PhysicalFileResult(img.Item2.FullName, string.IsNullOrWhiteSpace(img.Item1.MimeType) ? MimeTypes.ImageJpg : img.Item1.MimeType) { };
                     if (img.Item1.MimeType == "application/octet-stream")
